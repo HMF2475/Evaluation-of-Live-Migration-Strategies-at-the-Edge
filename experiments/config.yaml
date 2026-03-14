@@ -1,0 +1,74 @@
+# Experiment Configuration
+# ========================
+# This file controls all migration experiments.
+# Copy this file and edit parameters for different test scenarios.
+
+experiment:
+  name: "tactical-edge-migration-benchmark"
+  description: "Comparison of container vs WASM service migration strategies"
+  iterations: 5          # Number of repetitions per strategy (for statistical significance)
+  warmup_iterations: 1   # Warm-up runs not included in results
+
+nodes:
+  source:
+    host: "node-source"   # Source edge node hostname / IP
+    ssh_user: "root"
+    ssh_key: "~/.ssh/id_ed25519"
+    service_port: 8080
+
+  target:
+    host: "node-target"   # Target edge node hostname / IP
+    ssh_user: "root"
+    ssh_key: "~/.ssh/id_ed25519"
+    service_port: 8080
+
+container:
+  name: "edge-service"
+  image: "edge-service:latest"
+  dockerfile: "../container-tests/service/Dockerfile"
+  # CRIU checkpoint directory (must be on a filesystem accessible to Docker)
+  checkpoint_dir: "/tmp/criu_checkpoints"
+
+  strategies:
+    cold:
+      enabled: true
+
+    pre_copy:
+      enabled: true
+      rounds: 3           # Number of pre-copy iterations
+
+    post_copy:
+      enabled: true
+      page_server_port: 27000
+
+    hybrid:
+      enabled: true
+      pre_copy_rounds: 2
+      page_server_port: 27001
+
+wasm:
+  binary: "../wasm-tests/service/target/wasm32-wasip1/release/edge-service.wasm"
+  state_file: "/tmp/wasm_service_state.json"
+  runtimes:
+    - wasmtime
+    - wasmedge
+    - wasmer
+
+network:
+  # Simulated network conditions (applied via tc/netem)
+  # Set to null / empty to use native network
+  bandwidth_limit: null   # e.g. "10mbit"
+  latency_ms: null        # e.g. 50
+  packet_loss_pct: null   # e.g. 1.0
+  interface: "eth0"
+
+metrics:
+  # Resource monitoring settings
+  sample_interval_secs: 0.5
+  output_dir: "../results"
+
+  collect:
+    cpu: true
+    memory: true
+    network: true
+    disk: true

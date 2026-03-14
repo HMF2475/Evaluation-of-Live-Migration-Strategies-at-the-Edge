@@ -1,0 +1,37 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Experiment result files (generated at runtime — do not commit)
+results/*.json
+results/*.csv
+analysis/plots/
+
+# WASM build artefacts
+wasm-tests/service/target/
+
+# Container image tars
+*.tar
+
+# CRIU checkpoint directories
+/tmp/criu_*/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
