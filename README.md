@@ -85,6 +85,45 @@ Results will be analyzed to determine the suitability of each approach for **res
 - WebAssembly at the Edge
 - Distributed Systems
 
+## Setup
+
+### CRIU (Checkpoint/Restore In Userspace)
+
+Container migration experiments rely on CRIU.  
+After cloning the repository, build CRIU and set the required Linux capability
+by running the setup script:
+
+```bash
+chmod +x tools/setup.sh
+./tools/setup.sh
+```
+
+The script clones CRIU into `tools/criu/`, compiles it, and applies
+`cap_checkpoint_restore+eip` to the binary so that checkpoint/restore
+operations work without running as root.
+
+After setup, verify CRIU is operational:
+
+```bash
+cd tools/criu && ./criu/criu check
+```
+
+#### Manually applying the capability
+
+If you have already compiled CRIU and only need to (re-)apply the capability,
+run the following from the `tools/criu/` directory:
+
+```bash
+sudo setcap cap_checkpoint_restore+eip ./criu/criu
+```
+
+Then verify:
+
+```bash
+getcap ./criu/criu
+# Expected: ./criu/criu = cap_checkpoint_restore+eip
+```
+
 ## License
 
 This project is part of an academic research effort. Licensing will be defined as the project evolves.

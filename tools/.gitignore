@@ -1,0 +1,2 @@
+# CRIU source and build artefacts (populated by tools/setup.sh)
+criu/
