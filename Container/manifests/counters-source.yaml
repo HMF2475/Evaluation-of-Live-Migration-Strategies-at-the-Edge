@@ -1,0 +1,31 @@
+# Counter pod — SOURCE node (edge-node-1)
+# Deploy this on edge-node-1. The counter prints an incrementing integer
+# every second. After CRIU checkpoint + restore on edge-node-2, the
+# counter should resume from the last printed value.
+#
+# Usage:
+#   kubectl apply -f counters-source.yaml
+#   kubectl logs -f counters
+apiVersion: v1
+kind: Pod
+metadata:
+  name: counters
+  namespace: default
+  labels:
+    app: counters
+spec:
+  nodeName: edge-node-1
+  tolerations:
+    # Required when running on the control-plane node (edge-node-1 acts as both)
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  containers:
+    - name: counter
+      image: busybox:latest
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - i=0; while true; do echo $i; i=$((i+1)); sleep 1; done
+  restartPolicy: Never

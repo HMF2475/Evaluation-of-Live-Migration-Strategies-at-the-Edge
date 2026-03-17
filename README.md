@@ -49,6 +49,10 @@ bash Container/scripts/collect_migration_metrics.sh \
 
 When using the script, do not also run manual Part 4/5/6 for the same run, because the script already performs checkpoint, transfer, restore, and CSV logging.
 
+This container baseline is a memory-only migration experiment. It preserves in-memory
+process state, but does not preserve active network sockets, external client connections,
+or persistent storage state.
+
 ## Objectives
 
 The main goal is to **benchmark and compare service migration mechanisms** using the following metrics:
@@ -63,14 +67,12 @@ The main goal is to **benchmark and compare service migration mechanisms** using
 The experiments will compare:
 
 - **Container migration**
-  - Cold migration
-  - Pre-copy migration
-  - Post-copy migration
-  - Hybrid approaches
+  - Checkpoint/restore using CRIU
+  - Live migration techniques
 
 - **WebAssembly migration**
-  - Checkpoint/restore mechanisms
-  - Lightweight runtime portability
+  - WASM module serialization and transfer
+  - State transfer mechanisms for WASM runtimes
 
 ## Research Context
 

@@ -1,0 +1,28 @@
+# Counter pod — DESTINATION node (edge-node-2)
+# Apply this AFTER:
+#   1. Checkpointing the "counters" pod on edge-node-1
+#   2. Building the checkpoint OCI image with checkpointctl
+#   3. Importing the image on edge-node-2 with: ctr -n k8s.io images import <tar>
+#
+# imagePullPolicy: Never — uses the locally imported checkpoint image only.
+# The container runtime (containerd) detects the CRIU checkpoint annotation in
+# the OCI image and restores the process state instead of starting from scratch.
+#
+# Usage:
+#   kubectl delete pod counters                  # stop source first
+#   kubectl apply -f counters-restore.yaml
+#   kubectl logs -f counters                     # should continue from checkpoint value
+apiVersion: v1
+kind: Pod
+metadata:
+  name: counters
+  namespace: default
+  labels:
+    app: counters
+spec:
+  nodeName: edge-node-2
+  containers:
+    - name: counter
+      image: localhost/counter-checkpoint:v1
+      imagePullPolicy: Never
+  restartPolicy: Never
