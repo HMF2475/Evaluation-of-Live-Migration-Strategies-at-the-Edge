@@ -1,0 +1,43 @@
+# Terraform artifacts (sensitive state, plans, locks)
+tools/terraform/.terraform/*
+tools/terraform/.terraform.lock.hcl
+tools/terraform/.terraform.tfstate.lock.info
+tools/terraform/terraform.tfstate
+tools/terraform/terraform.tfstate.backup
+
+
+
+# CRIU test artifacts (generated at runtime)
+tools/test/*.img
+tools/test/*.log
+tools/test/core-*
+tools/test/dump.log
+tools/test/restore.log
+tools/test/stats-*
+
+# Build artifacts & compiled binaries
+**/*.o
+**/*.d
+**/*.a
+**/*.so
+**/*.elf
+**/*.bin
+**/*.out
+
+# Editor & IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python bytecode
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.pytest_cache/
+
+# OS artifacts
+.cache/
+.Trash-*

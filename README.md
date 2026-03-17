@@ -17,6 +17,38 @@ In these environments, **efficient service migration** is essential to maintain 
 
 This project evaluates whether **container migration** or **WebAssembly-based migration** provides better performance and portability for such environments.
 
+## Repository Guides
+
+To avoid duplicated instructions across files, use this split:
+
+- Infrastructure provisioning: `tools/terraform/README.md`
+- Manual container migration walkthrough: `Container/K8_MIGRATION_SETUP.md`
+- Automated metrics script: `Container/scripts/collect_migration_metrics.sh`
+
+## Container Experiment: Manual vs Automated
+
+There are two valid paths for the container experiment.
+
+1. Manual path
+- Follow all relevant parts in `Container/K8_MIGRATION_SETUP.md`.
+
+2. Automated path
+- Run Part 1 and Part 2 from `Container/K8_MIGRATION_SETUP.md`.
+- Run Part 3 so `counter` is running on `edge-node-1`.
+- Then run the script once from repository root:
+
+```bash
+bash Container/scripts/collect_migration_metrics.sh \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --container counter \
+  --scenario E1_memory_only \
+  --run-id e1-run-001 \
+  --csv Container/metrics/migration_metrics.csv
+```
+
+When using the script, do not also run manual Part 4/5/6 for the same run, because the script already performs checkpoint, transfer, restore, and CSV logging.
+
 ## Objectives
 
 The main goal is to **benchmark and compare service migration mechanisms** using the following metrics:
@@ -60,7 +92,7 @@ The evaluation environment includes:
 - Service checkpoint and migration mechanisms
 - Measurement tools for performance evaluation
 
-The project integrate with orchestration framework **Oakestra** to simulate realistic edge deployment scenarios.
+The project integrates with the orchestration framework **Oakestra** to simulate realistic edge deployment scenarios.
 
 
 ## Evaluation Methodology
@@ -87,4 +119,4 @@ Results will be analyzed to determine the suitability of each approach for **res
 
 ## License
 
-This project is part of an academic research effort. Licensing will be defined as the project evolves.
+This project is released under the MIT License. See `LICENSE`.

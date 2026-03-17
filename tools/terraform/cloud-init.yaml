@@ -1,54 +1,125 @@
 #cloud-config
+# Tactical Edge CRIU migration demo — minimal cloud-init.
+#
+# Strategy: keep runcmd FAST (< 60s) so multipass launch completes.
+# All heavy installs (K8s tools, CRIU build) run in a background
+# systemd service. Check progress:
+#   sudo journalctl -u node-bootstrap -f --no-pager
+#
 package_update: false
+package_upgrade: false
+
+# No packages here — bootstrap script does apt-get update + install
+# so everything lands in one atomic background step.
 
 write_files:
-  - path: /usr/local/bin/bootstrap-criu.sh
+  # ── K8s kernel modules ────────────────────────────────────────────────────
+  - path: /etc/modules-load.d/k8s.conf
+    permissions: "0644"
+    content: |
+      overlay
+      br_netfilter
+
+  # ── K8s sysctl ────────────────────────────────────────────────────────────
+  - path: /etc/sysctl.d/k8s.conf
+    permissions: "0644"
+    content: |
+      net.bridge.bridge-nf-call-iptables=1
+      net.bridge.bridge-nf-call-ip6tables=1
+      net.ipv4.ip_forward=1
+
+  # ── Podman: force runc as OCI runtime (required for CRIU) ─────────────────
+  - path: /etc/containers/containers.conf
+    permissions: "0644"
+    content: |
+      [engine]
+        default_runtime = "runc"
+
+  # ── Full bootstrap script ─────────────────────────────────────────────────
+  - path: /usr/local/bin/node-bootstrap.sh
+    permissions: "0755"
     content: |
       #!/usr/bin/env bash
       set -euo pipefail
-
-      LOG_FILE=/var/log/criu-bootstrap.log
-      exec > >(tee -a "$LOG_FILE") 2>&1
-
-      echo "Starting CRIU build process..."
+      exec > >(tee -a /var/log/node-bootstrap.log) 2>&1
       export DEBIAN_FRONTEND=noninteractive
-      export PIP_BREAK_SYSTEM_PACKAGES=1
 
-      apt-get update
+      echo "[bootstrap] Starting — $(date)"
+
+      apt-get update -qq
+
+      # ── Core runtime tools ────────────────────────────────────────────────
+      apt-get install -y containerd podman runc buildah \
+        apt-transport-https ca-certificates curl gpg
+
+      # ── containerd: systemd cgroups + correct pause image ─────────────────
+      mkdir -p /etc/containerd
+      containerd config default > /etc/containerd/config.toml
+      sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+      sed -i 's#sandbox_image = ".*"#sandbox_image = "registry.k8s.io/pause:3.9"#' /etc/containerd/config.toml
+      systemctl restart containerd
+      systemctl enable containerd
+
+      # ── Kubernetes 1.30 ───────────────────────────────────────────────────
+      mkdir -p /etc/apt/keyrings
+      curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key \
+        | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' \
+        > /etc/apt/sources.list.d/kubernetes.list
+      apt-get update -qq
+      apt-get install -y kubelet kubeadm kubectl
+      apt-mark hold kubelet kubeadm kubectl
+      systemctl enable --now kubelet
+
+      echo "[bootstrap] K8s tools ready — $(date)"
+
+      # ── CRIU (from source) ────────────────────────────────────────────────
       apt-get install -y \
         build-essential pkg-config \
         libprotobuf-dev libprotobuf-c-dev protobuf-c-compiler protobuf-compiler python3-protobuf \
-        libbsd-dev iproute2 libnftables-dev libcap-dev libnet1-dev libnl-3-dev libaio-dev libgnutls28-dev libdrm-dev \
-        git asciidoc xmlto uuid-dev python3-yaml python3-pip ca-certificates
+        libbsd-dev iproute2 libnftables-dev libcap-dev libnet1-dev libnl-3-dev libaio-dev \
+        libgnutls28-dev libdrm-dev \
+        git asciidoc xmlto uuid-dev python3-yaml python3-pip
 
       if [ ! -d /opt/criu/.git ]; then
-        git clone https://github.com/checkpoint-restore/criu.git /opt/criu
+        git clone --depth=1 https://github.com/checkpoint-restore/criu.git /opt/criu
       fi
-
       cd /opt/criu
       git pull --ff-only || true
-      make
+      make -j"$(nproc)"
       make install
-      echo "CRIU installation complete!"
+      ln -sf /usr/local/sbin/criu /usr/bin/criu
 
-  - path: /etc/systemd/system/criu-bootstrap.service
+      echo "[bootstrap] CRIU $(criu --version) ready — $(date)"
+      echo "[bootstrap] Node fully provisioned."
+
+  # ── systemd unit ──────────────────────────────────────────────────────────
+  - path: /etc/systemd/system/node-bootstrap.service
+    permissions: "0644"
     content: |
       [Unit]
-      Description=Build and install CRIU after first boot
+      Description=Install K8s tools and build CRIU
       After=network-online.target
       Wants=network-online.target
+      ConditionPathExists=!/usr/bin/criu
 
       [Service]
       Type=simple
-      ExecStart=/usr/local/bin/bootstrap-criu.sh
+      ExecStart=/usr/local/bin/node-bootstrap.sh
       StandardOutput=journal
       StandardError=journal
+      TimeoutStartSec=1800
 
       [Install]
       WantedBy=multi-user.target
 
 runcmd:
-  - chmod 0755 /usr/local/bin/bootstrap-criu.sh
-  - chmod 0644 /etc/systemd/system/criu-bootstrap.service
+  # Fast only — completes in < 30s so multipass launch does not time out.
+  - modprobe overlay
+  - modprobe br_netfilter
+  - sysctl --system
+  - swapoff -a
+  - sed -i '/\sswap\s/d' /etc/fstab
   - systemctl daemon-reload
-  - systemctl enable --now criu-bootstrap.service
+  - systemctl enable node-bootstrap.service
+  - systemctl start --no-block node-bootstrap.service

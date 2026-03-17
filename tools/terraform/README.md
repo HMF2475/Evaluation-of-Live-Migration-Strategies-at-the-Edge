@@ -20,12 +20,6 @@ To replicate this environment, the host machine must have the following installe
 * **Terraform** (v1.0 or newer)
 * **Multipass** (v1.13 or newer)
 
-## Experiment Scope References
-
-After infrastructure provisioning, continue with the migration experiment guides:
-
-* Container baseline (Kubernetes + CRIU): `../../Container/K8_MIGRATION_SETUP.md`
-* Wasm migration track (Oakestra): `../../README.md` (project-level methodology and objectives)
 
 ## Usage Instructions
 
@@ -58,8 +52,8 @@ multipass shell edge-node-1
 Before running CRIU commands, verify the bootstrap service has finished:
 
 ```bash
-systemctl status criu-bootstrap.service
-tail -f /var/log/criu-bootstrap.log
+sudo systemctl status node-bootstrap.service
+sudo tail -f /var/log/node-bootstrap.log
 criu --version
 ```
 
@@ -69,6 +63,53 @@ To cleanly destroy the experimental baseline and release host resources:
 terraform destroy
 ```
 
+### 6. Stop/Resume VMs (Without Destroy)
+If you want to pause the lab and continue later with the same instances:
+
+```bash
+multipass stop edge-node-1 edge-node-2
+```
+
+Resume later:
+
+```bash
+multipass start edge-node-1 edge-node-2
+multipass list
+```
+
+Quick readiness check after start:
+
+```bash
+for n in edge-node-1 edge-node-2; do
+	echo "=== $n ==="
+	multipass exec $n -- bash -c '
+		systemctl is-active node-bootstrap || true
+		criu --version 2>/dev/null | head -1 || true
+		sudo podman --version
+	'
+done
+```
+
+### 7. Reset Nodes for a Fresh Migration Run
+If you want to keep the VMs but rerun migration from scratch, clear runtime state and checkpoint artifacts:
+
+```bash
+for n in edge-node-1 edge-node-2; do
+	echo "=== reset $n ==="
+	multipass exec $n -- bash -c '
+		sudo podman rm -f counter 2>/dev/null || true
+		sudo podman rm -fa 2>/dev/null || true
+		sudo podman system reset -f
+		sudo rm -f /tmp/counter-checkpoint.tar.zst /home/ubuntu/counter-checkpoint.tar.zst
+	'
+done
+
+rm -f "$PWD/../counter-checkpoint.tar.zst" 2>/dev/null || true
+rm -f "$PWD/../../counter-checkpoint.tar.zst" 2>/dev/null || true
+```
+
+This preserves the infrastructure and provisioning work while giving you a clean migration baseline.
+
 
 ### Troubleshooting
 
@@ -77,8 +118,8 @@ If you got a timeout while launching a node, check whether the instance actually
 ```bash
 multipass list
 multipass exec edge-node-1 -- cloud-init status --long
-multipass exec edge-node-1 -- systemctl status criu-bootstrap.service
-multipass exec edge-node-1 -- tail -n 100 /var/log/criu-bootstrap.log
+multipass exec edge-node-1 -- sudo systemctl status node-bootstrap.service
+multipass exec edge-node-1 -- sudo tail -n 100 /var/log/node-bootstrap.log
 ```
 
 If a partial instance was created and you want to retry cleanly, run:
@@ -93,15 +134,10 @@ terraform apply
 #### Criu check error
 When you enter the node and run `criu check`, if you encounter an error, first confirm the CRIU bootstrap finished successfully. Run:
 ```bash
-systemctl status criu-bootstrap.service
-tail -f /var/log/criu-bootstrap.log
+sudo systemctl status node-bootstrap.service
+sudo tail -f /var/log/node-bootstrap.log
 ```
 to inspect the installation logs inside the VM. If the service completed, verify the binary is present with `criu --version` before retrying `criu check`.
 
 
-## References:
-https://canonical.com/multipass
-https://github.com/todoroff/terraform-provider-multipass
-https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
-https://kubernetes.io/blog/2026/01/21/introducing-checkpoint-restore-wg/
-https://criu.org/Installation
+
