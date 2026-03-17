@@ -1,0 +1,54 @@
+#cloud-config
+package_update: false
+
+write_files:
+  - path: /usr/local/bin/bootstrap-criu.sh
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      LOG_FILE=/var/log/criu-bootstrap.log
+      exec > >(tee -a "$LOG_FILE") 2>&1
+
+      echo "Starting CRIU build process..."
+      export DEBIAN_FRONTEND=noninteractive
+      export PIP_BREAK_SYSTEM_PACKAGES=1
+
+      apt-get update
+      apt-get install -y \
+        build-essential pkg-config \
+        libprotobuf-dev libprotobuf-c-dev protobuf-c-compiler protobuf-compiler python3-protobuf \
+        libbsd-dev iproute2 libnftables-dev libcap-dev libnet1-dev libnl-3-dev libaio-dev libgnutls28-dev libdrm-dev \
+        git asciidoc xmlto uuid-dev python3-yaml python3-pip ca-certificates
+
+      if [ ! -d /opt/criu/.git ]; then
+        git clone https://github.com/checkpoint-restore/criu.git /opt/criu
+      fi
+
+      cd /opt/criu
+      git pull --ff-only || true
+      make
+      make install
+      echo "CRIU installation complete!"
+
+  - path: /etc/systemd/system/criu-bootstrap.service
+    content: |
+      [Unit]
+      Description=Build and install CRIU after first boot
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      ExecStart=/usr/local/bin/bootstrap-criu.sh
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - chmod 0755 /usr/local/bin/bootstrap-criu.sh
+  - chmod 0644 /etc/systemd/system/criu-bootstrap.service
+  - systemctl daemon-reload
+  - systemctl enable --now criu-bootstrap.service
