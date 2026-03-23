@@ -1,2 +1,1 @@
-run_id,scenario,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,src_arch,dst_arch,same_arch
-e1-run-001,E1_memory_only,564,54558,731,2587,3882,x86_64,x86_64,true
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
