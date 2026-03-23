@@ -41,3 +41,10 @@ tools/test/stats-*
 # OS artifacts
 .cache/
 .Trash-*
+
+
+Container/simplest-example/checkpoint/**
+tools/checkpointctl/**
+tools/criu/**
+tools/go-criu/**
+Container/CRIU/**
