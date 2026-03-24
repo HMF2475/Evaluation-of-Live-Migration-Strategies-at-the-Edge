@@ -148,6 +148,13 @@ multipass exec edge-node-1 -- kubectl apply -f \
   https://github.com/flannel-io/flannel/releases/download/v0.25.6/kube-flannel.yml
 ```
 
+Why this is included:
+- The guide uses a Kubernetes cluster baseline, and nodes typically remain `NotReady`
+  until a CNI plugin is installed.
+- Flannel provides that CNI so Kubernetes networking and pod lifecycle become healthy.
+- The migration demo itself is Podman-native and memory-only (`--network=none`), but
+  keeping the cluster healthy is important for consistency and for later K8s-based tests.
+
 Verify control-plane is Ready (wait ~30 s):
 
 ```bash
@@ -229,13 +236,18 @@ It will perform checkpoint, transfer, restore, and write one CSV row.
 Run from repository root:
 
 ```bash
-bash Container/scripts/collect_migration_metrics.sh \
+bash Container/scripts/orchestrators/collect_podman_metrics.sh \
   --source edge-node-1 \
   --dest edge-node-2 \
   --container counter \
   --scenario E1_memory_only \
   --run-id e1-run-001 \
   --csv Container/metrics/migration_metrics.csv
+```
+After the script finishes, you can run:
+```bash
+multipass exec edge-node-2 -- sudo podman logs -f counter
+# You're going to see the counter continue on edge-node-2 without interruption
 ```
 
 Important:
