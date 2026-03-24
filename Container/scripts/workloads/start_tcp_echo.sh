@@ -9,6 +9,11 @@
 NODE="${1:-edge-node-1}"
 PORT="${2:-5000}"
 
+if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+  echo "Error: PORT must be a number between 1 and 65535 (got: ${PORT})" >&2
+  exit 1
+fi
+
 echo "[$(date +'%H:%M:%S')] Starting TCP echo server on $NODE:$PORT..."
 
 multipass exec "$NODE" -- bash -lc "

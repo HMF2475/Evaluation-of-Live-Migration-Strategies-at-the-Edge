@@ -62,7 +62,7 @@ cd tools/terraform && terraform apply
 python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
 
 # Start workload on source
-bash Container/scripts/start_counter_c.sh edge-node-1
+bash Container/scripts/workloads/start_counter_c.sh edge-node-1
 
 # Run cold migration with DIRECT VM-to-VM transfer (RECOMMENDED)
 python3 Container/scripts/orchestrators/criu_benchmark.py cold \
@@ -111,7 +111,7 @@ scp ubuntu@edge-node-1:/home/ubuntu/CRIU-counter.tar.gz ubuntu@edge-node-2:/home
 | **Real migration** | ❌ No | ✅ Yes (like production) |
 | **Tactical edge ready** | ❌ No | ✅ Yes |
 
-The direct mode automatically sets up SSH trust between nodes, so you don't need to configure it manually!
+The direct mode automatically sets up SSH trust between nodes on first use, so you don't need to configure it manually beforehand!
 
 ## Watching Live Migration in Real Time
 

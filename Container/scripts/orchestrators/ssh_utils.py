@@ -6,6 +6,7 @@ Handles Ed25519 key generation, trust setup, and SCP transfers.
 
 import subprocess
 import os
+import tempfile
 from typing import Optional
 from pathlib import Path
 
@@ -70,12 +71,13 @@ def ensure_direct_ssh_trust(source_node: str, dest_node: str) -> bool:
         print("ERROR: Could not read public key from source")
         return False
     
-    # Add public key to destination's authorized_keys
+    # Add public key to destination's authorized_keys (avoid duplicates)
     print("  Adding public key to destination's authorized_keys...")
+    pubkey = pubkey.strip()
     dest.exec(
         f'mkdir -p ~/.ssh && chmod 700 ~/.ssh && '
-        f'echo "{pubkey}" >> ~/.ssh/authorized_keys && '
-        f'chmod 600 ~/.ssh/authorized_keys',
+        f'touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && '
+        f'grep -qxF "{pubkey}" ~/.ssh/authorized_keys || echo "{pubkey}" >> ~/.ssh/authorized_keys',
         check=False
     )
     
@@ -99,8 +101,8 @@ def transfer_archive_direct(source_node: str, dest_node: str,
                            source_path: str, dest_path: str) -> bool:
     """Transfer file source→destination directly via SCP.
     
-    Uses direct SSH connection between VMs without going through
-    the host machine.
+    Ensures SSH trust is established before transferring. Uses BatchMode
+    to avoid hanging on interactive auth prompts.
     
     Args:
         source_node: Source VM name
@@ -118,9 +120,15 @@ def transfer_archive_direct(source_node: str, dest_node: str,
         print(f"ERROR: Could not get IP for {dest_node}")
         return False
     
+    # Ensure SSH trust is established before attempting direct SCP
+    if not ensure_direct_ssh_trust(source_node, dest_node):
+        print(f"ERROR: Failed to establish SSH trust between {source_node} and {dest_node}")
+        return False
+    
     print(f"  Transferring {source_path} via SCP...")
     rc, _, _ = source.exec(
-        f'scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+        f'scp -o BatchMode=yes -o ConnectTimeout=10 '
+        f'-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
         f'{source_path} ubuntu@{dest_ip}:{dest_path}',
         check=False
     )
@@ -155,8 +163,9 @@ def transfer_archive_via_host(source_node: str, dest_node: str,
         print(f"ERROR: Source file not found: {source_path}")
         return False
     
-    # Use multipass transfer
-    temp_file = f"/tmp/{source_path.split('/')[-1]}"
+    # Use a unique temp file to avoid collisions across concurrent runs
+    fd, temp_file = tempfile.mkstemp(suffix=f"_{source_path.split('/')[-1]}")
+    os.close(fd)
     rc = subprocess.run(
         ["multipass", "transfer", f"{source_node}:{source_path}", temp_file],
         capture_output=True
@@ -164,6 +173,10 @@ def transfer_archive_via_host(source_node: str, dest_node: str,
     
     if rc != 0:
         print(f"ERROR: Transfer from source failed")
+        try:
+            os.remove(temp_file)
+        except FileNotFoundError:
+            pass
         return False
     
     # Transfer from host to destination

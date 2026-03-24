@@ -17,12 +17,12 @@ try:
     from .migration_strategy import MigrationStrategy
     from .metrics import MigrationMetrics
     from .multipass_command import MultipassCommand
-    from .ssh_utils import transfer_archive_via_host, transfer_archive_direct
+    from .ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
 except ImportError:
     from migration_strategy import MigrationStrategy
     from metrics import MigrationMetrics
     from multipass_command import MultipassCommand
-    from ssh_utils import transfer_archive_via_host, transfer_archive_direct
+    from ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
 
 
 class PrecopyMigration(MigrationStrategy):
@@ -144,7 +144,7 @@ class PrecopyMigration(MigrationStrategy):
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
         self.metrics.dst_arch = self.dest.get_arch()
-        self.metrics.same_arch = 1 if self.metrics.src_arch == self.metrics.dst_arch else 0
+        self.metrics.same_arch = self.metrics.src_arch == self.metrics.dst_arch
         if self.metrics.same_arch:
             self.log(f"  Architecture: {self.metrics.src_arch} (compatible)")
         else:
@@ -164,8 +164,18 @@ class PrecopyMigration(MigrationStrategy):
 
         for i in range(self.iterations):
             self.log(f"  Pre-dump {i+1}/{self.iterations}...")
+            iter_dir = f"/tmp/CRIU-counter/iter-{i}"
+            prev_opt = ""
+            if i > 0:
+                prev_iter_dir = f"/tmp/CRIU-counter/iter-{i-1}"
+                prev_opt = f" --prev-images-dir {prev_iter_dir}"
+            cmd = (
+                f"sudo mkdir -p {iter_dir} && "
+                f"sudo criu pre-dump -t {pid} -D {iter_dir}{prev_opt} "
+                f"-v4 --shell-job --skip-file-rwx-check --track-mem"
+            )
             rc, _, err = self.source.exec(
-                f"sudo criu pre-dump -t {pid} -D /tmp/CRIU-counter -v4 --shell-job --skip-file-rwx-check",
+                cmd,
                 check=False,
             )
             if rc != 0:
@@ -182,8 +192,13 @@ class PrecopyMigration(MigrationStrategy):
         self.log("Step 4: Final dump (freezing service)...")
         t_final_dump_start = time.time_ns()
         
+        prev_opt = ""
+        if self.iterations > 0:
+            last_iter_dir = f"/tmp/CRIU-counter/iter-{self.iterations - 1}"
+            prev_opt = f" --prev-images-dir {last_iter_dir}"
+        
         rc, _, err = self.source.exec(
-            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log --shell-job --skip-file-rwx-check",
+            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log{prev_opt} --shell-job --skip-file-rwx-check",
             check=False,
         )
 
@@ -198,6 +213,8 @@ class PrecopyMigration(MigrationStrategy):
         t_final_dump_done = time.time_ns()
         final_dump_ms = (t_final_dump_done - t_final_dump_start) // 1_000_000
         self.metrics.final_dump_ms = int(final_dump_ms)
+        # For precopy, checkpoint_ms represents the final dump (freeze) duration.
+        self.metrics.checkpoint_ms = int(final_dump_ms)
         self.log(f"  Final dump time (freeze duration): {final_dump_ms} ms")
 
         # Step 5: Create and transfer archive
@@ -218,6 +235,15 @@ class PrecopyMigration(MigrationStrategy):
 
         # Step 6: Transfer
         self.log("Step 6: Transferring archive...")
+        
+        # Set up direct SSH trust before first SCP transfer
+        if self.transfer_mode == "direct":
+            self.log("  Setting up direct SSH trust...")
+            if not ensure_direct_ssh_trust(self.source.node, self.dest.node):
+                self.log("ERROR: Failed to set up SSH trust for direct transfer")
+                self.metrics.notes += "; ssh_trust_failed"
+                return False
+        
         t_transfer_start = time.time_ns()
         
         transfer_ok = transfer_archive_via_host(
@@ -250,6 +276,24 @@ class PrecopyMigration(MigrationStrategy):
         # Step 7.5: Transfer log file if needed
         if not self._verify_and_transfer_log_file():
             return False
+
+        # Step 7.8: Ensure migrated process executable exists on destination
+        self.log("Step 7.8: Ensuring /tmp/counter binary is present on destination...")
+        rc, _, _ = self.dest.exec("[ -x /tmp/counter ]", check=False)
+        if rc != 0:
+            self.log("  /tmp/counter missing on destination, copying from source...")
+            rc_src, counter_b64, _ = self.source.exec(
+                "if [ -f /tmp/counter ]; then base64 /tmp/counter; else echo ''; fi",
+                check=False,
+            )
+            if rc_src != 0 or not counter_b64.strip():
+                self.log("WARNING: /tmp/counter binary not found on source; restore may fail")
+                self.metrics.notes += "; missing_binary"
+            else:
+                self.dest.exec(
+                    f"echo '{counter_b64.strip()}' | base64 -d > /tmp/counter && chmod +x /tmp/counter",
+                    check=False,
+                )
 
         # Step 8: Restore
         self.log("Step 8: Restoring process...")

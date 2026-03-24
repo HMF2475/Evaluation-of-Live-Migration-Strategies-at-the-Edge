@@ -25,7 +25,7 @@ class MigrationMetrics:
     bandwidth_mbps: float = 0.0
     src_arch: str = ""
     dst_arch: str = ""
-    same_arch: str = ""
+    same_arch: bool = False
     success: bool = False
     notes: str = ""
     timestamp: str = ""
