@@ -48,3 +48,5 @@ tools/checkpointctl/**
 tools/criu/**
 tools/go-criu/**
 Container/CRIU/**
+
+Notes-no-commit.md
