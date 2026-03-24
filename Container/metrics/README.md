@@ -17,76 +17,88 @@ run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes
 Columns:
 - `run_id` - Unique identifier for this benchmark run
 - `technology` - CRIU
-- `migration_method` - cold, precopy, postcopy, hybrid
+- `migration_method` - cold, precopy, postcopy
 - `network_migration` - yes (with TCP/UDP socket preservation), no (memory-only)
-- `checkpoint_ms` - Time to dump/checkpoint process (milliseconds)
+- `checkpoint_ms` - Time to dump process (milliseconds). For precopy, this is the **final dump only** (when service freezes), not including pre-dumps
 - `archive_bytes` - Size of the checkpoint archive transferred
 - `transfer_ms` - Time to transfer archive between nodes (milliseconds)
 - `restore_ms` - Time to restore process on destination (milliseconds)
-- `downtime_ms` - Total service downtime (checkpoint + transfer + restore)
+- `downtime_ms` - Total service downtime (checkpoint_ms + transfer_ms + restore_ms). **For precopy, this correctly excludes pre-dump time** since the service was still running during pre-dumps
 - `bandwidth_mbps` - Effective bandwidth utilization during transfer (archive_bytes × 8 / (transfer_ms × 1000))
 - `src_arch` - Source node architecture (x86_64, arm64, etc.)
 - `dst_arch` - Destination node architecture
 - `same_arch` - true if source and destination have matching architecture
 - `success` - true/false indicating if migration completed successfully
-- `notes` - Any anomalies, errors, or observations
+- `notes` - Anomalies, errors, observations, or transfer mode (e.g., `transfer_mode=direct`)
 
 ## Collection Tools
 
-Use the Python benchmarking tool to automatically collect metrics:
+The modularized benchmark framework (`Container/scripts/orchestrators/`) handles metric collection automatically. See `Container/scripts/orchestrators/README.md` for architecture overview.
+
+### Using the Main Orchestrator
 
 ```bash
 # Cold migration
-python3 Container/scripts/criu_benchmark.py cold \
+python3 Container/scripts/orchestrators/criu_benchmark.py cold \
   --source edge-node-1 \
   --dest edge-node-2 \
   --run-id cold-run-1
 
-# Pre-copy live migration
-python3 Container/scripts/criu_benchmark.py precopy \
+# Pre-copy live migration (fixed downtime calculation)
+python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
   --source edge-node-1 \
   --dest edge-node-2 \
   --run-id precopy-run-1 \
   --iterations 2
 
-# Post-copy lazy migration
-python3 Container/scripts/criu_benchmark.py postcopy \
+# Post-copy lazy migration (TODO: not yet implemented)
+python3 Container/scripts/orchestrators/criu_benchmark.py postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
   --run-id postcopy-run-1
 ```
 
+### Transfer Modes
+
+Both `cold` and `precopy` support two transfer modes via `--transfer-mode`:
+- `host` (default) - Source → host → destination (via multipass transfer)
+- `direct` - Source → destination directly via SSH/SCP (requires network connectivity between VMs)
+
+```bash
+# Direct VM-to-VM transfer
+python3 Container/scripts/orchestrators/criu_benchmark.py cold \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --run-id cold-direct-1 \
+  --transfer-mode direct
+```
+
 Results are automatically appended to `migration_metrics.csv`.
+
+### Migration Strategy Implementation
+
+The framework uses modularized strategy classes:
+- `ColdMigration` - Immediate checkpoint/restore (full downtime)
+- `PrecopyMigration` - Iterative pre-dumps with final freeze (reduced downtime, downtime calculation fixed in this version)
+- `PostcopyMigration` - Lazy page transfer on demand (TODO: requires lazy-pages daemon)
 
 ## Analysis and Visualization
 
-Use Seaborn, Pandas, and Matplotlib to analyze results:
+Use the provided visualization scripts or Seaborn, Pandas, and Matplotlib to analyze results.
 
+**Using the visualization scripts**:
 ```bash
-python3 Container/scripts/analyze_metrics.py
+# Visualize downtime by migration method
+python3 Container/scripts/visualization/plot_downtime.py
+
+# Analyze archive size vs transfer time
+python3 Container/scripts/visualization/plot_transfer_analysis.py
+
+# See phase breakdown (checkpoint, transfer, restore)
+python3 Container/scripts/visualization/plot_phase_breakdown.py
 ```
 
-Or manually in Python:
-
-```python
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# Load metrics
-df = pd.read_csv('migration_metrics.csv')
-
-# Summary statistics by migration method
-print(df.groupby('migration_method')[['checkpoint_ms', 'transfer_ms', 'restore_ms', 'downtime_ms']].describe())
-
-# Visualize downtime comparison
-sns.barplot(data=df, x='migration_method', y='downtime_ms')
-plt.title('Migration Downtime by Strategy')
-plt.ylabel('Downtime (ms)')
-plt.show()
-```
-
-## Comparison Matrix
+## Comparison Matrix (TODO)
 
 | Strategy | Scenario | Avg Downtime (ms) | Use Case | Status |
 |---|---|---:|---|---|
@@ -101,10 +113,19 @@ plt.show()
 ## Interpreting Results
 
 ### Downtime Analysis
-The critical metric is **downtime_ms** (checkpoint + transfer + restore). This is the service unavailability window:
-- **Cold:** All time spent offline
-- **Pre-Copy:** Reduced offline window (only final dump + restore)
+
+The critical metric is **downtime_ms** (checkpoint_ms + transfer_ms + restore_ms). This is the service unavailability window:
+
+- **Cold:** Full offline window (freeze → transfer → restore)
+  - downtime_ms = checkpoint_ms + transfer_ms + restore_ms
+  
+- **Pre-Copy:** Reduced offline window (only final freeze + restore)
+  - downtime_ms = **final_dump_ms** + transfer_ms + restore_ms
+  - Pre-dumps occur while service is still running (not counted as downtime)
+  
 - **Post-Copy:** Minimal offline window (restore is quick, pages fetched on demand)
+  - ⚠️ TODO: Not yet implemented (requires lazy-pages daemon)
+
 
 ### Transfer Overhead
 Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
@@ -122,3 +143,4 @@ Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Archive sizes are in bytes
 - Bandwidth in Mbps (calculated as: archive_bytes × 8 / (transfer_ms × 1000))
 - Failed runs are recorded with notes indicating failure reason
+- Transfer mode (host/direct) is recorded in notes field for filtering
