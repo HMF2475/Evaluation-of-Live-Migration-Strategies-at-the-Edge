@@ -8,7 +8,7 @@ Cleans up:
 - Log files
 - State files
 
-Then starts a fresh counter process on the source node.
+This script only performs cleanup; start your application separately after it finishes.
 """
 
 import subprocess

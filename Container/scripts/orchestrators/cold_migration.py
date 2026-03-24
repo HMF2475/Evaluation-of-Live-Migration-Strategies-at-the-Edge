@@ -13,12 +13,12 @@ try:
     from .migration_strategy import MigrationStrategy
     from .metrics import MigrationMetrics
     from .multipass_command import MultipassCommand
-    from .ssh_utils import transfer_archive_via_host, transfer_archive_direct
+    from .ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
 except ImportError:
     from migration_strategy import MigrationStrategy
     from metrics import MigrationMetrics
     from multipass_command import MultipassCommand
-    from ssh_utils import transfer_archive_via_host, transfer_archive_direct
+    from ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
 
 
 class ColdMigration(MigrationStrategy):
@@ -131,7 +131,7 @@ class ColdMigration(MigrationStrategy):
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
         self.metrics.dst_arch = self.dest.get_arch()
-        self.metrics.same_arch = 1 if self.metrics.src_arch == self.metrics.dst_arch else 0
+        self.metrics.same_arch = self.metrics.src_arch == self.metrics.dst_arch
         if self.metrics.same_arch:
             self.log(f"  Architecture: {self.metrics.src_arch} (compatible)")
         else:
@@ -184,6 +184,15 @@ class ColdMigration(MigrationStrategy):
 
         # Step 4: Transfer
         self.log("Step 4: Transferring archive...")
+        
+        # Set up direct SSH trust before first SCP transfer
+        if self.transfer_mode == "direct":
+            self.log("  Setting up direct SSH trust...")
+            if not ensure_direct_ssh_trust(self.source.node, self.dest.node):
+                self.log("ERROR: Failed to set up SSH trust for direct transfer")
+                self.metrics.notes += "; ssh_trust_failed"
+                return False
+        
         t_transfer_start = time.time_ns()
 
         transfer_ok = transfer_archive_via_host(
@@ -243,6 +252,24 @@ class ColdMigration(MigrationStrategy):
             rc, content, _ = self.source.exec(f"[ -f {script_path} ] && cat {script_path} || echo ''", check=False)
             if rc == 0 and content:
                 self.dest.exec(f"cat > {script_path} << 'SCRIPT_EOF'\n{content}\nSCRIPT_EOF\nchmod +x {script_path}", check=False)
+
+        # Step 6.5: Ensure migrated process executable exists on destination
+        self.log("Step 6.5: Ensuring /tmp/counter binary is present on destination...")
+        rc, _, _ = self.dest.exec("[ -x /tmp/counter ]", check=False)
+        if rc != 0:
+            self.log("  /tmp/counter missing on destination, copying from source...")
+            rc_src, counter_b64, _ = self.source.exec(
+                "if [ -f /tmp/counter ]; then base64 /tmp/counter; else echo ''; fi",
+                check=False,
+            )
+            if rc_src != 0 or not counter_b64.strip():
+                self.log("WARNING: /tmp/counter binary not found on source; restore may fail")
+                self.metrics.notes += "; missing_binary"
+            else:
+                self.dest.exec(
+                    f"echo '{counter_b64.strip()}' | base64 -d > /tmp/counter && chmod +x /tmp/counter",
+                    check=False,
+                )
 
         # Step 7: Restore
         self.log("Step 7: Restoring process...")
