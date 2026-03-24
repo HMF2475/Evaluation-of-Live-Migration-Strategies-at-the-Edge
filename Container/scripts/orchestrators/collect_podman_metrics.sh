@@ -65,7 +65,7 @@ fi
 
 if [[ -z "$CSV_FILE" ]]; then
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  CSV_FILE="${SCRIPT_DIR}/../metrics/migration_metrics.csv"
+  CSV_FILE="${SCRIPT_DIR}/../../metrics/migration_metrics.csv"
 fi
 
 if [[ "$TRANSFER_MODE" != "host" && "$TRANSFER_MODE" != "direct" ]]; then
@@ -83,7 +83,6 @@ require_cmd() {
 
 require_cmd multipass
 require_cmd awk
-require_cmd stat
 
 log() {
   printf '[metrics] %s\n' "$*"
@@ -135,11 +134,11 @@ ensure_csv_schema() {
   local current_header
   current_header="$(head -n1 "$CSV_FILE" 2>/dev/null || true)"
   if [[ "$current_header" != "$EXPECTED_HEADER" ]]; then
-    local backup
-    backup="${CSV_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
-    cp "$CSV_FILE" "$backup"
-    printf '%s\n' "$EXPECTED_HEADER" > "$CSV_FILE"
-    log "CSV schema mismatch detected; backed up old file to ${backup} and reinitialized ${CSV_FILE}"
+    echo "ERROR: CSV schema mismatch in ${CSV_FILE}:" >&2
+    echo "  Expected: ${EXPECTED_HEADER}" >&2
+    echo "  Found:    ${current_header}" >&2
+    echo "Delete or migrate ${CSV_FILE} manually before continuing." >&2
+    exit 1
   fi
 }
 
@@ -175,7 +174,7 @@ TMP_DIR="$(mktemp -d)"
 LOCAL_ARCHIVE="${TMP_DIR}/${ARCHIVE_NAME}"
 
 cleanup() {
-  multipass exec "$SOURCE" -- sudo rm -f "$SOURCE_STAGE" >/dev/null 2>&1 || true
+  multipass exec "$SOURCE" -- sudo rm -f "$SOURCE_STAGE" "$ARCHIVE_PATH" >/dev/null 2>&1 || true
   multipass exec "$DEST" -- sudo rm -f "$DEST_STAGE" "$ARCHIVE_PATH" >/dev/null 2>&1 || true
   rm -rf "$TMP_DIR"
 }
