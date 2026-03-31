@@ -8,6 +8,13 @@ All benchmark results are appended to: `migration_metrics.csv`
 
 This file is the single source of truth for all migration performance data.
 
+Additional optional artifacts:
+- `run_logs/` - Raw stdout/stderr logs from repeated experiment runs (see `repeat_benchmarks.py`)
+- `run_logs/*.run_ids.txt` - Run-id lists for plot filtering (one run_id per line)
+- `node_exporter/` - Optional node_exporter `/metrics` snapshots (before/after runs)
+- `node_exporter_metrics.csv` - Per-run CPU/memory/disk summary derived from snapshots
+- `plots/` - Generated PNG plots (optionally per-run prefix subfolders)
+
 ## CSV Schema
 
 ```csv
@@ -15,7 +22,7 @@ run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes
 ```
 
 Columns:
-- `run_id` - Unique identifier for this benchmark run
+- `run_id` - Unique identifier for this benchmark run (default scheme: `DD-MM-YYYY-(host|direct)-(cold|precopy|postcopy)-NNNN`)
 - `technology` - CRIU
 - `migration_method` - cold, precopy, postcopy
 - `network_migration` - yes (with TCP/UDP socket preservation), no (memory-only)
@@ -35,52 +42,12 @@ Columns:
 
 The modularized benchmark framework (`Container/scripts/orchestrators/`) handles metric collection automatically. See `Container/scripts/orchestrators/README.md` for architecture overview.
 
-### Using the Main Orchestrator
-
-```bash
-# Cold migration
-python3 Container/scripts/orchestrators/criu_benchmark.py cold \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --run-id cold-run-1
-
-# Pre-copy live migration (fixed downtime calculation)
-python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --run-id precopy-run-1 \
-  --iterations 2
-
-# Post-copy lazy migration (TODO: not yet implemented)
-python3 Container/scripts/orchestrators/criu_benchmark.py postcopy \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --run-id postcopy-run-1
-```
-
-### Transfer Modes
-
-Both `cold` and `precopy` support two transfer modes via `--transfer-mode`:
-- `host` (default) - Source → host → destination (via multipass transfer)
-- `direct` - Source → destination directly via SSH/SCP (requires network connectivity between VMs)
-
-```bash
-# Direct VM-to-VM transfer
-python3 Container/scripts/orchestrators/criu_benchmark.py cold \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --run-id cold-direct-1 \
-  --transfer-mode direct
-```
-
-Results are automatically appended to `migration_metrics.csv`.
-
 ### Migration Strategy Implementation
 
 The framework uses modularized strategy classes:
 - `ColdMigration` - Immediate checkpoint/restore (full downtime)
 - `PrecopyMigration` - Iterative pre-dumps with final freeze (reduced downtime, downtime calculation fixed in this version)
-- `PostcopyMigration` - Lazy page transfer on demand (TODO: requires lazy-pages daemon)
+- `PostcopyMigration` - Lazy page transfer on demand (experimental; requires CRIU `lazy-pages` + userfaultfd)
 
 ## Analysis and Visualization
 
@@ -98,17 +65,6 @@ python3 Container/scripts/visualization/plot_transfer_analysis.py
 python3 Container/scripts/visualization/plot_phase_breakdown.py
 ```
 
-## Comparison Matrix (TODO)
-
-| Strategy | Scenario | Avg Downtime (ms) | Use Case | Status |
-|---|---|---:|---|---|
-| Cold |  |  |  |  |
-| Pre-Copy |  |  |  |  |
-| Post-Copy |  |  |  |  |
-| Cold + Network |  |  |  |  |
-| Pre-Copy + Network |  |  | |  |
-| Post-Copy + Network |  |  | |  |
-| WASM |  |  |  |  |
 
 ## Interpreting Results
 
@@ -124,14 +80,14 @@ The critical metric is **downtime_ms** (checkpoint_ms + transfer_ms + restore_ms
   - Pre-dumps occur while service is still running (not counted as downtime)
   
 - **Post-Copy:** Minimal offline window (restore is quick, pages fetched on demand)
-  - ⚠️ TODO: Not yet implemented (requires lazy-pages daemon)
+  - Implemented as **experimental** CRIU `lazy-pages` (post-copy). Downtime covers dump-init + transfer + restore, while page fetching continues in the background.
 
 
 ### Transfer Overhead
 Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Smaller archives = less bandwidth
 - Pre-copy may transfer data multiple times (pre-dumps + final dump)
-- Post-copy transfers full state at once
+- Post-copy transfers minimal images first, then pages on-demand (lazy-pages)
 
 ### Architecture Compatibility
 - `same_arch=true` - No architecture mismatch overhead
@@ -144,3 +100,4 @@ Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Bandwidth in Mbps (calculated as: archive_bytes × 8 / (transfer_ms × 1000))
 - Failed runs are recorded with notes indicating failure reason
 - Transfer mode (host/direct) is recorded in notes field for filtering
+- Continuity verification logs report `Expected min` (minimum value immediately after restore) and `Observed` after a short wait, so `Observed` is typically higher

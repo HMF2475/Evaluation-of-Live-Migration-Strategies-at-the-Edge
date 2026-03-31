@@ -28,8 +28,15 @@ except ImportError:
 class PrecopyMigration(MigrationStrategy):
     """Precopy live migration: multiple pre-dumps, final dump, transfer, restore."""
 
-    def __init__(self, source: MultipassCommand, dest: MultipassCommand,
-                 transfer_mode: str = "host", iterations: int = 2):
+    def __init__(
+        self,
+        source: MultipassCommand,
+        dest: MultipassCommand,
+        transfer_mode: str = "host",
+        iterations: int = 2,
+        network_migration: bool = False,
+        ext_net_map: str | None = None,
+    ):
         """Initialize precopy migration strategy.
         
         Args:
@@ -38,9 +45,9 @@ class PrecopyMigration(MigrationStrategy):
             transfer_mode: "host" for host-mediated or "direct" for SCP
             iterations: Number of pre-dump iterations before final dump
         """
-        super().__init__(source, dest, transfer_mode)
+        super().__init__(source, dest, transfer_mode, network_migration=network_migration, ext_net_map=ext_net_map)
         self.metrics.migration_method = "precopy"
-        self.metrics.network_migration = "no"
+        self.metrics.network_migration = "yes" if network_migration else "no"
         self.iterations = iterations
 
     def get_method_name(self) -> str:
@@ -61,43 +68,6 @@ class PrecopyMigration(MigrationStrategy):
                     self.log(f"  Using PID from {pid_file}: {pid}")
                     return pid
         return None
-
-    def _verify_and_transfer_log_file(self) -> bool:
-        """Transfer counter.log from source to destination.
-        
-        This file is required by CRIU for restoring open file handles.
-        Works with both direct and host transfer modes.
-        
-        Returns:
-            True if transfer succeeded or not needed, False on error
-        """
-        self.log("Step 7.5: Transferring log file content...")
-        
-        if not self.source.file_exists("/home/ubuntu/counter.log"):
-            self.log("  (No log file to transfer, creating placeholder...)")
-            # Create empty placeholder file so CRIU doesn't fail on restore
-            self.dest.exec("touch /home/ubuntu/counter.log", check=False)
-            return True
-        
-        if self.transfer_mode == "direct":
-            transfer_ok = transfer_archive_direct(
-                self.source.node, self.dest.node,
-                "/home/ubuntu/counter.log",
-                "/home/ubuntu/counter.log"
-            )
-        else:  # host transfer mode
-            transfer_ok = transfer_archive_via_host(
-                self.source.node, self.dest.node,
-                "/home/ubuntu/counter.log",
-                "/home/ubuntu/counter.log"
-            )
-        
-        if not transfer_ok:
-            self.log("  WARNING: Could not transfer counter.log, creating placeholder...")
-            # Create empty placeholder file so CRIU doesn't fail on restore
-            self.dest.exec("touch /home/ubuntu/counter.log", check=False)
-        
-        return True  # Don't fail migration if log transfer fails
 
     def migrate(self, run_id: str) -> bool:
         """Execute precopy live migration.
@@ -136,10 +106,13 @@ class PrecopyMigration(MigrationStrategy):
             self.metrics.notes += "; pid_not_found"
             return False
 
-        # Get last value before migration
-        rc, last_before, _ = self.source.exec("tail -n 1 /home/ubuntu/counter.log", check=False)
-        expected_after = str(int(last_before) + 1) if last_before.isdigit() else "unknown"
-        self.log(f"  Last counter value: {last_before}")
+        # Snapshot last printed value before starting pre-dumps (best-effort).
+        # The process continues running during pre-dumps, so the "frozen" value
+        # for continuity checks is computed after the final dump.
+        out_path = self.counter_output_path()
+        _, last_before, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        self.log(f"  Last counter value (pre-dumps start): {last_before}")
+        expected_after = "unknown"
 
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
@@ -158,6 +131,8 @@ class PrecopyMigration(MigrationStrategy):
             check=False,
         )
 
+        net_dump_opts = " --tcp-established" if self.network_migration else ""
+
         # Step 3: Pre-dumps (service continues running)
         self.log(f"Step 3: Running {self.iterations} pre-dumps...")
         t_precopy_start = time.time_ns()
@@ -172,7 +147,7 @@ class PrecopyMigration(MigrationStrategy):
             cmd = (
                 f"sudo mkdir -p {iter_dir} && "
                 f"sudo criu pre-dump -t {pid} -D {iter_dir}{prev_opt} "
-                f"-v4 --shell-job --skip-file-rwx-check --track-mem"
+                f"-v4 --shell-job --skip-file-rwx-check --track-mem{net_dump_opts}"
             )
             rc, _, err = self.source.exec(
                 cmd,
@@ -198,7 +173,8 @@ class PrecopyMigration(MigrationStrategy):
             prev_opt = f" --prev-images-dir {last_iter_dir}"
         
         rc, _, err = self.source.exec(
-            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log{prev_opt} --shell-job --skip-file-rwx-check",
+            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log{prev_opt} "
+            f"--shell-job --skip-file-rwx-check{net_dump_opts}",
             check=False,
         )
 
@@ -209,6 +185,14 @@ class PrecopyMigration(MigrationStrategy):
                 self.log(f"Dump log:\n{dump_log}")
             self.metrics.notes += "; dump_failed"
             return False
+
+        # After final dump, the process is frozen/terminated and stdout is stable.
+        # Compute expected next value from the frozen snapshot.
+        _, frozen_last, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        if frozen_last.isdigit():
+            expected_after = str(int(frozen_last) + 1)
+        self.log(f"  Frozen last counter value: {frozen_last}")
+        self.log(f"  Expected after restore: {expected_after}")
 
         t_final_dump_done = time.time_ns()
         final_dump_ms = (t_final_dump_done - t_final_dump_start) // 1_000_000
@@ -246,15 +230,18 @@ class PrecopyMigration(MigrationStrategy):
         
         t_transfer_start = time.time_ns()
         
-        transfer_ok = transfer_archive_via_host(
-            self.source.node, self.dest.node,
-            "/tmp/CRIU-counter.tar.gz",
-            "/home/ubuntu/CRIU-counter.tar.gz",
-        ) if self.transfer_mode == "host" else transfer_archive_direct(
-            self.source.node, self.dest.node,
-            "/tmp/CRIU-counter.tar.gz",
-            "/home/ubuntu/CRIU-counter.tar.gz",
-        )
+        if self.transfer_mode == "host":
+            transfer_ok = transfer_archive_via_host(
+                self.source.node, self.dest.node,
+                "/tmp/CRIU-counter.tar.gz",
+                "/home/ubuntu/CRIU-counter.tar.gz",
+            )
+        else:
+            transfer_ok = transfer_archive_direct(
+                self.source.node, self.dest.node,
+                "/tmp/CRIU-counter.tar.gz",
+                "/home/ubuntu/CRIU-counter.tar.gz",
+            )
         
         if not transfer_ok:
             self.metrics.notes += "; transfer_failed"
@@ -273,9 +260,9 @@ class PrecopyMigration(MigrationStrategy):
             check=False
         )
         
-        # Step 7.5: Transfer log file if needed
-        if not self._verify_and_transfer_log_file():
-            return False
+        # Step 7.5: Ensure counter stdout target exists (avoid transferring file contents)
+        self.log("Step 7.5: Ensuring counter output file exists on destination...")
+        self.ensure_counter_output_file()
 
         # Step 7.8: Ensure migrated process executable exists on destination
         self.log("Step 7.8: Ensuring /tmp/counter binary is present on destination...")
@@ -301,7 +288,9 @@ class PrecopyMigration(MigrationStrategy):
 
         rc, _, err = self.dest.exec(
             "sudo criu restore -D /tmp/CRIU-counter -v4 -o restore.log "
-            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check",
+            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check"
+            + (" --tcp-established" if self.network_migration else "")
+            + (f" --ext-net-map={self.ext_net_map}" if self.ext_net_map else ""),
             check=False,
         )
 
@@ -319,28 +308,56 @@ class PrecopyMigration(MigrationStrategy):
         self.metrics.restore_ms = int(restore_ms)
         self.log(f"  Restore time: {restore_ms} ms")
 
+        # Persist PID files on destination so it can act as a source for "bounce" migrations.
+        restored_pid = self.persist_restored_pid_files("/tmp/CRIU-counter/restored.pid")
+        if restored_pid:
+            self.log(f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)")
+        else:
+            self.log("WARNING: Could not persist restored PID files on destination")
+            self.metrics.notes += "; pidfile_persist_failed"
+
         # Step 9: Verify
         self.log("Step 9: Verifying migration...")
-        time.sleep(3)
+        verify_wait_s = 3
+        t_verify_start = time.monotonic()
+        time.sleep(verify_wait_s)
+        verify_elapsed_s = time.monotonic() - t_verify_start
 
-        rc, observed, _ = self.dest.exec("tail -n 1 /home/ubuntu/counter.log", check=False)
-        self.log(f"  Expected: {expected_after}, Observed: {observed}")
+        if expected_after != "unknown":
+            rc, observed, _ = self.dest.exec(f"tail -n 1 {out_path}", check=False)
+            expected_min = expected_after
+            expected_at_check = "unknown"
+            if expected_min.isdigit():
+                expected_at_check = str(int(expected_min) + int(verify_elapsed_s))
+            self.log(
+                f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
+                f"Observed: {observed}"
+            )
 
-        if rc != 0 or not observed:
-            self.log("WARNING: Could not read log from destination")
-            self.metrics.notes += "; log_read_failed"
-            self.metrics.success = False
-        elif observed.isdigit() and expected_after != "unknown":
-            if int(observed) >= int(expected_after):
-                self.log("✓ SUCCESS: Counter continued correctly!")
+            if rc != 0 or not observed:
+                self.log("WARNING: Could not read counter output from destination")
+                self.metrics.notes += "; log_read_failed"
+                self.metrics.success = False
+            elif observed.isdigit():
+                if int(observed) >= int(expected_after):
+                    self.log("✓ SUCCESS: Counter continued correctly!")
+                    self.metrics.success = True
+                else:
+                    self.log("✗ FAILED: Counter value mismatch")
+                    self.metrics.notes += f"; counter_mismatch: expected >={expected_after}, got {observed}"
+                    self.metrics.success = False
+            else:
+                self.log("✓ Counter value received (continuity verified)")
+                self.metrics.success = True
+        else:
+            rc, restored_pid, _ = self.dest.exec("cat /tmp/CRIU-counter/restored.pid", check=False)
+            if rc == 0 and restored_pid.strip().isdigit() and self.dest.test_process_running(restored_pid.strip()):
+                self.log("✓ Restored process is running on destination")
                 self.metrics.success = True
             else:
-                self.log("✗ FAILED: Counter value mismatch")
-                self.metrics.notes += f"; counter_mismatch: expected >={expected_after}, got {observed}"
+                self.log("WARNING: Could not validate restored process state")
+                self.metrics.notes += "; process_validation_failed"
                 self.metrics.success = False
-        else:
-            self.log("✓ Counter value received (continuity verified)")
-            self.metrics.success = True
 
         # Final metrics: CRITICAL FIX
         # Downtime = final_dump + transfer + restore (NOT including pre-dumps)

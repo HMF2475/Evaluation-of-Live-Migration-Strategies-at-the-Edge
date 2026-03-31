@@ -25,7 +25,10 @@ chmod +x /tmp/counter
 echo "[$(date +'%H:%M:%S')] Starting counter on $NODE..."
 
 multipass exec "$NODE" -- bash -lc "
-nohup /tmp/counter /home/ubuntu/counter.log >/dev/null 2>&1 &
+set -e
+: > /home/ubuntu/counter.out
+chmod 664 /home/ubuntu/counter.out
+nohup /tmp/counter >> /home/ubuntu/counter.out 2>&1 &
 PID=\$!
 echo \$PID > /home/ubuntu/counter.pid
 cp /home/ubuntu/counter.pid /home/ubuntu/app.pid

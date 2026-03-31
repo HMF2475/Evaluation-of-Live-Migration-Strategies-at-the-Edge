@@ -25,6 +25,31 @@ This guide implements **pre-copy live migration** of a native Linux process usin
 
 ---
 
+## Prerequisites
+
+- Two running Multipass nodes (e.g. `edge-node-1`, `edge-node-2`)
+- Same CPU architecture on both nodes
+- CRIU installed on both nodes
+- Workload writes to `/home/ubuntu/counter.out` (this repo’s baseline scripts do)
+
+---
+
+## Quick Start (Automated)
+
+```bash
+python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+bash Container/scripts/workloads/start_counter_c.sh edge-node-1
+
+python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --transfer-mode host \
+  --iterations 2 \
+  --run-id experimental-precopy-001
+```
+
+---
+
 ## Step 1: Start a Native Process on Source
 
 **Use the C counter**  for consistent performance testing:
@@ -33,80 +58,27 @@ This guide implements **pre-copy live migration** of a native Linux process usin
 bash Container/scripts/workloads/start_counter_c.sh edge-node-1
 ```
 
-Or **copy the source code manually** if running outside the repo:
+Optional (manual, without the helper script): compile `Container/scripts/counter.c` and redirect stdout to `/home/ubuntu/counter.out`:
 
 ```bash
+multipass transfer Container/scripts/counter.c edge-node-1:/home/ubuntu/counter.c
 multipass exec edge-node-1 -- bash -lc '
-# Create C counter source
-cat > /home/ubuntu/counter.c << "EOF"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-
-static volatile int running = 1;
-static FILE *logfile = NULL;
-
-void signal_handler(int sig) {
-    running = 0;
-}
-
-int main(int argc, char *argv[]) {
-    const char *logpath = "/home/ubuntu/counter.log";
-    unsigned long counter = 0;
-
-    if (argc > 1) {
-        logpath = argv[1];
-    }
-
-    logfile = fopen(logpath, "w");
-    if (!logfile) {
-        perror("fopen");
-        return 1;
-    }
-
-    if (dup2(fileno(logfile), STDOUT_FILENO) < 0) {
-        perror("dup2");
-        fclose(logfile);
-        return 1;
-    }
-
-    signal(SIGTERM, signal_handler);
-    signal(SIGINT, signal_handler);
-
-    while (running) {
-        printf("%lu\n", counter);
-        fflush(stdout);
-        counter++;
-        sleep(1);
-    }
-
-    fclose(logfile);
-    return 0;
-}
-EOF
-
-# Compile and run
-cc /home/ubuntu/counter.c -o /home/ubuntu/counter
-nohup /home/ubuntu/counter >/dev/null 2>&1 &
+set -e
+gcc -o /tmp/counter /home/ubuntu/counter.c
+: > /home/ubuntu/counter.out
+chmod 664 /home/ubuntu/counter.out
+nohup /tmp/counter >> /home/ubuntu/counter.out 2>&1 &
 echo $! > /home/ubuntu/counter.pid
-
-# Wait for log to populate
-sleep 3
-
-# Verify running
-SOURCE_PID=$(cat /home/ubuntu/counter.pid)
-ps -p "$SOURCE_PID" -o pid,cmd
-echo "Recent log entries:"
-tail -n 5 /home/ubuntu/counter.log
+cp /home/ubuntu/counter.pid /home/ubuntu/app.pid
+sleep 2
+tail -n 5 /home/ubuntu/counter.out
 '
 ```
 
 ### Capture baseline
 ```bash
-LAST_BEFORE=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.log" | tr -d '\r')
+LAST_BEFORE=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
 echo "Last value before migration: ${LAST_BEFORE}"
-EXPECTED_AFTER=$((LAST_BEFORE + 1))
 ```
 
 ---
@@ -229,6 +201,11 @@ sudo ls -lh /tmp/CRIU-final/
 T_DUMP_DONE=$(date +%s%N)
 DUMP_MS=$(( (T_DUMP_DONE - T_DUMP_START) / 1000000 ))
 echo "Final dump time: ${DUMP_MS} ms"
+
+FROZEN_LAST=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
+EXPECTED_AFTER=$((FROZEN_LAST + 1))
+echo "Frozen last counter value: ${FROZEN_LAST}"
+echo "Expected first value after restore: ${EXPECTED_AFTER}"
 ```
 
 **Key points:**
@@ -328,6 +305,8 @@ TRANSFER_METHOD="host"
 
 This transfers the archive directly between nodes - faster but requires SSH access between them.
 
+If `scp` hangs or asks for a password, you need passwordless SSH trust `edge-node-1 → edge-node-2`. The orchestrator sets this up automatically for `--transfer-mode direct`; for the manual steps, follow the “First-time only: set up SSH trust” snippet in `Container/CRIU-COLD-MIGRATION.md`.
+
 ```bash
 echo "=== DIRECT TRANSFER ==="
 
@@ -339,7 +318,8 @@ echo "Transferring directly from edge-node-1 to edge-node-2..."
 T_TRANSFER_START=$(date +%s%N)
 
 multipass exec edge-node-1 -- bash -lc "
-  scp -o StrictHostKeyChecking=no \
+  scp -o BatchMode=yes -o ConnectTimeout=10 \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       /home/ubuntu/CRIU-all-dumps.tar.gz \
       ubuntu@${DEST_IP}:/home/ubuntu/CRIU-all-dumps.tar.gz
 "
@@ -381,7 +361,7 @@ TRANSFER_METHOD="direct"
 
 ---
 
-## Step 8: Verify Architecture Compatibility
+## Step 8: Unpack on Destination
 
 Extract the archive and verify directory structure.
 
@@ -413,8 +393,8 @@ sudo ls -lh /tmp/CRIU-final/
 ```bash
 multipass exec edge-node-2 -- bash -lc '
 set -e
-touch /home/ubuntu/counter.log /home/ubuntu/counter.out
-chmod 664 /home/ubuntu/counter.log /home/ubuntu/counter.out
+touch /home/ubuntu/counter.out
+chmod 664 /home/ubuntu/counter.out
 '
 ```
 
@@ -458,7 +438,7 @@ echo "Restore time: ${RESTORE_MS} ms"
 ```bash
 sleep 3
 
-OBSERVED_AFTER=$(multipass exec edge-node-2 -- bash -lc "tail -n 1 /home/ubuntu/counter.log" | tr -d '\r')
+OBSERVED_AFTER=$(multipass exec edge-node-2 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
 
 echo "=== Pre-Copy Migration Verification ==="
 echo "Expected first value: ${EXPECTED_AFTER}"
@@ -472,7 +452,7 @@ fi
 
 echo ""
 echo "=== Recent counter values ==="
-multipass exec edge-node-2 -- bash -lc "tail -n 15 /home/ubuntu/counter.log"
+multipass exec edge-node-2 -- bash -lc "tail -n 15 /home/ubuntu/counter.out"
 ```
 
 ---
@@ -482,8 +462,10 @@ multipass exec edge-node-2 -- bash -lc "tail -n 15 /home/ubuntu/counter.log"
 ```bash
 for n in edge-node-1 edge-node-2; do
   multipass exec "$n" -- bash -lc '
-    sudo pkill -f counter.sh 2>/dev/null || true
-    rm -f /home/ubuntu/counter.* /home/ubuntu/CRIU-*
+    sudo pkill -f "/tmp/counter" 2>/dev/null || true
+    rm -f /home/ubuntu/counter.pid /home/ubuntu/app.pid \
+          /home/ubuntu/counter.c /home/ubuntu/counter.out \
+          /home/ubuntu/CRIU-counter.tar.gz
     sudo rm -rf /tmp/CRIU-*
   '
 done
@@ -498,4 +480,3 @@ rm -f "$PWD/CRIU-all-dumps.tar.gz"
 
 - [CRIU Pre-Copy Live Migration](https://criu.org/Iterative_migration)
 - [CRIU Images and Paths](https://criu.org/Images)
-

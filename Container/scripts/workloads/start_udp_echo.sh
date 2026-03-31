@@ -3,8 +3,8 @@
 # Start a simple UDP echo server on the source node.
 # Useful for benchmarking network socket migration.
 #
-# Usage: bash Container/scripts/start_udp_echo.sh [node-name] [port]
-# Example: bash Container/scripts/start_udp_echo.sh edge-node-1 5001
+# Usage: bash Container/scripts/workloads/start_udp_echo.sh [node-name] [port]
+# Example: bash Container/scripts/workloads/start_udp_echo.sh edge-node-1 5001
 
 NODE="${1:-edge-node-1}"
 PORT="${2:-5001}"

@@ -1,66 +1,39 @@
-
 # Visualization Scripts
 
-Analysis and plotting tools for migration metrics.
+## Overview
 
-## Scripts
+Plotting utilities for `Container/metrics/migration_metrics.csv` and optional node_exporter snapshots captured by `repeat_benchmarks.py`.
 
-### plot_downtime.py
-Downtime comparison by migration strategy.
+For the full benchmarking workflow, see `GUIDE.md`.
 
-Usage:
-  python3 plot_downtime.py [csv_file] [output_path]
-  python3 plot_downtime.py Container/metrics/migration_metrics.csv
-  python3 plot_downtime.py Container/metrics/migration_metrics.csv Container/metrics/plots/my_downtime.png
+## Key Scripts
 
-Default output: Container/metrics/plots/downtime_comparison.png
+- `plot_downtime.py` — downtime comparison by strategy and transfer mode.
+- `plot_phase_breakdown.py` — stacked phase breakdown (dump/final_dump + transfer + restore).
+- `plot_transfer_analysis.py` — archive size vs transfer time scatter.
+- `node_exporter_summary.py` — summarizes CPU/memory/disk IO from node_exporter snapshots.
+- `generate_all_plots.py` — generates all plots into a single output directory and supports filtering.
 
-### plot_transfer_analysis.py
-Archive size vs transfer time scatter plot.
+## Common Usage
 
-Usage:
-  python3 plot_transfer_analysis.py [csv_file] [output_path]
-
-Default output: Container/metrics/plots/transfer_analysis.png
-
-### plot_phase_breakdown.py
-Phase breakdown stacked bar chart (checkpoint + transfer + restore).
-
-Usage:
-  python3 plot_phase_breakdown.py [csv_file] [output_path]
-
-Default output: Container/metrics/plots/phase_breakdown.png
-
-## Quick Start
-
-Run all visualizations (saves to Container/metrics/plots/):
+From repo root (recommended):
 
 ```bash
-cd Container/scripts/visualization
+# Generate all plots for a specific batch (recommended filter)
+python3 Container/scripts/visualization/generate_all_plots.py \
+  --csv Container/metrics/migration_metrics.csv \
+  --run-ids-file Container/metrics/run_logs/<batch>.run_ids.txt \
+  --out-dir Container/metrics/plots/<batch>
 
-python3 plot_downtime.py ../../metrics/migration_metrics.csv
-python3 plot_transfer_analysis.py ../../metrics/migration_metrics.csv
-python3 plot_phase_breakdown.py ../../metrics/migration_metrics.csv
+# Single plots (optional)
+python3 Container/scripts/visualization/plot_downtime.py Container/metrics/migration_metrics.csv
+python3 Container/scripts/visualization/plot_phase_breakdown.py Container/metrics/migration_metrics.csv
+python3 Container/scripts/visualization/plot_transfer_analysis.py Container/metrics/migration_metrics.csv
 ```
 
-Or from repo root:
+## Outputs
 
-```bash
-python3 Container/scripts/visualization/plot_downtime.py
-python3 Container/scripts/visualization/plot_transfer_analysis.py
-python3 Container/scripts/visualization/plot_phase_breakdown.py
-```
-
-## Output
-
-All plots are saved to: `Container/metrics/plots/`
-
-Generated files:
-  - downtime_comparison.png       (Bar chart)
-  - transfer_analysis.png         (Scatter plot)
-  - phase_breakdown.png           (Stacked bar chart)
-
-High-resolution PNG (300 dpi).
+By default, plots are written under `Container/metrics/plots/` (or your `--out-dir`).
 
 ## Requirements
 
@@ -70,6 +43,5 @@ pip3 install pandas seaborn matplotlib
 
 ## Notes
 
-- All scripts assume CSV is in standard migration_metrics.csv format
-- Output directory is created automatically if it doesn't exist
-- Default paths can be overridden via command-line arguments
+- Prefer filtering with `--run-ids-file` so plots compare only the runs you intend.
+- node_exporter plots require `repeat_benchmarks.py --snapshot-node-metrics` (otherwise they are skipped).
