@@ -19,6 +19,7 @@ Results are appended to Container/metrics/migration_metrics.csv
 import argparse
 import sys
 import csv
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -86,6 +87,36 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
             "timestamp": metrics.timestamp,
         })
 
+_RUN_ID_RE = re.compile(
+    r"^(?P<date>\d{2}-\d{2}-\d{4})-(?P<mode>host|direct)-(?P<strategy>cold|precopy|postcopy)-(?P<num>\d{4})$"
+)
+
+
+def _next_run_number(csv_path: Path, *, date: str, mode: str, strategy: str) -> int:
+    """Return next NNNN for the run_id scheme: DD-MM-YYYY-mode-strategy-NNNN."""
+    if not csv_path.exists():
+        return 0
+    max_n = -1
+    try:
+        with open(csv_path, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                run_id = str(row.get("run_id", "")).strip()
+                m = _RUN_ID_RE.match(run_id)
+                if not m:
+                    continue
+                if m.group("date") != date or m.group("mode") != mode or m.group("strategy") != strategy:
+                    continue
+                try:
+                    n = int(m.group("num"))
+                except ValueError:
+                    continue
+                if n > max_n:
+                    max_n = n
+    except Exception:
+        return 0
+    return max_n + 1
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -95,14 +126,14 @@ def main():
 Examples:
   python3 scripts/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2
   python3 scripts/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --iterations 2
-  python3 scripts/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 (⚠️ EXPERIMENTAL - NOT YET FUNCTIONAL)
+  python3 scripts/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 (⚠️ EXPERIMENTAL)
         """
     )
     
     parser.add_argument(
         "strategy",
         choices=["cold", "precopy", "postcopy"],
-        help="Migration strategy to test (postcopy is EXPERIMENTAL, not yet functional)"
+        help="Migration strategy to test (postcopy is EXPERIMENTAL)"
     )
     
     parser.add_argument("--source", required=True, help="Source node name")
@@ -129,19 +160,37 @@ Examples:
         default="host",
         help="Archive transfer mode: host (source->host->dest) or direct (source->dest via scp)"
     )
+    parser.add_argument(
+        "--network-migration",
+        choices=["no", "yes"],
+        default="no",
+        help="Enable CRIU network socket options (experimental; may require --ext-net-map)"
+    )
+    parser.add_argument(
+        "--ext-net-map",
+        default=None,
+        help='Optional CRIU ext-net-map mapping, e.g. "10.0.0.1:10.0.0.2"'
+    )
+    parser.add_argument(
+        "--page-server-port",
+        type=int,
+        default=9999,
+        help="Postcopy only: TCP port for lazy-pages page-server (default: 9999)"
+    )
     
     args = parser.parse_args()
-    
-    # Generate run_id if not provided
-    if args.run_id is None:
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        args.run_id = f"{args.strategy}-{timestamp}"
-    
+
     # Determine CSV path
     if args.csv:
         csv_path = Path(args.csv)
     else:
         csv_path = get_csv_path()
+
+    # Generate run_id if not provided
+    if args.run_id is None:
+        date_str = datetime.now().strftime("%d-%m-%Y")
+        n = _next_run_number(csv_path, date=date_str, mode=args.transfer_mode, strategy=args.strategy)
+        args.run_id = f"{date_str}-{args.transfer_mode}-{args.strategy}-{n:04d}"
     
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting {args.strategy} migration...")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Source: {args.source}, Dest: {args.dest}")
@@ -151,13 +200,34 @@ Examples:
     # Create appropriate strategy instance
     source = MultipassCommand(args.source)
     dest = MultipassCommand(args.dest)
+    network_migration = args.network_migration == "yes"
     
     if args.strategy == "cold":
-        strategy = ColdMigration(source, dest, transfer_mode=args.transfer_mode)
+        strategy = ColdMigration(
+            source,
+            dest,
+            transfer_mode=args.transfer_mode,
+            network_migration=network_migration,
+            ext_net_map=args.ext_net_map,
+        )
     elif args.strategy == "precopy":
-        strategy = PrecopyMigration(source, dest, transfer_mode=args.transfer_mode, iterations=args.iterations)
+        strategy = PrecopyMigration(
+            source,
+            dest,
+            transfer_mode=args.transfer_mode,
+            iterations=args.iterations,
+            network_migration=network_migration,
+            ext_net_map=args.ext_net_map,
+        )
     elif args.strategy == "postcopy":
-        strategy = PostcopyMigration(source, dest, transfer_mode=args.transfer_mode)
+        strategy = PostcopyMigration(
+            source,
+            dest,
+            transfer_mode=args.transfer_mode,
+            network_migration=network_migration,
+            ext_net_map=args.ext_net_map,
+            page_server_port=args.page_server_port,
+        )
     else:
         print(f"ERROR: Unknown strategy {args.strategy}")
         sys.exit(1)

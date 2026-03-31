@@ -71,16 +71,17 @@ else
   echo "  ✗ /tmp/CRIU-counter missing"
 fi
 
-# Check 5: Destination log file
+# Check 5: Destination output file
 echo ""
-echo "✓ Check 5: Destination Log File"
-if multipass exec "$DEST" -- bash -lc "test -f /home/ubuntu/counter.log"; then
-  echo "  ✓ /home/ubuntu/counter.log exists on dest"
-  echo "    Size: $(multipass exec "$DEST" -- bash -lc 'wc -l /home/ubuntu/counter.log' | awk '{print $1}') lines"
+echo "✓ Check 5: Destination Counter Output"
+OUT_FILE="/home/ubuntu/counter.out"
+if multipass exec "$DEST" -- bash -lc "test -f $OUT_FILE"; then
+  echo "  ✓ $OUT_FILE exists on dest"
+  echo "    Size: $(multipass exec "$DEST" -- bash -lc "wc -l $OUT_FILE" | awk '{print $1}') lines"
   echo "    Content:"
-  multipass exec "$DEST" -- bash -lc "cat /home/ubuntu/counter.log | tail -20"
+  multipass exec "$DEST" -- bash -lc "tail -20 $OUT_FILE"
 else
-  echo "  ✗ /home/ubuntu/counter.log missing on dest"
+  echo "  ✗ $OUT_FILE missing on dest"
 fi
 
 # Check 6: Restored PID

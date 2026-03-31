@@ -1,111 +1,63 @@
-# Experiment Framework and Scripts Reference
+# Exhaustive Benchmark Guide (CRIU / Podman / Metrics / Plots)
 
-A comprehensive reference for running service migration benchmarks in this project.
+This guide is the **main end-to-end manual** for running migration benchmarks in this repository:
+- Provision the 2 Multipass nodes (`edge-node-1` → `edge-node-2`)
+- Run single migrations (cold / pre-copy / post-copy)
+- Run repeated benchmark batches (host vs direct transfer)
+- Collect node_exporter metrics (CPU / memory / disk IO)
+- Generate plots and locate all artifacts
 
-## 1. Benchmarking Scope
+If you only want folder-specific details, each subdirectory has a scoped README:
+- `Container/README.md`
+- `Container/scripts/orchestrators/README.md`
+- `Container/scripts/workloads/README.md`
+- `Container/scripts/setup/README.md`
+- `Container/scripts/visualization/README.md`
+- `Container/metrics/README.md`
 
-The framework evaluates service migration approaches for edge computing environments, with current focus on checkpoint/restore-based container migration using CRIU across two Ubuntu VMs (`edge-node-1` → `edge-node-2`).
+---
 
-### Supported Migration Methods
+## 0) Concepts and Terminology
 
-- **Native CRIU**: Cold migration, pre-copy live migration
-- **Post-Copy**: Experimental (TODO: lazy-pages daemon implementation)
-- **P.Haul**: Not yet integrated (TODO: requires Go library bindings)
-- **Podman+CRIU**: Container-based migration baseline
+### Nodes
+- **Source** node: `edge-node-1`
+- **Destination** node: `edge-node-2`
 
-## 2. Repository Organization
+### Strategies (optimization)
+- `cold`: freeze → dump → transfer → restore (baseline, highest downtime)
+- `precopy`: pre-dumps while running + final dump/restore (reduced downtime)
+- `postcopy`: `lazy-pages` (restore quickly, fetch pages on-demand; **experimental**)
 
-| Directory | Purpose |
-|-----------|---------|
-| `tools/terraform/` | Infrastructure provisioning (Multipass VMs) |
-| `Container/scripts/` | Experiment automation scripts |
-| `Container/metrics/` | Benchmark results (CSV format) |
-| `Container/*.md` | Strategy-specific documentation |
-
-## 3. System Components
-
-**Multipass**
-Creates and manages Ubuntu VM instances for benchmark experiments.
-
-**Terraform**
-Automates provisioning of Multipass VMs and initial configuration.
-
-**CRIU (Checkpoint/Restore In Userspace)**
-Core checkpoint/restore engine. Performs process state capture and restoration.
-
-**Podman**
-Container runtime providing checkpoint/restore interface via CRIU.
-
-**checkpointctl**
-Analysis tool for CRIU checkpoint archives and metadata inspection.
-
-**P.Haul (Not Yet Implemented)**
-CRIU's official live migration library. Requires Go interface implementation (PhaulLocal, PhaulRemote) with RPC communication. See reference implementation in https://criu.org/P.Haul.
-
-**Scripts**
-Python and Bash utilities for experiment orchestration, metrics collection, and diagnostics.
-
-## 4. Active Scripts
-
-### Setup
-
-**`Container/scripts/setup/reset_nodes.py`**
-- Cleans both nodes before experiments
-- Removes stale PID files, logs, and checkpoint directories
-- Idempotent operation
-
-### Orchestrators
-
-**`Container/scripts/orchestrators/criu_benchmark.py`**
-- Automated CRIU migration benchmark runner
-- Strategies: `cold`, `precopy`, `postcopy`
-- Measurements: checkpoint/transfer/restore times, downtime, bandwidth
-- Output: CSV metrics to `Container/metrics/migration_metrics.csv`
-
-**`Container/scripts/orchestrators/collect_podman_metrics.sh`**
-- Podman container checkpoint/restore automation
-- Unified CSV schema with native CRIU benchmarks
+### Transfer modes (channel)
+- `host`: source → host → destination (via `multipass transfer`)
+- `direct`: source → destination (via SSH/SCP between the VMs)
 
 ### Workloads
+- `counter` (recommended baseline): a tiny C program that prints `0,1,2...` to stdout
+  - Captured on the VM at `/home/ubuntu/counter.out`
+- `tcp` / `udp` (experimental): echo servers intended for socket migration experiments
 
-**`Container/scripts/workloads/start_counter_c.sh`**
-- Deploys and runs simple counter workload (baseline)
-- Generates `/home/ubuntu/counter.pid` and `/home/ubuntu/counter.log`
-- Recommended for standard benchmarks
+### Run IDs
+The default scheme used by the repeat runner (and by `criu_benchmark.py` when you omit `--run-id`) is:
 
-**`Container/scripts/workloads/start_tcp_echo.sh`** **_EXPERIMENTAL, NOT YET TESTED IN MIGRATION_**
-- TCP echo server (network-aware migration testing)
-- Creates `/home/ubuntu/app.pid`
+`DD-MM-YYYY-(host|direct)-(cold|precopy|postcopy)-NNNN`
 
-**`Container/scripts/workloads/start_udp_echo.sh`** **_EXPERIMENTAL, NOT YET TESTED IN MIGRATION_**
-- UDP echo server (network-aware migration testing)
-- Creates `/home/ubuntu/app.pid`
+Example: `30-03-2026-direct-precopy-0007`
 
-### Helpers
+### What is measured
+Every run appends a row to `Container/metrics/migration_metrics.csv` with:
+- `checkpoint_ms`: freeze/dump time (for `precopy`: **final dump only**)
+- `transfer_ms`: archive transfer time
+- `restore_ms`: restore time
+- `downtime_ms`: `checkpoint_ms + transfer_ms + restore_ms`
 
-**`Container/scripts/helpers/diagnose_migration.sh`**
-- Post-migration diagnostics
-- Verifies connectivity, CRIU availability, dump integrity, restore success
+**Verification note**: logs may show `Expected min` (frozen_last + 1) and `Observed` after a short wait, so `Observed` is usually higher.
 
-**`Container/scripts/helpers/validate_migration.py`**
-- Checkpoint validation using `checkpointctl`
-- Verifies checkpoint archive structure and completeness
+---
 
-### CSV Schema
+## 1) One-time Infrastructure Setup (Multipass + Terraform)
 
-All benchmarks write to a unified 16-column CSV:
-
-```
-run_id, technology, migration_method, network_migration, checkpoint_ms,
-archive_bytes, transfer_ms, restore_ms, downtime_ms, bandwidth_mbps,
-src_arch, dst_arch, same_arch, success, notes, timestamp
-```
-
-## 5. Prerequisites
-
-### Infrastructure Setup
-
-Initialize Multipass VMs with Terraform:
+Provision the two VMs:
 
 ```bash
 cd tools/terraform
@@ -114,167 +66,267 @@ terraform apply -auto-approve
 cd ../..
 ```
 
-### Verification
-
-Verify both nodes are ready:
+Verify both VMs exist and are reachable:
 
 ```bash
 multipass list
+multipass exec edge-node-1 -- uname -a
+multipass exec edge-node-2 -- uname -a
 multipass exec edge-node-1 -- criu --version
 multipass exec edge-node-2 -- criu --version
 ```
 
-### Optional Python Dependencies
+If your Terraform/Multipass bootstrap installs run in the background, follow:
+- `tools/terraform/README.md`
 
-For metrics analysis and visualization:
+---
+
+## 2) Optional (Recommended): node_exporter + Time Sync
+
+Install node_exporter on both nodes (CPU/mem/disk IO metrics):
 
 ```bash
-python3 -m pip install pandas seaborn matplotlib
+bash Container/scripts/setup/install_node_exporter.sh edge-node-1 edge-node-2
 ```
 
-## 6. Benchmark Procedures
+Sanity-check node_exporter output:
 
-### A. Native CRIU Cold Migration (Baseline)
+```bash
+bash Container/scripts/setup/check_node_exporter_metrics.sh edge-node-1 edge-node-2
+```
+
+Check host vs node clocks + NTP status:
+
+```bash
+bash Container/scripts/setup/check_time_sync.sh edge-node-1 edge-node-2
+```
+
+---
+
+## 3) Single-Run Benchmarks (Manual Flow)
+
+All strategies follow the same high-level pattern:
+1) Reset nodes (cleanup)
+2) Start workload on the source node
+3) Run migration strategy
+4) Inspect outputs
+
+### 3.1 Reset nodes
 
 ```bash
 python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
-bash Container/scripts/workloads/start_counter_c.sh edge-node-1
+```
 
+### 3.2 Start the baseline workload (counter)
+
+```bash
+bash Container/scripts/workloads/start_counter_c.sh edge-node-1
+```
+
+Watch it live:
+
+```bash
+multipass exec edge-node-1 -- tail -f /home/ubuntu/counter.out
+```
+
+### 3.3 Cold migration
+
+```bash
 python3 Container/scripts/orchestrators/criu_benchmark.py cold \
   --source edge-node-1 \
   --dest edge-node-2 \
-  --transfer-mode direct \
-  --run-id baseline-cold-001
+  --transfer-mode direct
 ```
 
-### B. Native CRIU Pre-Copy Live Migration
+CLI reference:
+```bash
+python3 Container/scripts/orchestrators/criu_benchmark.py --help
+```
+
+### 3.4 Pre-copy migration
 
 ```bash
-python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
-bash Container/scripts/workloads/start_counter_c.sh edge-node-1
-
 python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
   --source edge-node-1 \
   --dest edge-node-2 \
   --transfer-mode direct \
-  --iterations 2 \
-  --run-id baseline-precopy-001
+  --iterations 2
 ```
 
-### C. Native CRIU Post-Copy Live Migration (Experimental)
+### 3.5 Post-copy migration (lazy-pages, experimental)
+
+Requirements:
+- Destination must be able to reach the source VM by IP/port (page-server).
+- Kernel/CRIU must support `lazy-pages` (uses `userfaultfd` internally).
+
+Run:
 
 ```bash
-python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
-bash Container/scripts/workloads/start_counter_c.sh edge-node-1
-
 python3 Container/scripts/orchestrators/criu_benchmark.py postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
   --transfer-mode direct \
-  --run-id experimental-postcopy-001
+  --page-server-port 9999
 ```
 
-Note: Post-copy is experimental and currently non-functional. See `Container/CRIU-POST-COPY.md` for implementation notes.
+Troubleshooting for post-copy is in:
+- `Container/CRIU-POST-COPY.md`
 
-### D. Podman+CRIU Container Migration
+---
 
-Start container on source:
+## 4) Repeatable Benchmark Batches (Recommended)
+
+Use `repeat_benchmarks.py` to run N migrations in `host` mode and N in `direct` mode.
+It automatically:
+- resets nodes before each run
+- restarts the workload before each run
+- optionally snapshots node_exporter metrics before/after each run
+- optionally generates plots at the end
+
+CLI reference:
+```bash
+python3 Container/scripts/orchestrators/repeat_benchmarks.py --help
+```
+
+### 4.1 Run a suite (cold + precopy + postcopy)
 
 ```bash
-multipass exec edge-node-1 -- sudo podman run -d \
-  --name counter \
-  --network=none \
-  --security-opt apparmor=unconfined \
-  busybox:latest \
-  sh -c 'i=0; while true; do echo $i; i=$((i+1)); sleep 1; done'
+python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
+  --strategies cold,precopy,postcopy \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --workload counter \
+  --network-migration no \
+  --host-runs 10 \
+  --direct-runs 10 \
+  --iterations 2 \
+  --snapshot-node-metrics
 ```
 
-Run automation:
+### 4.2 Memory-only “30 tests” batch (copy/paste)
 
+```bash
+python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
+  --strategies cold,precopy,postcopy \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --workload counter \
+  --network-migration no \
+  --host-runs 30 \
+  --direct-runs 30 \
+  --iterations 5 \
+  --snapshot-node-metrics
+```
+
+### 4.3 Key batch artifacts
+
+For each batch, `repeat_benchmarks.py` writes:
+- Raw log: `Container/metrics/run_logs/<batch>.log`
+- Run list: `Container/metrics/run_logs/<batch>.run_ids.txt` (used for plot filtering)
+- Plots: `Container/metrics/plots/<batch>/`
+
+The `<batch>` name is auto-generated to be meaningful (date + workload + strategies + counts, etc.). Override it with `--base-run-id` if you want a custom name.
+
+Disable plots:
+```bash
+python3 Container/scripts/orchestrators/repeat_benchmarks.py suite ... --no-plots
+```
+
+---
+
+## 5) Metrics and Where Things Are Saved
+
+### 5.1 Main CSV (migration timing)
+- `Container/metrics/migration_metrics.csv`
+
+### 5.2 node_exporter snapshots (raw)
+When you use `--snapshot-node-metrics`, snapshots are written under:
+- `Container/metrics/node_exporter/<run_id>/`
+
+### 5.3 node_exporter summary CSV (derived)
+The repeat runner also appends a per-run summary row to:
+- `Container/metrics/node_exporter_metrics.csv`
+
+See schema + interpretation:
+- `Container/metrics/README.md`
+
+---
+
+## 6) Plot Generation
+
+Batch plotting (recommended):
+
+```bash
+python3 Container/scripts/visualization/generate_all_plots.py \
+  --csv Container/metrics/migration_metrics.csv \
+  --run-ids-file Container/metrics/run_logs/<batch>.run_ids.txt \
+  --out-dir Container/metrics/plots/<batch>
+```
+
+The repeat runner runs this automatically unless you pass `--no-plots`.
+
+---
+
+## 7) Network-aware Experiments (Experimental)
+
+Workloads:
+- TCP echo: `bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000`
+- UDP echo: `bash Container/scripts/workloads/start_udp_echo.sh edge-node-1 5001`
+
+Enable CRIU socket options:
+- `--network-migration yes`
+- (often) `--ext-net-map SRC_IP:DST_IP`
+
+Example (TCP + cold):
+```bash
+python3 Container/scripts/orchestrators/criu_benchmark.py cold \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --network-migration yes \
+  --ext-net-map 10.0.0.1:10.0.0.2
+```
+
+Note: exact requirements depend on the workload’s network namespace and addresses.
+
+---
+
+## 8) Podman+CRIU Container Migration Baseline
+
+Canonical, copy/paste demo:
+- `Container/PODMAN-MIGRATION.md`
+
+Scripted collection into the same CSV schema:
 ```bash
 bash Container/scripts/orchestrators/collect_podman_metrics.sh \
   --source edge-node-1 \
   --dest edge-node-2 \
-  --container counter \
-  --network-migration no \
-  --transfer-mode direct \
-  --run-id podman-baseline-001 \
-  --csv Container/metrics/migration_metrics.csv
+  --container counter
 ```
 
-### E. Network-Aware Benchmarks (TO BE TESTED)
+---
 
-TCP echo server migration:
+## 9) Troubleshooting and Debugging
 
+### Common logs
+- Source dump logs: `multipass exec edge-node-1 -- sudo tail -n 120 /tmp/CRIU-counter/dump.log`
+- Destination restore logs: `multipass exec edge-node-2 -- sudo tail -n 120 /tmp/CRIU-counter/restore.log`
+- Post-copy lazy-pages logs (dest): `multipass exec edge-node-2 -- sudo tail -n 120 /tmp/CRIU-counter/lazy-pages.log`
+
+### Diagnose script (after failures)
 ```bash
-python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
-bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000
-python3 Container/scripts/orchestrators/criu_benchmark.py cold \
-  --source edge-node-1 --dest edge-node-2 --run-id tcp-cold-001
+bash Container/scripts/helpers/diagnose_migration.sh --source edge-node-1 --dest edge-node-2
 ```
 
-UDP echo server migration:
+### Post-copy: “Address already in use”
+The page-server port may be held by a previous failed run. Fix:
+- re-run `reset_nodes.py`, or
+- choose a different port with `--page-server-port`.
 
-```bash
-python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
-bash Container/scripts/workloads/start_udp_echo.sh edge-node-1 5001
-python3 Container/scripts/orchestrators/criu_benchmark.py cold \
-  --source edge-node-1 --dest edge-node-2 --run-id udp-cold-001
-```
+---
 
-## 7. Diagnostics and Validation
+## 10) Strategy Guides (Repo-specific)
 
-When migration fails, run diagnostics:
-
-```bash
-bash Container/scripts/helpers/diagnose_migration.sh \
-  --source edge-node-1 \
-  --dest edge-node-2
-```
-
-To validate checkpoint archives:
-
-```bash
-python3 Container/scripts/helpers/validate_migration.py /tmp/CRIU-counter
-```
-
-Direct `checkpointctl` inspection:
-
-```bash
-checkpointctl show <checkpoint-archive>
-checkpointctl inspect <checkpoint-archive>
-```
-
-## 8. Metrics and Results
-
-### CSV Output Format
-
-Results are appended to `Container/metrics/migration_metrics.csv` with the unified schema:
-
-| Column | Description |
-|--------|-------------|
-| `migration_method` | `cold`, `precopy`, or `postcopy` |
-| `network_migration` | `yes` (sockets) or `no` (memory-only) |
-| `checkpoint_ms` | Dump phase duration |
-| `transfer_ms` | Archive transfer duration |
-| `restore_ms` | Restore phase duration |
-| `downtime_ms` | Total service unavailability (checkpoint + transfer + restore) |
-| `archive_bytes` | Checkpoint image size |
-| `bandwidth_mbps` | Effective transfer bandwidth |
-| `success` | Migration result (true/false) |
-| `notes` | Error description or special conditions |
-| `timestamp` | Benchmark execution time |
-
-### Interpretation
-
-- **Downtime**: Primary metric for service continuity assessment
-- **Archive Size**: Indicator of workload memory footprint and storage requirements
-- **Bandwidth**: Network efficiency; typically limited by CPU (dump/restore) rather than network I/O at small scales
-- **Method Comparison**: Cold vs precopy downtime reduction indicates live migration effectiveness
-
---- 
-
-## Additional Resources
-
-- **Strategy-specific guides**: See `Container/CRIU-COLD-MIGRATION.md`, `Container/CRIU-PRE-COPY.md`, and `Container/CRIU-POST-COPY.md`
-- **Script documentation**: Each script folder (`setup/`, `orchestrators/`, `helpers/`, `workloads/`) contains a README with detailed usage information
+Use these when you want the exact CRIU flags and the detailed “manual” flow:
+- Cold: `Container/CRIU-COLD-MIGRATION.md`
+- Pre-copy: `Container/CRIU-PRE-COPY.md`
+- Post-copy: `Container/CRIU-POST-COPY.md`

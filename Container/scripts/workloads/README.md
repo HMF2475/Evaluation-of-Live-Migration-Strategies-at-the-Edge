@@ -1,68 +1,42 @@
 # Workloads
 
-Test applications for migration experiments.
+## Overview
 
-## Scripts
+Test applications used by the migration orchestrators.
 
-### start_counter_c.sh
-Starts a simple counter workload (recommended baseline).
+For end-to-end benchmark instructions, see `GUIDE.md`.
 
-**Usage**:
+## Key Scripts
+
+- `start_counter_c.sh` — baseline counter workload (memory-only, easiest to validate).
+- `start_tcp_echo.sh` — TCP echo server (network migration experiments).
+- `start_udp_echo.sh` — UDP echo server (network migration experiments).
+
+## Common Usage
+
+### Counter (baseline)
+
 ```bash
 bash Container/scripts/workloads/start_counter_c.sh edge-node-1
 ```
 
-**What it does**:
-1. Transfers counter.c source to VM
-2. Compiles it with gcc
-3. Runs compiled binary on target node
-4. Creates PID files: /home/ubuntu/counter.pid, /home/ubuntu/app.pid
-5. Writes counter output to /home/ubuntu/counter.log
+What it does:
+- Builds `/tmp/counter` on the node.
+- Starts it with stdout redirected to `/home/ubuntu/counter.out`.
+- Writes PID files: `/home/ubuntu/counter.pid`, `/home/ubuntu/app.pid`.
 
-**Output**: Simple incrementing counter (1 increment/second)
+### TCP echo (experimental)
 
-**Why C**: 
-- Minimal memory footprint
-- Reproducible behavior
-- Easy to verify migration success
-
-### start_tcp_echo.sh (TO BE TESTED)
-TCP echo server for network-aware migration tests.
-
-**Usage**:
 ```bash
 bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000
 ```
 
-**What it does**:
-- Starts TCP echo server on specified port
-- Listens for connections
-- Echoes received data back
+### UDP echo (experimental)
 
-**Testing**: Network socket preservation during migration
-
-### start_udp_echo.sh (TO BE TESTED)
-UDP echo server for network-aware migration tests.
-
-**Usage**:
 ```bash
 bash Container/scripts/workloads/start_udp_echo.sh edge-node-1 5001
 ```
 
-**What it does**:
-- Starts UDP echo server on specified port
-- Echoes received datagrams
+## Notes
 
-**Testing**: UDP migration behavior
-
-## Recommended Test Sequence
-
-1. **Baseline**: Use counter
-   ```bash
-   bash Container/scripts/workloads/start_counter_c.sh edge-node-1
-   ```
-
-2. **Network tests**: Use TCP/UDP (advanced)
-   ```bash
-   bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000
-   ```
+- TCP/UDP migration is experimental in this repo. When testing it, use the orchestrator flags `--network-migration yes` and (usually required) `--ext-net-map SRC_IP:DST_IP`.

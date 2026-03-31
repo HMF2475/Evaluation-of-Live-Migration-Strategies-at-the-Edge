@@ -24,6 +24,12 @@ This guide implements **cold migration** (freeze → dump → transfer → resto
 
 ---
 
+## Prerequisites
+
+- Two running Multipass nodes (e.g. `edge-node-1`, `edge-node-2`)
+- Same CPU architecture on both nodes
+- CRIU installed on both nodes
+- Workload writes to `/home/ubuntu/counter.out` (this repo’s baseline scripts do)
 
 ### Verify prerequisites
 ```bash
@@ -39,6 +45,21 @@ done
 
 ---
 
+## Quick Start (Automated)
+
+```bash
+python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+bash Container/scripts/workloads/start_counter_c.sh edge-node-1
+
+python3 Container/scripts/orchestrators/criu_benchmark.py cold \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --transfer-mode host \
+  --run-id experimental-cold-001
+```
+
+---
+
 ## Step 1: Start a Native Process on Source
 
 **Use the C counter** for consistent performance testing:
@@ -47,88 +68,34 @@ done
 bash Container/scripts/workloads/start_counter_c.sh edge-node-1
 ```
 
-Or **copy the source code manually** if running outside the repo:
+Optional (manual, without the helper script): compile `Container/scripts/counter.c` and redirect stdout to `/home/ubuntu/counter.out`:
 
 ```bash
+multipass transfer Container/scripts/counter.c edge-node-1:/home/ubuntu/counter.c
 multipass exec edge-node-1 -- bash -lc '
-# Create C counter source
-cat > /home/ubuntu/counter.c << "EOF"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
-
-static volatile int running = 1;
-static FILE *logfile = NULL;
-
-void signal_handler(int sig) {
-    running = 0;
-}
-
-int main(int argc, char *argv[]) {
-    const char *logpath = "/home/ubuntu/counter.log";
-    unsigned long counter = 0;
-
-    if (argc > 1) {
-        logpath = argv[1];
-    }
-
-    logfile = fopen(logpath, "w");
-    if (!logfile) {
-        perror("fopen");
-        return 1;
-    }
-
-    if (dup2(fileno(logfile), STDOUT_FILENO) < 0) {
-        perror("dup2");
-        fclose(logfile);
-        return 1;
-    }
-
-    signal(SIGTERM, signal_handler);
-    signal(SIGINT, signal_handler);
-
-    while (running) {
-        printf("%lu\n", counter);
-        fflush(stdout);
-        counter++;
-        sleep(1);
-    }
-
-    fclose(logfile);
-    return 0;
-}
-EOF
-
-# Compile and run
-cc /home/ubuntu/counter.c -o /home/ubuntu/counter
-nohup /home/ubuntu/counter >/dev/null 2>&1 &
+set -e
+gcc -o /tmp/counter /home/ubuntu/counter.c
+: > /home/ubuntu/counter.out
+chmod 664 /home/ubuntu/counter.out
+nohup /tmp/counter >> /home/ubuntu/counter.out 2>&1 &
 echo $! > /home/ubuntu/counter.pid
-
-# Wait for log to populate
-sleep 3
-
-# Verify running
-SOURCE_PID=$(cat /home/ubuntu/counter.pid)
-ps -p "$SOURCE_PID" -o pid,cmd
-echo "Recent log entries:"
-tail -n 5 /home/ubuntu/counter.log
+cp /home/ubuntu/counter.pid /home/ubuntu/app.pid
+sleep 2
+tail -n 5 /home/ubuntu/counter.out
 '
 ```
 
 ### Capture "before" state for verification
 ```bash
-LAST_BEFORE=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.log" | tr -d '\r')
+LAST_BEFORE=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
 echo "Last counter value before migration: ${LAST_BEFORE}"
-EXPECTED_AFTER=$((LAST_BEFORE + 1))
-echo "Expected first value after restore: ${EXPECTED_AFTER}"
 ```
 
 ---
 
 ## Step 2: Dump Process with CRIU (Freeze Source)
 
-The `dump` command stops the process, saves its full state to image files, and **leaves it stopped** (unless `--leave-running` is used).
+By default, `criu dump` **kills** the dumped tasks when it finishes. For migration benchmarking we want the source process to remain frozen, so we use `--leave-stopped`.
 
 ```bash
 multipass exec edge-node-1 -- bash -lc '
@@ -146,7 +113,8 @@ sudo criu dump \
   -D /tmp/CRIU-counter \
   -v4 \
   -o dump.log \
-  --shell-job
+  --shell-job \
+  --leave-stopped
 
 # List dumped image files
 echo "=== Dumped image files ==="
@@ -159,9 +127,18 @@ sudo ls -lh /tmp/CRIU-counter/
 - `-D <dir>`: Output directory for CRIU image files
 - `-v4`: Verbose logging (for debugging)
 - `-o dump.log`: Log file
-- `--shell-job`: Required for shell scripts; tells CRIU to handle session/process group specially
+- `--shell-job`: Useful for “shell job” style processes; for this simple `/tmp/counter` demo it is often not strictly required, but we keep it for consistency with the orchestrator
+- `--leave-stopped`: Keep the dumped process frozen on the source (instead of killing it)
 
 After this step, the counter process is **frozen** on `edge-node-1`.
+
+### Capture the frozen value (expected after restore)
+```bash
+FROZEN_LAST=$(multipass exec edge-node-1 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
+EXPECTED_AFTER=$((FROZEN_LAST + 1))
+echo "Frozen last counter value: ${FROZEN_LAST}"
+echo "Expected first value after restore: ${EXPECTED_AFTER}"
+```
 
 ---
 
@@ -238,6 +215,29 @@ TRANSFER_METHOD="host"
 
 This transfers the archive directly between nodes - faster but requires SSH access between them.
 
+First-time only: set up SSH trust `edge-node-1 → edge-node-2` (this is what the orchestrator does automatically for `--transfer-mode direct`):
+
+```bash
+DEST_IP=$(multipass info edge-node-2 | grep IPv4 | awk '{print $2}')
+
+multipass exec edge-node-1 -- bash -lc '
+  set -e
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  test -f ~/.ssh/id_ed25519 || ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "CRIU-migration"
+'
+
+PUBKEY=$(multipass exec edge-node-1 -- bash -lc 'cat ~/.ssh/id_ed25519.pub' | tr -d '\r')
+
+multipass exec edge-node-2 -- bash -lc "
+  set -e
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+  grep -qxF '$PUBKEY' ~/.ssh/authorized_keys || echo '$PUBKEY' >> ~/.ssh/authorized_keys
+"
+
+multipass exec edge-node-1 -- bash -lc "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${DEST_IP} 'echo OK'"
+```
+
 ```bash
 echo "=== DIRECT TRANSFER ==="
 
@@ -249,7 +249,8 @@ echo "Transferring directly from edge-node-1 to edge-node-2..."
 T_TRANSFER_START=$(date +%s%N)
 
 multipass exec edge-node-1 -- bash -lc "
-  scp -o StrictHostKeyChecking=no \
+  scp -o BatchMode=yes -o ConnectTimeout=10 \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       /home/ubuntu/CRIU-counter.tar.gz \
       ubuntu@${DEST_IP}:/home/ubuntu/CRIU-counter.tar.gz
 "
@@ -350,13 +351,12 @@ Before restoring, the destination needs placeholder files for file descriptors t
 multipass exec edge-node-2 -- bash -lc '
 set -e
 
-# Create empty log and output files with correct permissions
-touch /home/ubuntu/counter.log /home/ubuntu/counter.out
-chmod 664 /home/ubuntu/counter.log /home/ubuntu/counter.out
+# Ensure the counter output file exists with correct permissions
+touch /home/ubuntu/counter.out
+chmod 664 /home/ubuntu/counter.out
 
-# Copy the script from source to destination (ensures inode compatibility)
 echo "=== Files created for restore ==="
-ls -l /home/ubuntu/counter.*
+ls -l /home/ubuntu/counter.out
 '
 ```
 
@@ -408,7 +408,7 @@ Check that the process is running and the counter continued from the correct val
 # Wait for process to start writing
 sleep 3
 
-OBSERVED_AFTER=$(multipass exec edge-node-2 -- bash -lc "tail -n 1 /home/ubuntu/counter.log" | tr -d '\r')
+OBSERVED_AFTER=$(multipass exec edge-node-2 -- bash -lc "tail -n 1 /home/ubuntu/counter.out" | tr -d '\r')
 
 echo "=== Migration Verification ==="
 echo "Expected first value: ${EXPECTED_AFTER}"
@@ -423,7 +423,7 @@ fi
 # Show recent log
 echo ""
 echo "=== Recent counter values (edge-node-2) ==="
-multipass exec edge-node-2 -- bash -lc "tail -n 10 /home/ubuntu/counter.log"
+multipass exec edge-node-2 -- bash -lc "tail -n 10 /home/ubuntu/counter.out"
 ```
 
 ---
@@ -436,9 +436,9 @@ Remove all migration artifacts.
 # Clean up on both nodes
 for n in edge-node-1 edge-node-2; do
   multipass exec "$n" -- bash -lc '
-    sudo pkill -f counter.sh 2>/dev/null || true
-    rm -f /home/ubuntu/counter.pid /home/ubuntu/counter.log \
-          /home/ubuntu/counter.out /home/ubuntu/counter.sh \
+    sudo pkill -f "/tmp/counter" 2>/dev/null || true
+    rm -f /home/ubuntu/counter.pid /home/ubuntu/app.pid \
+          /home/ubuntu/counter.c /home/ubuntu/counter.out \
           /home/ubuntu/CRIU-counter.tar.gz
     sudo rm -rf /tmp/CRIU-counter /tmp/CRIU-counter.tar.gz
   '
@@ -476,8 +476,8 @@ Common causes:
 - Incompatible architectures or kernel versions
 - AppArmor/SELinux profile issues
 
-### Process doesn't write to log after restore
-- Ensure `/home/ubuntu/counter.log` exists with correct permissions
+### Process doesn't write output after restore
+- Ensure `/home/ubuntu/counter.out` exists with correct permissions
 - Verify the restored process PID is correct
 - Check logs: `multipass exec edge-node-2 -- bash -lc "cat /home/ubuntu/counter.out"`
 
@@ -486,4 +486,3 @@ Common causes:
 ## References
 
 - [CRIU Official Documentation - Live Migration](https://criu.org/Live_migration)
-

@@ -17,7 +17,7 @@ resource "multipass_instance" "node1" {
   cpus           = 2
   memory         = "2G"
   disk           = "10G"
-  cloud_init_file = "cloud-init.yaml" 
+  cloud_init_file = "${path.module}/cloud-init.yaml" 
 }
 
 resource "multipass_instance" "node2" {

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Plot archive size vs transfer time analysis.
+Plot archive size vs transfer time analysis (by method and transfer mode).
 
 Generates a scatter plot showing the relationship between checkpoint archive
-size and network transfer duration.
+size and transfer duration, styled by transfer mode (host vs direct).
 """
 
 import pandas as pd
@@ -11,6 +11,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
+
+from common import load_migration_csv, resolve_output_file
 
 
 def plot_transfer_analysis(csv_file: str, output_file: str = None):
@@ -25,23 +27,27 @@ def plot_transfer_analysis(csv_file: str, output_file: str = None):
         print(f"ERROR: CSV file not found: {csv_file}")
         sys.exit(1)
     
-    df = pd.read_csv(csv_file)
+    df = load_migration_csv(csv_file)
     
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
     
-    # Default output path - calculate relative to this script's location
-    if output_file is None:
-        script_dir = Path(__file__).resolve().parent  # Container/scripts/visualization
-        output_file = script_dir.parent.parent / "metrics" / "plots" / "transfer_analysis.png"
+    output_file = resolve_output_file(output_file, "transfer_analysis.png")
     
     # Ensure output directory exists
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     
     plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=df, x='archive_bytes', y='transfer_ms', hue='migration_method', s=100)
-    plt.title('Archive Size vs Transfer Time')
+    sns.scatterplot(
+        data=df,
+        x="archive_bytes",
+        y="transfer_ms",
+        hue="migration_method",
+        style="transfer_mode",
+        s=85,
+    )
+    plt.title("Archive Size vs Transfer Time")
     plt.xlabel('Archive Size (bytes)')
     plt.ylabel('Transfer Time (ms)')
     plt.tight_layout()

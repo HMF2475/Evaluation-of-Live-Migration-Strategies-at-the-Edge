@@ -24,8 +24,14 @@ except ImportError:
 class ColdMigration(MigrationStrategy):
     """Cold migration: stop service, checkpoint, transfer, restore."""
 
-    def __init__(self, source: MultipassCommand, dest: MultipassCommand,
-                 transfer_mode: str = "host"):
+    def __init__(
+        self,
+        source: MultipassCommand,
+        dest: MultipassCommand,
+        transfer_mode: str = "host",
+        network_migration: bool = False,
+        ext_net_map: str | None = None,
+    ):
         """Initialize cold migration strategy.
         
         Args:
@@ -33,9 +39,9 @@ class ColdMigration(MigrationStrategy):
             dest: Destination node command executor
             transfer_mode: "host" for host-mediated or "direct" for SCP
         """
-        super().__init__(source, dest, transfer_mode)
+        super().__init__(source, dest, transfer_mode, network_migration=network_migration, ext_net_map=ext_net_map)
         self.metrics.migration_method = "cold"
-        self.metrics.network_migration = "no"
+        self.metrics.network_migration = "yes" if network_migration else "no"
 
     def get_method_name(self) -> str:
         """Return migration method name."""
@@ -55,40 +61,6 @@ class ColdMigration(MigrationStrategy):
                     self.log(f"  Using PID from {pid_file}: {pid}")
                     return pid
         return None
-
-    def _verify_and_transfer_log_file(self) -> bool:
-        """Transfer counter.log from source to destination.
-        
-        This file is required by CRIU for restoring open file handles.
-        Works with both direct and host transfer modes.
-        
-        Returns:
-            True if transfer succeeded or file doesn't exist, False on error
-        """
-        self.log("Step 5.5: Transferring log file content...")
-        
-        if not self.source.file_exists("/home/ubuntu/counter.log"):
-            self.log("  (No log file to transfer, creating placeholder...)")
-            # Create empty placeholder file so CRIU doesn't fail on restore
-            self.dest.exec("touch /home/ubuntu/counter.log", check=False)
-            return True
-        
-        transfer_ok = transfer_archive_via_host(
-            self.source.node, self.dest.node,
-            "/home/ubuntu/counter.log",
-            "/home/ubuntu/counter.log",
-        ) if self.transfer_mode == "host" else transfer_archive_direct(
-            self.source.node, self.dest.node,
-            "/home/ubuntu/counter.log",
-            "/home/ubuntu/counter.log"
-        )
-        
-        if not transfer_ok:
-            self.log("  WARNING: Could not transfer counter.log, creating placeholder...")
-            # Create empty placeholder file so CRIU doesn't fail on restore
-            self.dest.exec("touch /home/ubuntu/counter.log", check=False)
-        
-        return True  # Don't fail migration if log transfer fails
 
     def migrate(self, run_id: str) -> bool:
         """Execute cold migration.
@@ -122,11 +94,12 @@ class ColdMigration(MigrationStrategy):
             self.metrics.notes += "; pid_not_found"
             return False
 
-        # Get last value before migration
-        rc, last_before, _ = self.source.exec("tail -n 1 /home/ubuntu/counter.log", check=False)
-        expected_after = str(int(last_before) + 1) if last_before.isdigit() else "unknown"
-        self.log(f"  Last counter value: {last_before}")
-        self.log(f"  Expected after restore: {expected_after}")
+        # Snapshot last printed value before we start dumping (best-effort).
+        # NOTE: The process may still print between this read and the actual freeze.
+        out_path = self.counter_output_path()
+        _, last_before, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        self.log(f"  Last counter value (pre-freeze): {last_before}")
+        expected_after = "unknown"
 
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
@@ -141,10 +114,13 @@ class ColdMigration(MigrationStrategy):
         self.log("Step 2: Dumping process with CRIU...")
         t_checkpoint_start = time.time_ns()
 
+        net_dump_opts = " --tcp-established" if self.network_migration else ""
+
         rc, _, err = self.source.exec(
             "sudo rm -rf /tmp/CRIU-counter && "
             "sudo mkdir -p /tmp/CRIU-counter && "
-            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log --shell-job --skip-file-rwx-check",
+            f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log "
+            f"--shell-job --skip-file-rwx-check{net_dump_opts}",
             check=False,
         )
 
@@ -155,6 +131,14 @@ class ColdMigration(MigrationStrategy):
                 self.log(f"Dump log:\n{dump_log}")
             self.metrics.notes += "; dump_failed"
             return False
+
+        # Now that the process is frozen/terminated (cold dump), the output file is stable.
+        # Compute the expected next value from the frozen snapshot for accurate reporting.
+        _, frozen_last, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        if frozen_last.isdigit():
+            expected_after = str(int(frozen_last) + 1)
+        self.log(f"  Frozen last counter value: {frozen_last}")
+        self.log(f"  Expected after restore: {expected_after}")
 
         t_checkpoint_done = time.time_ns()
         checkpoint_ms = (t_checkpoint_done - t_checkpoint_start) // 1_000_000
@@ -227,27 +211,26 @@ class ColdMigration(MigrationStrategy):
             self.metrics.notes += "; unpack_failed"
             return False
 
-        # Step 5.5: Transfer log file content
-        if not self._verify_and_transfer_log_file():
-            return False
-
         # Step 6: Prepare destination
         self.log("Step 6: Preparing restore environment...")
-        
+
         # Create log and output files if they don't exist
         rc, _, _ = self.dest.exec(
-            "touch /home/ubuntu/counter.log /home/ubuntu/counter.out /home/ubuntu/tcp_echo.log /home/ubuntu/udp_echo.log && "
-            "chmod 664 /home/ubuntu/counter.log /home/ubuntu/counter.out /home/ubuntu/tcp_echo.log /home/ubuntu/udp_echo.log"
+            "touch /home/ubuntu/counter.out /home/ubuntu/tcp_echo.log /home/ubuntu/udp_echo.log && "
+            "chmod 664 /home/ubuntu/counter.out /home/ubuntu/tcp_echo.log /home/ubuntu/udp_echo.log"
         )
 
         if rc != 0:
             self.log("ERROR: Could not create log files")
             self.metrics.notes += "; prepare_failed"
             return False
+
+        # Ensure counter stdout target exists (avoid transferring file contents)
+        self.ensure_counter_output_file()
         
         # Copy application scripts from source
         self.log("  Copying application scripts...")
-        for script in ["counter.sh", "tcp_echo.py", "udp_echo.py"]:
+        for script in ["tcp_echo.py", "udp_echo.py"]:
             script_path = f"/home/ubuntu/{script}"
             rc, content, _ = self.source.exec(f"[ -f {script_path} ] && cat {script_path} || echo ''", check=False)
             if rc == 0 and content:
@@ -277,7 +260,9 @@ class ColdMigration(MigrationStrategy):
 
         rc, _, err = self.dest.exec(
             "sudo criu restore -D /tmp/CRIU-counter -v4 -o restore.log "
-            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check",
+            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check"
+            + (" --tcp-established" if self.network_migration else "")
+            + (f" --ext-net-map={self.ext_net_map}" if self.ext_net_map else ""),
             check=False,
         )
 
@@ -295,15 +280,33 @@ class ColdMigration(MigrationStrategy):
         self.metrics.restore_ms = int(restore_ms)
         self.log(f"  Restore time: {restore_ms} ms")
 
+        # Persist PID files on destination so it can act as a source for "bounce" migrations.
+        restored_pid = self.persist_restored_pid_files("/tmp/CRIU-counter/restored.pid")
+        if restored_pid:
+            self.log(f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)")
+        else:
+            self.log("WARNING: Could not persist restored PID files on destination")
+            self.metrics.notes += "; pidfile_persist_failed"
+
         # Step 8: Verify
         self.log("Step 8: Verifying migration...")
-        time.sleep(3)  # Give process time to write
+        verify_wait_s = 3  # Give process time to write
+        t_verify_start = time.monotonic()
+        time.sleep(verify_wait_s)
+        verify_elapsed_s = time.monotonic() - t_verify_start
 
-        if self.dest.file_exists("/home/ubuntu/counter.log"):
-            rc, observed, _ = self.dest.exec("tail -n 1 /home/ubuntu/counter.log", check=False)
-            self.log(f"  Expected: {expected_after}, Observed: {observed}")
+        if expected_after != "unknown" and self.dest.file_exists(out_path):
+            rc, observed, _ = self.dest.exec(f"tail -n 1 {out_path}", check=False)
+            expected_min = expected_after
+            expected_at_check = "unknown"
+            if expected_min.isdigit():
+                expected_at_check = str(int(expected_min) + int(verify_elapsed_s))
+            self.log(
+                f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
+                f"Observed: {observed}"
+            )
             if rc != 0 or not observed:
-                self.log("WARNING: Could not read log from destination")
+                self.log("WARNING: Could not read counter output from destination")
                 self.metrics.notes += "; log_read_failed"
                 self.metrics.success = False
             elif observed.isdigit() and expected_after != "unknown":

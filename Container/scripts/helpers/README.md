@@ -1,47 +1,39 @@
 # Helper Scripts
 
-Debugging, validation, and diagnostic tools.
+## Overview
 
-## Scripts
+Debugging, validation, and diagnostic utilities used when migrations fail.
 
-### diagnose_migration.sh
-Post-failure diagnostics for CRIU migrations.
+For end-to-end benchmark instructions, see `GUIDE.md`.
 
-**Usage**:
+## Key Scripts
+
+- `diagnose_migration.sh` — post-failure diagnostics for CRIU migrations.
+- `validate_migration.py` — checkpoint inspection/validation using `checkpointctl`.
+
+## Common Usage
+
+### Diagnose a failed run
+
 ```bash
 bash Container/scripts/helpers/diagnose_migration.sh \
   --source edge-node-1 \
   --dest edge-node-2
 ```
 
-**Checks**:
-1. Node connectivity
-2. CRIU installation
-3. Source process status
-4. Dump file integrity
-5. Destination log file
-6. Restored process status
-7. Restore logs for errors
+### Validate a CRIU image directory
 
-**Use when**: Migration fails to identify root cause
-
-### validate_migration.py
-Checkpoint validation using checkpointctl.
-
-**Usage**:
 ```bash
 python3 Container/scripts/helpers/validate_migration.py /tmp/CRIU-counter
 ```
 
-**Validates**:
-- Checkpoint archive integrity
-- Memory content
-- Process state metadata
-- File descriptor information
+## Notes
 
-## Tips
+- `diagnose_migration.sh` is meant to be run after a failed orchestrator run (it looks for the usual dump/restore logs and output files).
+- `validate_migration.py` requires `checkpointctl` to be installed.
 
-For detailed debugging:
+Example “debug loop”:
+
 ```bash
 # 1. Reset nodes
 python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2

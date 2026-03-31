@@ -1,56 +1,40 @@
 /* Simple counter application for CRIU migration testing.
- * Increments a counter every second and writes to stdout + logfile.
- * Usage: counter [logfile]
- * Default logfile: /home/ubuntu/counter.log
+ * Prints an incrementing integer every second to stdout.
+ *
+ * IMPORTANT:
+ * - The migration framework redirects stdout to `/home/ubuntu/counter.out`.
+ * - We avoid opening/writing a dedicated log file inside the process so we
+ *   don't need to transfer log file contents during migration (which caused
+ *   duplicated values when analyzing outputs from both nodes).
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-#include <time.h>
 
-static volatile int running = 1;
-static FILE *logfile = NULL;
+static volatile sig_atomic_t running = 1;
 
-void signal_handler(int sig) {
+static void signal_handler(int sig) {
+    (void)sig;
     running = 0;
 }
 
-int main(int argc, char *argv[]) {
-    const char *logpath = "/home/ubuntu/counter.log";
+int main(void) {
     unsigned long counter = 0;
-
-    if (argc > 1) {
-        logpath = argv[1];
-    }
-
-    /* Open logfile for writing */
-    logfile = fopen(logpath, "w");
-    if (!logfile) {
-        perror("fopen");
-        return 1;
-    }
-
-    /* Redirect stdout to the same logfile */
-    if (dup2(fileno(logfile), STDOUT_FILENO) < 0) {
-        perror("dup2");
-        fclose(logfile);
-        return 1;
-    }
 
     /* Set up signal handlers for graceful shutdown */
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
 
+    /* Ensure each line is flushed promptly (useful for tail -f). */
+    setvbuf(stdout, NULL, _IOLBF, 0);
+
     /* Main loop: increment and print every second */
     while (running) {
         printf("%lu\n", counter);
-        fflush(stdout);
         counter++;
         sleep(1);
     }
 
-    fclose(logfile);
     return 0;
 }

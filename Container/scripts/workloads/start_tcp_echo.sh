@@ -3,15 +3,15 @@
 # Start a simple TCP echo server on the source node.
 # Useful for benchmarking network socket migration.
 #
-# Usage: bash Container/scripts/start_tcp_echo.sh [node-name] [port]
-# Example: bash Container/scripts/start_tcp_echo.sh edge-node-1 5000
+# Usage: bash Container/scripts/workloads/start_tcp_echo.sh [node-name] [port]
+# Example: bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000
 
 NODE="${1:-edge-node-1}"
 PORT="${2:-5000}"
 
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
-  echo "Error: PORT must be a number between 1 and 65535 (got: ${PORT})" >&2
-  exit 1
+    echo "Error: PORT must be a number between 1 and 65535 (got: ${PORT})" >&2
+    exit 1
 fi
 
 echo "[$(date +'%H:%M:%S')] Starting TCP echo server on $NODE:$PORT..."
@@ -29,7 +29,7 @@ def handle_client(conn, addr):
             if not data:
                 break
             conn.sendall(data)
-    except:
+    except Exception:
         pass
     finally:
         conn.close()

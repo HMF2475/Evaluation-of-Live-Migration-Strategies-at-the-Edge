@@ -50,12 +50,15 @@ def reset_nodes(source: str, dest: str) -> bool:
     exec_cmd(source,
         "ps aux | grep -E 'counter|app\\.py|http\\.server' | grep -v grep | awk '{print $2}' | while read pid; do [ -n \"$pid\" ] && kill -9 \"$pid\" 2>/dev/null || true; done"
     )
+    # CRIU post-copy can leave a `criu dump --lazy-pages ...` process running as the page-server.
+    exec_cmd(source, "sudo pkill -9 -f '^criu (dump|restore|page-server|lazy-pages)' 2>/dev/null || true")
+    exec_cmd(source, "sudo fuser -k 9999/tcp 2>/dev/null || true")
     time.sleep(0.5)
     
     # Step 2: Clean source node
     log("Step 2: Cleaning source node...")
     exec_cmd(source, "rm -f /home/ubuntu/app.pid /home/ubuntu/app.log")
-    exec_cmd(source, "rm -f /home/ubuntu/counter.pid /home/ubuntu/counter.log")
+    exec_cmd(source, "rm -f /home/ubuntu/counter.pid /home/ubuntu/counter.out")
     exec_cmd(source, "rm -f /home/ubuntu/*counter* /home/ubuntu/CRIU* 2>/dev/null || true")
     exec_cmd(source, "sudo rm -rf /tmp/CRIU-counter* /tmp/criu* 2>/dev/null || true")
     
@@ -75,11 +78,13 @@ def reset_nodes(source: str, dest: str) -> bool:
     exec_cmd(dest, "pkill -9 counter || true")
     exec_cmd(dest, "pkill -f 'native-counter' || true")
     exec_cmd(dest, "pkill -f 'counter\\.sh' || true")
+    exec_cmd(dest, "sudo pkill -9 -f '^criu (dump|restore|page-server|lazy-pages)' 2>/dev/null || true")
+    exec_cmd(dest, "sudo fuser -k 9999/tcp 2>/dev/null || true")
     time.sleep(0.5)
     
     # Clean files on destination (separate commands for robustness)
     exec_cmd(dest, "rm -f /home/ubuntu/app.pid /home/ubuntu/app.log")
-    exec_cmd(dest, "rm -f /home/ubuntu/counter.pid /home/ubuntu/counter.log")
+    exec_cmd(dest, "rm -f /home/ubuntu/counter.pid /home/ubuntu/counter.out")
     exec_cmd(dest, "rm -f /home/ubuntu/*counter* /home/ubuntu/*counter.* 2>/dev/null || true")
     exec_cmd(dest, "rm -f /home/ubuntu/CRIU* 2>/dev/null || true")
     exec_cmd(dest, "sudo rm -rf /tmp/CRIU-counter* /tmp/criu* 2>/dev/null || true")
