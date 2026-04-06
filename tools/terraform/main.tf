@@ -30,3 +30,14 @@ resource "multipass_instance" "node2" {
 
   depends_on = [multipass_instance.node1]
 }
+
+resource "multipass_instance" "host1" {
+  name            = "edge-host-1"
+  image           = "noble"
+  cpus            = 2
+  memory          = "2G"
+  disk            = "10G"
+  cloud_init_file = "${path.module}/cloud-init.yaml"
+
+  depends_on = [multipass_instance.node1]
+}

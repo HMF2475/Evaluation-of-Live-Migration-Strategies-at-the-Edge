@@ -1,14 +1,17 @@
 """
-SSH and file transfer utilities for direct VM-to-VM migration.
+SSH and file transfer utilities for migration experiments.
 
-Handles Ed25519 key generation, trust setup, and SCP transfers.
+Supports:
+- direct VM-to-VM SCP
+- classic host-mediated transfers through the laptop
+- relay-node transfers through a third Multipass VM
 """
 
 import subprocess
 import os
-import tempfile
 from typing import Optional
 from pathlib import Path
+import tempfile
 
 try:
     from .multipass_command import MultipassCommand
@@ -137,11 +140,13 @@ def transfer_archive_direct(source_node: str, dest_node: str,
 
 
 def transfer_archive_via_host(source_node: str, dest_node: str,
-                             source_path: str, dest_path: str) -> bool:
+                             source_path: str, dest_path: str,
+                             relay_node: Optional[str] = None) -> bool:
     """Transfer file source→host→destination using multipass transfer.
     
-    Uses the host machine as intermediate storage, suitable when
-    direct VM-to-VM networking is not available.
+    If relay_node is provided, the file is staged through that VM instead
+    of the local laptop. This keeps "host mode" comparable to a true
+    intermediate hop when running experiments.
     
     Args:
         source_node: Source VM name
@@ -154,6 +159,54 @@ def transfer_archive_via_host(source_node: str, dest_node: str,
     """
     source = MultipassCommand(source_node)
     dest = MultipassCommand(dest_node)
+
+    if relay_node:
+        relay = MultipassCommand(relay_node)
+        relay_ip = get_node_ip(relay_node)
+        dest_ip = get_node_ip(dest_node)
+        stage_name = Path(dest_path).name
+        relay_stage = f"/tmp/{stage_name}.{source_node}.stage"
+
+        if not relay_ip or not dest_ip:
+            print(f"ERROR: Could not get IP for relay={relay_node} or dest={dest_node}")
+            return False
+
+        print(f"  Transferring {source_path} via relay node {relay_node}...")
+
+        rc, _, _ = source.exec(f"test -f {source_path}", check=False)
+        if rc != 0:
+            print(f"ERROR: Source file not found: {source_path}")
+            return False
+
+        if not ensure_direct_ssh_trust(source_node, relay_node):
+            print(f"ERROR: Failed to establish SSH trust between {source_node} and {relay_node}")
+            return False
+        if not ensure_direct_ssh_trust(relay_node, dest_node):
+            print(f"ERROR: Failed to establish SSH trust between {relay_node} and {dest_node}")
+            return False
+
+        rc, _, _ = source.exec(
+            f'scp -o BatchMode=yes -o ConnectTimeout=10 '
+            f'-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+            f'{source_path} ubuntu@{relay_ip}:{relay_stage}',
+            check=False
+        )
+        if rc != 0:
+            print("ERROR: Transfer from source to relay failed")
+            return False
+
+        rc, _, _ = relay.exec(
+            f'scp -o BatchMode=yes -o ConnectTimeout=10 '
+            f'-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
+            f'{relay_stage} ubuntu@{dest_ip}:{dest_path}',
+            check=False
+        )
+        relay.exec(f"rm -f {relay_stage}", check=False)
+        if rc != 0:
+            print("ERROR: Transfer from relay to destination failed")
+            return False
+
+        return True
     
     print(f"  Transferring {source_path} via host...")
     

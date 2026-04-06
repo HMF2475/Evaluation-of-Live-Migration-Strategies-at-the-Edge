@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash Container/scripts/setup/check_node_exporter_metrics.sh [edge-node-1] [edge-node-2] ...
+  bash Container/scripts/setup/check_node_exporter_metrics.sh [edge-node-1] [edge-node-2] [edge-host-1] ...
 
 Validates that node_exporter is reachable and exposes a few key metrics.
 EOF
@@ -16,7 +16,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  set -- edge-node-1 edge-node-2
+  set -- edge-node-1 edge-node-2 edge-host-1
 fi
 
 for node in "$@"; do
@@ -33,8 +33,7 @@ for node in "$@"; do
       node_network_receive_bytes_total \
       node_network_transmit_bytes_total
     do
-      echo "$m" | grep -q "^${k}" && echo "OK: ${k}" || { echo "MISSING: ${k}"; exit 1; }
+      grep -q "^${k}" <<<"$m" && echo "OK: ${k}" || { echo "MISSING: ${k}"; exit 1; }
     done
   '
 done
-

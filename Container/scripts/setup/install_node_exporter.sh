@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash Container/scripts/setup/install_node_exporter.sh [edge-node-1] [edge-node-2] ...
+  bash Container/scripts/setup/install_node_exporter.sh [edge-node-1] [edge-node-2] [edge-host-1] ...
 
 Installs and enables Prometheus node_exporter inside each Multipass VM.
 Exposes metrics on: http://127.0.0.1:9100/metrics (inside the VM)
@@ -17,7 +17,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  set -- edge-node-1 edge-node-2
+  set -- edge-node-1 edge-node-2 edge-host-1
 fi
 
 for node in "$@"; do
@@ -40,4 +40,3 @@ for node in "$@"; do
     echo "OK: node_exporter running on 9100"
   '
 done
-

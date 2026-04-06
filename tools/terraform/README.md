@@ -2,7 +2,10 @@
 
 This directory contains the Infrastructure as Code (IaC) configurations to provision the local experimental baseline.
 
-The Terraform scripts contained herein automatically deploy two isolated, identical Ubuntu edge nodes to simulate a distributed Tactical Edge Environment (TEE).
+The Terraform scripts contained herein automatically deploy three isolated identical Ubuntu edge nodes to simulate a distributed Tactical Edge Environment (TEE):
+- `edge-node-1` — source / control-plane
+- `edge-node-2` — destination worker
+- `edge-host-1` — relay / client / proxy node
 
 ## The Rationale: Why Multipass over Docker-in-Docker (KinD)?
 
@@ -29,7 +32,7 @@ Initialize Terraform to download the required Canonical Multipass provider plugi
 terraform init
 ```
 ### 2. Provision the Edge Nodes
-Apply the configuration to spin up the two virtual edge nodes (edge-node-1 and edge-node-2).
+Apply the configuration to spin up the three virtual nodes.
 
 ```bash
 terraform apply
@@ -67,20 +70,20 @@ terraform destroy
 If you want to pause the lab and continue later with the same instances:
 
 ```bash
-multipass stop edge-node-1 edge-node-2
+multipass stop edge-node-1 edge-node-2 edge-host-1
 ```
 
 Resume later:
 
 ```bash
-multipass start edge-node-1 edge-node-2
+multipass start edge-node-1 edge-node-2 edge-host-1
 multipass list
 ```
 
 Quick readiness check after start:
 
 ```bash
-for n in edge-node-1 edge-node-2; do
+for n in edge-node-1 edge-node-2 edge-host-1; do
 	echo "=== $n ==="
 	multipass exec $n -- bash -c '
 		systemctl is-active node-bootstrap || true
@@ -94,7 +97,7 @@ done
 If you want to keep the VMs but rerun migration from scratch, clear runtime state and checkpoint artifacts:
 
 ```bash
-for n in edge-node-1 edge-node-2; do
+for n in edge-node-1 edge-node-2 edge-host-1; do
 	echo "=== reset $n ==="
 	multipass exec $n -- bash -c '
 		sudo podman rm -f counter 2>/dev/null || true
@@ -125,7 +128,7 @@ multipass exec edge-node-1 -- sudo tail -n 100 /var/log/node-bootstrap.log
 If a partial instance was created and you want to retry cleanly, run:
 
 ```bash
-multipass delete edge-node-1 edge-node-2
+multipass delete edge-node-1 edge-node-2 edge-host-1
 multipass purge
 
 terraform apply

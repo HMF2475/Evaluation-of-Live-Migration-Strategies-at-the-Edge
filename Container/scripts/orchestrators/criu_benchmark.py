@@ -161,6 +161,11 @@ Examples:
         help="Archive transfer mode: host (source->host->dest) or direct (source->dest via scp)"
     )
     parser.add_argument(
+        "--relay-node",
+        default=None,
+        help="Optional relay VM used for host-mode transfers (for example: edge-host-1)"
+    )
+    parser.add_argument(
         "--network-migration",
         choices=["no", "yes"],
         default="no",
@@ -195,6 +200,8 @@ Examples:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting {args.strategy} migration...")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Source: {args.source}, Dest: {args.dest}")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Transfer mode: {args.transfer_mode}")
+    if args.relay_node:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Relay node: {args.relay_node}")
     print()
     
     # Create appropriate strategy instance
@@ -207,6 +214,7 @@ Examples:
             source,
             dest,
             transfer_mode=args.transfer_mode,
+            relay_node=args.relay_node,
             network_migration=network_migration,
             ext_net_map=args.ext_net_map,
         )
@@ -215,6 +223,7 @@ Examples:
             source,
             dest,
             transfer_mode=args.transfer_mode,
+            relay_node=args.relay_node,
             iterations=args.iterations,
             network_migration=network_migration,
             ext_net_map=args.ext_net_map,
@@ -224,6 +233,7 @@ Examples:
             source,
             dest,
             transfer_mode=args.transfer_mode,
+            relay_node=args.relay_node,
             network_migration=network_migration,
             ext_net_map=args.ext_net_map,
             page_server_port=args.page_server_port,

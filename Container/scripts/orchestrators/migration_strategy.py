@@ -17,31 +17,34 @@ except ImportError:
 
 class MigrationStrategy(ABC):
     """Abstract base class for migration strategies.
-    
+
     Subclasses must implement the specific migration logic for
     cold, precopy, postcopy, etc.
     """
-    
+
     def __init__(
         self,
         source: MultipassCommand,
         dest: MultipassCommand,
         transfer_mode: str = "host",
+        relay_node: str | None = None,
         network_migration: bool = False,
         ext_net_map: str | None = None,
     ):
         """Initialize migration strategy.
-        
+
         Args:
             source: Source node command executor
             dest: Destination node command executor
             transfer_mode: "host" for host-mediated or "direct" for SCP
+            relay_node: Optional third VM used as intermediate hop for host-mode transfers
             network_migration: If True, enable CRIU TCP/socket options and mark metrics as networked
             ext_net_map: Optional CRIU ext-net-map (e.g. "SRC_IP:DST_IP")
         """
         self.source = source
         self.dest = dest
         self.transfer_mode = transfer_mode
+        self.relay_node = relay_node
         self.network_migration = network_migration
         self.ext_net_map = ext_net_map
         self.metrics = MigrationMetrics(run_id="")

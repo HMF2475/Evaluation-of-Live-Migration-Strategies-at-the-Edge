@@ -2,7 +2,7 @@
 
 ## Overview
 
-Plotting utilities for `Container/metrics/migration_metrics.csv` and optional node_exporter snapshots captured by `repeat_benchmarks.py`.
+Plotting utilities for `Container/metrics/migration_metrics.csv` and optional node_exporter snapshots captured by the repeat runners.
 
 For the full benchmarking workflow, see `GUIDE.md`.
 

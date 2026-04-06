@@ -64,11 +64,12 @@ class PostcopyMigration(MigrationStrategy):
         source: MultipassCommand,
         dest: MultipassCommand,
         transfer_mode: str = "host",
+        relay_node: str | None = None,
         network_migration: bool = False,
         ext_net_map: str | None = None,
         page_server_port: int = 9999,
     ):
-        super().__init__(source, dest, transfer_mode, network_migration=network_migration, ext_net_map=ext_net_map)
+        super().__init__(source, dest, transfer_mode, relay_node=relay_node, network_migration=network_migration, ext_net_map=ext_net_map)
         self.metrics.migration_method = "postcopy"
         self.metrics.network_migration = "yes" if network_migration else "no"
         self.page_server_port = page_server_port
@@ -89,6 +90,8 @@ class PostcopyMigration(MigrationStrategy):
     def migrate(self, run_id: str) -> bool:
         self.metrics.run_id = run_id
         self.metrics.notes = f"transfer_mode={self.transfer_mode};lazy_pages_port={self.page_server_port}"
+        if self.relay_node:
+            self.metrics.notes += f";relay_node={self.relay_node}"
 
         self.log("=== POST-COPY (LAZY-PAGES) MIGRATION ===")
 
@@ -233,6 +236,7 @@ class PostcopyMigration(MigrationStrategy):
                     self.dest.node,
                     "/home/ubuntu/CRIU-counter.tar.gz",
                     "/home/ubuntu/CRIU-counter.tar.gz",
+                    relay_node=self.relay_node,
                 )
                 if self.transfer_mode == "host"
                 else transfer_archive_direct(

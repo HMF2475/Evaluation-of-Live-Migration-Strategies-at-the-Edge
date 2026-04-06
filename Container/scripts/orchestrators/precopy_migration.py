@@ -33,6 +33,7 @@ class PrecopyMigration(MigrationStrategy):
         source: MultipassCommand,
         dest: MultipassCommand,
         transfer_mode: str = "host",
+        relay_node: str | None = None,
         iterations: int = 2,
         network_migration: bool = False,
         ext_net_map: str | None = None,
@@ -45,7 +46,7 @@ class PrecopyMigration(MigrationStrategy):
             transfer_mode: "host" for host-mediated or "direct" for SCP
             iterations: Number of pre-dump iterations before final dump
         """
-        super().__init__(source, dest, transfer_mode, network_migration=network_migration, ext_net_map=ext_net_map)
+        super().__init__(source, dest, transfer_mode, relay_node=relay_node, network_migration=network_migration, ext_net_map=ext_net_map)
         self.metrics.migration_method = "precopy"
         self.metrics.network_migration = "yes" if network_migration else "no"
         self.iterations = iterations
@@ -95,6 +96,8 @@ class PrecopyMigration(MigrationStrategy):
         """
         self.metrics.run_id = run_id
         self.metrics.notes = f"transfer_mode={self.transfer_mode};iterations={self.iterations}"
+        if self.relay_node:
+            self.metrics.notes += f";relay_node={self.relay_node}"
         
         self.log("=== PRE-COPY LIVE MIGRATION ===")
 
@@ -235,6 +238,7 @@ class PrecopyMigration(MigrationStrategy):
                 self.source.node, self.dest.node,
                 "/tmp/CRIU-counter.tar.gz",
                 "/home/ubuntu/CRIU-counter.tar.gz",
+                relay_node=self.relay_node,
             )
         else:
             transfer_ok = transfer_archive_direct(

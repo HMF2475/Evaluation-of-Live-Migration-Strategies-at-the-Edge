@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash Container/scripts/setup/check_time_sync.sh [edge-node-1] [edge-node-2] ...
+  bash Container/scripts/setup/check_time_sync.sh [edge-node-1] [edge-node-2] [edge-host-1] ...
 
 Prints a quick clock sync report between host and each Multipass VM.
 EOF
@@ -16,7 +16,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  set -- edge-node-1 edge-node-2
+  set -- edge-node-1 edge-node-2 edge-host-1
 fi
 
 host_epoch="$(date +%s)"
@@ -37,4 +37,3 @@ for node in "$@"; do
   abs_delta_sec="${delta_sec#-}"
   echo "${node}: ${node_iso} (epoch=${node_epoch}) delta=${delta_sec}s (abs=${abs_delta_sec}s) ntp=${ntp_sync}"
 done
-
