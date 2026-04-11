@@ -1,6 +1,6 @@
 # Migration Metrics
 
-This directory stores benchmark results for container service migration experiments across different migration strategies (cold, pre-copy, post-copy) and scenarios (memory-only, networked).
+This directory stores benchmark results for container service migration experiments across different migration strategies (cold, pre-copy, post-copy).
 
 ## Results Storage
 
@@ -25,12 +25,12 @@ Columns:
 - `run_id` - Unique identifier for this benchmark run (default scheme: `DD-MM-YYYY-(host|direct)-(cold|precopy|postcopy)-NNNN`)
 - `technology` - CRIU
 - `migration_method` - cold, precopy, postcopy
-- `network_migration` - yes (with TCP/UDP socket preservation), no (memory-only)
+- `network_migration` - compatibility field kept in the schema for merged plotting workflows
 - `checkpoint_ms` - Time to dump process (milliseconds). For precopy, this is the **final dump only** (when service freezes), not including pre-dumps
 - `archive_bytes` - Size of the checkpoint archive transferred
 - `transfer_ms` - Time to transfer archive between nodes (milliseconds)
 - `restore_ms` - Time to restore process on destination (milliseconds)
-- `downtime_ms` - Total service downtime (checkpoint_ms + transfer_ms + restore_ms). **For precopy, this correctly excludes pre-dump time** since the service was still running during pre-dumps
+- `downtime_ms` - Total service downtime (checkpoint_ms + transfer_ms + restore_ms). For precopy, this excludes pre-dump time since the service was still running during pre-dumps
 - `bandwidth_mbps` - Effective bandwidth utilization during transfer (archive_bytes × 8 / (transfer_ms × 1000))
 - `src_arch` - Source node architecture (x86_64, arm64, etc.)
 - `dst_arch` - Destination node architecture
@@ -46,8 +46,8 @@ The modularized benchmark framework (`Container/scripts/orchestrators/`) handles
 
 The framework uses modularized strategy classes:
 - `ColdMigration` - Immediate checkpoint/restore (full downtime)
-- `PrecopyMigration` - Iterative pre-dumps with final freeze (reduced downtime, downtime calculation fixed in this version)
-- `PostcopyMigration` - Lazy page transfer on demand (experimental; requires CRIU `lazy-pages` + userfaultfd)
+- `PrecopyMigration` - Iterative pre-dumps with final freeze (reduced downtime)
+- `PostcopyMigration` - Lazy page transfer on demand (requires CRIU `lazy-pages` + userfaultfd)
 
 ## Analysis and Visualization
 

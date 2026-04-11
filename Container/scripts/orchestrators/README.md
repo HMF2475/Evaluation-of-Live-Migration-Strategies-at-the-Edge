@@ -72,8 +72,8 @@ bash Container/scripts/orchestrators/collect_podman_metrics.sh \
 ## Notes
 
 - `--transfer-mode host|direct` changes only how the CRIU image archive is transferred; post-copy still requires VM→VM connectivity for the page-server.
+- `--relay-node edge-host-1` makes `host` mode use the third VM as the intermediate hop instead of the laptop.
 - `direct` uses VM→VM `scp` and requires SSH trust; the orchestrator sets this up automatically (see `Container/scripts/orchestrators/ssh_utils.py`).
-- Network migration is experimental: use `--network-migration yes` and (usually required) `--ext-net-map SRC_IP:DST_IP`.
 - After a successful restore, the orchestrators write `/home/ubuntu/counter.pid` and `/home/ubuntu/app.pid` on the destination, so you can “bounce” the workload back and forth without re-running the workload launcher.
 
 For the full CSV schema and plot outputs, see `Container/metrics/README.md`.

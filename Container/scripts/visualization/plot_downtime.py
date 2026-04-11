@@ -6,19 +6,18 @@ Generates a distribution plot comparing downtime across migration methods
 and transfer modes (host vs direct).
 """
 
-import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import sys
 from pathlib import Path
 
-from common import load_migration_csv, resolve_output_file
+from common import load_migration_csv, ordered_methods, resolve_output_file
 
 
 def plot_downtime(csv_file: str, output_file: str = None):
     """
     Create downtime comparison chart.
-    
+
     Args:
         csv_file: Path to migration metrics CSV
         output_file: Output PNG filepath (defaults to Container/metrics/plots/downtime_comparison.png)
@@ -26,20 +25,20 @@ def plot_downtime(csv_file: str, output_file: str = None):
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
         sys.exit(1)
-    
+
     df = load_migration_csv(csv_file)
-    
+
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
-    
+
     output_file = resolve_output_file(output_file, "downtime_comparison.png")
-    
+
     # Ensure output directory exists
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-    
+
     plt.figure(figsize=(10, 6))
-    order = [m for m in ["cold", "precopy", "postcopy"] if m in set(df["migration_method"].astype(str))]
+    order = ordered_methods(df["migration_method"].astype(str))
     if not order:
         order = None
     sns.boxplot(
@@ -67,10 +66,15 @@ def plot_downtime(csv_file: str, output_file: str = None):
         for h, lab in zip(handles, labels):
             if lab not in unique:
                 unique[lab] = h
-        plt.legend(list(unique.values()), list(unique.keys()), title="transfer_mode", loc="best")
+        plt.legend(
+            list(unique.values()),
+            list(unique.keys()),
+            title="transfer_mode",
+            loc="best",
+        )
     plt.title("Migration Downtime by Strategy (Host vs Direct)")
-    plt.ylabel('Downtime (ms)')
-    plt.xlabel('Migration Method')
+    plt.ylabel("Downtime (ms)")
+    plt.xlabel("Migration Method")
     plt.tight_layout()
     plt.savefig(output_file, dpi=300)
     print(f"✓ Saved: {output_file}")
@@ -81,9 +85,9 @@ if __name__ == "__main__":
     csv_path = "Container/metrics/migration_metrics.csv"
     if len(sys.argv) > 1:
         csv_path = sys.argv[1]
-    
+
     output_path = None
     if len(sys.argv) > 2:
         output_path = sys.argv[2]
-    
+
     plot_downtime(csv_path, output_path)

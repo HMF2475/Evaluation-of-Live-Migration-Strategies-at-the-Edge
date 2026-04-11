@@ -8,6 +8,7 @@ import pandas as pd
 
 
 _TRANSFER_MODE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
+_STANDARD_METHOD_ORDER = ["cold", "precopy", "postcopy"]
 
 
 def parse_transfer_mode(notes: str) -> str:
@@ -28,6 +29,13 @@ def load_migration_csv(csv_file: str) -> pd.DataFrame:
     return df
 
 
+def ordered_methods(values) -> list[str]:
+    seen = {str(v) for v in values if str(v)}
+    ordered = [m for m in _STANDARD_METHOD_ORDER if m in seen]
+    ordered.extend(sorted(seen - set(ordered)))
+    return ordered
+
+
 def default_plots_dir() -> Path:
     script_dir = Path(__file__).resolve().parent  # Container/scripts/visualization
     return script_dir.parent.parent / "metrics" / "plots"
@@ -37,4 +45,3 @@ def resolve_output_file(output_file: Optional[str], default_name: str) -> Path:
     if output_file:
         return Path(output_file)
     return default_plots_dir() / default_name
-

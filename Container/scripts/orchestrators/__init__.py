@@ -13,8 +13,8 @@ from .precopy_migration import PrecopyMigration
 from .postcopy_migration import PostcopyMigration
 
 __all__ = [
-    'MigrationStrategy',
-    'ColdMigration',
-    'PrecopyMigration',
-    'PostcopyMigration',
+    "MigrationStrategy",
+    "ColdMigration",
+    "PrecopyMigration",
+    "PostcopyMigration",
 ]

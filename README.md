@@ -45,7 +45,7 @@ For installation on other operating systems, see:
 ## Repository Structure (high level)
 
 - `Container/` — CRIU + Podman migration experiments, scripts, metrics, and plots
-- `tools/terraform/` — Multipass VM provisioning (edge-node-1 / edge-node-2)
+- `tools/terraform/` — Multipass VM provisioning (`edge-node-1`, `edge-node-2`, `edge-host-1`)
 - `Papers/` — research context / related work
 
 ## Quick Sanity Run (CRIU, memory-only counter)
@@ -57,8 +57,7 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --strategies cold,precopy,postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
-  --workload counter \
-  --network-migration no \
+  --relay-node edge-host-1 \
   --host-runs 1 \
   --direct-runs 1 \
   --iterations 2 \
@@ -67,4 +66,33 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
 
 Results are appended to `Container/metrics/migration_metrics.csv`.
 Plots and batch logs are written under `Container/metrics/plots/` and `Container/metrics/run_logs/`.
+
+## Development & Linting
+
+This project uses **Ruff** for Python to maintain code quality.
+
+### Installing
+
+You can install Ruff using pip:
+```bash
+pip install ruff
+```
+
+### Running Linters & Fixers
+
+You can run Ruff using the standard commands:
+
+- `ruff check .` - Check for issues.
+- `ruff check --fix .` - Automatically fix safe issues (unused imports, whitespace, etc).
+- `ruff format .` - Format the code.
+
+### Pre-commit Hooks (Optional)
+
+The repository includes a `.pre-commit-config.yaml`. You can ensure files are automatically linted before committing by setting up pre-commit:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+Once installed, every `git commit` will automatically run Ruff on your staged changes.
 

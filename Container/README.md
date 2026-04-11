@@ -9,7 +9,7 @@ This directory contains the **CRIU-based migration** implementation used in this
 
 - `Container/scripts/setup/` — cleanup, node_exporter install/checks, time sync checks
   - See: `Container/scripts/setup/README.md`
-- `Container/scripts/workloads/` — demo workloads (counter, tcp/udp echo)
+- `Container/scripts/workloads/` — demo workloads (counter)
   - See: `Container/scripts/workloads/README.md`
 - `Container/scripts/orchestrators/` — main benchmark runners (`criu_benchmark.py`, `repeat_benchmarks.py`)
   - See: `Container/scripts/orchestrators/README.md`
@@ -34,8 +34,7 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --strategies cold,precopy,postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
-  --workload counter \
-  --network-migration no \
+  --relay-node edge-host-1 \
   --host-runs 10 \
   --direct-runs 10 \
   --iterations 2 \

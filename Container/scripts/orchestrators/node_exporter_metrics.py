@@ -10,7 +10,9 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 
-_METRIC_LINE_RE = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{.*\})?\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)")
+_METRIC_LINE_RE = re.compile(
+    r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{.*\})?\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)"
+)
 _LABEL_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_]*)="((?:\\.|[^"\\])*)"')
 _SKIP_DISK_DEV_RE = re.compile(r"^(loop|ram|fd|sr)\d+$")
 
@@ -25,7 +27,12 @@ class Snapshot:
 
 
 def _unescape_label_value(v: str) -> str:
-    return v.replace(r"\n", "\n").replace(r"\t", "\t").replace(r"\\", "\\").replace(r"\"", '"')
+    return (
+        v.replace(r"\n", "\n")
+        .replace(r"\t", "\t")
+        .replace(r"\\", "\\")
+        .replace(r"\"", '"')
+    )
 
 
 def _parse_labels(raw: str) -> Dict[str, str]:
@@ -82,7 +89,13 @@ def load_snapshot(path: Path) -> Snapshot:
                 continue
             disk_write[dev] = value
 
-    return Snapshot(cpu=cpu, mem_total=mem_total, mem_avail=mem_avail, disk_read=disk_read, disk_write=disk_write)
+    return Snapshot(
+        cpu=cpu,
+        mem_total=mem_total,
+        mem_avail=mem_avail,
+        disk_read=disk_read,
+        disk_write=disk_write,
+    )
 
 
 def _load_host_epoch(meta_path: Path) -> Optional[float]:
@@ -99,7 +112,7 @@ def _delta_sum(before: Dict, after: Dict) -> float:
         v_before = before.get(k)
         if v_before is None:
             continue
-        total += (v_after - v_before)
+        total += v_after - v_before
     return total
 
 
@@ -125,12 +138,18 @@ def cpu_util_pct(before: Snapshot, after: Snapshot) -> Optional[float]:
 
 
 def mem_used_pct(snapshot: Snapshot) -> Optional[float]:
-    if snapshot.mem_total is None or snapshot.mem_avail is None or snapshot.mem_total <= 0:
+    if (
+        snapshot.mem_total is None
+        or snapshot.mem_avail is None
+        or snapshot.mem_total <= 0
+    ):
         return None
     return (1.0 - (snapshot.mem_avail / snapshot.mem_total)) * 100.0
 
 
-def disk_mb_s(before: Snapshot, after: Snapshot, dt_s: Optional[float]) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def disk_mb_s(
+    before: Snapshot, after: Snapshot, dt_s: Optional[float]
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     if dt_s is None or dt_s <= 0:
         return None, None, None
     read_b = _delta_sum(before.disk_read, after.disk_read)
@@ -203,7 +222,12 @@ def append_node_exporter_row(
     dst_before_meta: Path,
     dst_after_meta: Path,
 ) -> bool:
-    if not (src_before_prom.exists() and src_after_prom.exists() and dst_before_prom.exists() and dst_after_prom.exists()):
+    if not (
+        src_before_prom.exists()
+        and src_after_prom.exists()
+        and dst_before_prom.exists()
+        and dst_after_prom.exists()
+    ):
         return False
 
     src_before = load_snapshot(src_before_prom)
@@ -211,31 +235,73 @@ def append_node_exporter_row(
     dst_before = load_snapshot(dst_before_prom)
     dst_after = load_snapshot(dst_after_prom)
 
-    src_t0 = _load_host_epoch(src_before_meta) if src_before_meta.exists() else src_before_prom.stat().st_mtime
-    src_t1 = _load_host_epoch(src_after_meta) if src_after_meta.exists() else src_after_prom.stat().st_mtime
-    dst_t0 = _load_host_epoch(dst_before_meta) if dst_before_meta.exists() else dst_before_prom.stat().st_mtime
-    dst_t1 = _load_host_epoch(dst_after_meta) if dst_after_meta.exists() else dst_after_prom.stat().st_mtime
+    src_t0 = (
+        _load_host_epoch(src_before_meta)
+        if src_before_meta.exists()
+        else src_before_prom.stat().st_mtime
+    )
+    src_t1 = (
+        _load_host_epoch(src_after_meta)
+        if src_after_meta.exists()
+        else src_after_prom.stat().st_mtime
+    )
+    dst_t0 = (
+        _load_host_epoch(dst_before_meta)
+        if dst_before_meta.exists()
+        else dst_before_prom.stat().st_mtime
+    )
+    dst_t1 = (
+        _load_host_epoch(dst_after_meta)
+        if dst_after_meta.exists()
+        else dst_after_prom.stat().st_mtime
+    )
 
-    src_dt = float(src_t1 - src_t0) if (src_t0 is not None and src_t1 is not None) else None
-    dst_dt = float(dst_t1 - dst_t0) if (dst_t0 is not None and dst_t1 is not None) else None
+    src_dt = (
+        float(src_t1 - src_t0) if (src_t0 is not None and src_t1 is not None) else None
+    )
+    dst_dt = (
+        float(dst_t1 - dst_t0) if (dst_t0 is not None and dst_t1 is not None) else None
+    )
 
     src_cpu = cpu_util_pct(src_before, src_after)
     dst_cpu = cpu_util_pct(dst_before, dst_after)
-    cpu_avg = (src_cpu + dst_cpu) / 2.0 if (src_cpu is not None and dst_cpu is not None) else None
+    cpu_avg = (
+        (src_cpu + dst_cpu) / 2.0
+        if (src_cpu is not None and dst_cpu is not None)
+        else None
+    )
 
     src_mem_b = mem_used_pct(src_before)
     src_mem_a = mem_used_pct(src_after)
     dst_mem_b = mem_used_pct(dst_before)
     dst_mem_a = mem_used_pct(dst_after)
-    src_mem_d = (src_mem_a - src_mem_b) if (src_mem_a is not None and src_mem_b is not None) else None
-    dst_mem_d = (dst_mem_a - dst_mem_b) if (dst_mem_a is not None and dst_mem_b is not None) else None
+    src_mem_d = (
+        (src_mem_a - src_mem_b)
+        if (src_mem_a is not None and src_mem_b is not None)
+        else None
+    )
+    dst_mem_d = (
+        (dst_mem_a - dst_mem_b)
+        if (dst_mem_a is not None and dst_mem_b is not None)
+        else None
+    )
 
-    mem_after_avg = (src_mem_a + dst_mem_a) / 2.0 if (src_mem_a is not None and dst_mem_a is not None) else None
-    mem_delta_avg = (src_mem_d + dst_mem_d) / 2.0 if (src_mem_d is not None and dst_mem_d is not None) else None
+    mem_after_avg = (
+        (src_mem_a + dst_mem_a) / 2.0
+        if (src_mem_a is not None and dst_mem_a is not None)
+        else None
+    )
+    mem_delta_avg = (
+        (src_mem_d + dst_mem_d) / 2.0
+        if (src_mem_d is not None and dst_mem_d is not None)
+        else None
+    )
 
     src_r, src_w, src_t = disk_mb_s(src_before, src_after, src_dt)
     dst_r, dst_w, dst_t = disk_mb_s(dst_before, dst_after, dst_dt)
-    disk_avg = (src_t + dst_t) / 2.0 if (src_t is not None and dst_t is not None) else None
+    disk_avg = (
+        (src_t + dst_t) / 2.0 if (src_t is not None and dst_t is not None) else None
+    )
 
     def f(v: Optional[float]) -> str:
         if v is None:
@@ -277,4 +343,3 @@ def append_node_exporter_row(
         )
 
     return True
-

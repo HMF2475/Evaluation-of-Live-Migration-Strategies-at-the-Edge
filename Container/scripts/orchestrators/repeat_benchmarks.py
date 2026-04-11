@@ -25,6 +25,7 @@ try:
 except ImportError:
     from node_exporter_metrics import append_node_exporter_row
 
+
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
@@ -52,11 +53,21 @@ def run_and_tee(cmd: list[str], log_file, *, cwd: Optional[Path] = None) -> int:
     return int(proc.returncode)
 
 
-def snapshot_node_exporter(node: str, out_path: Path, meta_path: Optional[Path] = None) -> bool:
+def snapshot_node_exporter(
+    node: str, out_path: Path, meta_path: Optional[Path] = None
+) -> bool:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     t_host = time.time()
     result = subprocess.run(
-        ["multipass", "exec", node, "--", "bash", "-lc", "curl -fsS http://127.0.0.1:9100/metrics"],
+        [
+            "multipass",
+            "exec",
+            node,
+            "--",
+            "bash",
+            "-lc",
+            "curl -fsS http://127.0.0.1:9100/metrics",
+        ],
         capture_output=True,
         text=True,
     )
@@ -99,7 +110,9 @@ _RUN_ID_RE = re.compile(
 )
 
 
-def _max_existing_run_number(csv_path: Path, *, date: str, mode: str, strategy: str) -> int:
+def _max_existing_run_number(
+    csv_path: Path, *, date: str, mode: str, strategy: str
+) -> int:
     """
     Return the max NNNN for run_ids matching: DD-MM-YYYY-mode-strategy-NNNN.
 
@@ -117,7 +130,11 @@ def _max_existing_run_number(csv_path: Path, *, date: str, mode: str, strategy: 
                 m = _RUN_ID_RE.match(run_id)
                 if not m:
                     continue
-                if m.group("date") != date or m.group("mode") != mode or m.group("strategy") != strategy:
+                if (
+                    m.group("date") != date
+                    or m.group("mode") != mode
+                    or m.group("strategy") != strategy
+                ):
                     continue
                 try:
                     n = int(m.group("num"))
@@ -139,11 +156,8 @@ def run_strategy(
     host_runs: int,
     direct_runs: int,
     iterations: int,
-    workload: str,
-    port: int,
-    network_migration: str,
-    ext_net_map: Optional[str],
     page_server_port: int,
+    relay_node: Optional[str],
     date_str: str,
     csv: Optional[str],
     csv_path: Path,
@@ -160,18 +174,17 @@ def run_strategy(
     node_csv = root / "Container" / "metrics" / "node_exporter_metrics.csv"
     workloads_dir = root / "Container" / "scripts" / "workloads"
 
-    if workload == "counter":
-        start_cmd = ["bash", str(workloads_dir / "start_counter_c.sh"), source]
-    elif workload == "tcp":
-        start_cmd = ["bash", str(workloads_dir / "start_tcp_echo.sh"), source, str(port)]
-    elif workload == "udp":
-        start_cmd = ["bash", str(workloads_dir / "start_udp_echo.sh"), source, str(port)]
-    else:
-        raise ValueError(f"Unknown workload: {workload}")
+    start_cmd = ["bash", str(workloads_dir / "start_counter_c.sh"), source]
 
     next_n_by_mode = {
-        "host": _max_existing_run_number(csv_path, date=date_str, mode="host", strategy=strategy) + 1,
-        "direct": _max_existing_run_number(csv_path, date=date_str, mode="direct", strategy=strategy) + 1,
+        "host": _max_existing_run_number(
+            csv_path, date=date_str, mode="host", strategy=strategy
+        )
+        + 1,
+        "direct": _max_existing_run_number(
+            csv_path, date=date_str, mode="direct", strategy=strategy
+        )
+        + 1,
     }
 
     for mode, idx in iter_runs(host_runs, direct_runs):
@@ -181,7 +194,9 @@ def run_strategy(
         run_ids_out.append(run_id)
         print(f"\n=== RUN {run_id} ===\n")
 
-        rc = run_and_tee(["python3", str(reset_script), source, dest], log_file, cwd=root)
+        rc = run_and_tee(
+            ["python3", str(reset_script), source, dest], log_file, cwd=root
+        )
         if rc != 0 and not continue_on_failure:
             return rc
 
@@ -203,7 +218,9 @@ def run_strategy(
             )
             if not ok:
                 print(f"WARNING: node_exporter snapshot failed: {source} (before)")
-                log_file.write(f"[repeat] WARNING: node_exporter snapshot failed: {source} (before)\n")
+                log_file.write(
+                    f"[repeat] WARNING: node_exporter snapshot failed: {source} (before)\n"
+                )
                 log_file.flush()
 
             ok = snapshot_node_exporter(
@@ -213,7 +230,9 @@ def run_strategy(
             )
             if not ok:
                 print(f"WARNING: node_exporter snapshot failed: {dest} (before)")
-                log_file.write(f"[repeat] WARNING: node_exporter snapshot failed: {dest} (before)\n")
+                log_file.write(
+                    f"[repeat] WARNING: node_exporter snapshot failed: {dest} (before)\n"
+                )
                 log_file.flush()
 
         cmd = [
@@ -229,13 +248,12 @@ def run_strategy(
             "--run-id",
             run_id,
         ]
+        if relay_node and mode == "host":
+            cmd += ["--relay-node", relay_node]
         if strategy == "precopy":
             cmd += ["--iterations", str(iterations)]
         if csv:
             cmd += ["--csv", csv]
-        cmd += ["--network-migration", network_migration]
-        if ext_net_map:
-            cmd += ["--ext-net-map", ext_net_map]
         if strategy == "postcopy":
             cmd += ["--page-server-port", str(page_server_port)]
 
@@ -251,7 +269,9 @@ def run_strategy(
             )
             if not ok:
                 print(f"WARNING: node_exporter snapshot failed: {source} (after)")
-                log_file.write(f"[repeat] WARNING: node_exporter snapshot failed: {source} (after)\n")
+                log_file.write(
+                    f"[repeat] WARNING: node_exporter snapshot failed: {source} (after)\n"
+                )
                 log_file.flush()
 
             ok = snapshot_node_exporter(
@@ -261,7 +281,9 @@ def run_strategy(
             )
             if not ok:
                 print(f"WARNING: node_exporter snapshot failed: {dest} (after)")
-                log_file.write(f"[repeat] WARNING: node_exporter snapshot failed: {dest} (after)\n")
+                log_file.write(
+                    f"[repeat] WARNING: node_exporter snapshot failed: {dest} (after)\n"
+                )
                 log_file.flush()
 
             saved = append_node_exporter_row(
@@ -282,14 +304,18 @@ def run_strategy(
             )
             if not saved:
                 print("WARNING: node_exporter CSV row not written (missing snapshots)")
-                log_file.write("[repeat] WARNING: node_exporter CSV row not written (missing snapshots)\n")
+                log_file.write(
+                    "[repeat] WARNING: node_exporter CSV row not written (missing snapshots)\n"
+                )
                 log_file.flush()
 
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Repeat CRIU migrations and store logs.")
+    parser = argparse.ArgumentParser(
+        description="Repeat CRIU migrations and store logs."
+    )
     parser.add_argument("strategy", choices=["cold", "precopy", "postcopy", "suite"])
     parser.add_argument(
         "--strategies",
@@ -300,24 +326,36 @@ def main() -> int:
     parser.add_argument("--dest", default="edge-node-2")
     parser.add_argument("--host-runs", type=int, default=1)
     parser.add_argument("--direct-runs", type=int, default=1)
-    parser.add_argument("--iterations", type=int, default=2, help="Pre-dump iterations (precopy only)")
-    parser.add_argument("--workload", choices=["counter", "tcp", "udp"], default="counter")
-    parser.add_argument("--port", type=int, default=5000, help="Port for tcp/udp workloads")
     parser.add_argument(
-        "--network-migration",
-        choices=["auto", "no", "yes"],
-        default="auto",
-        help="Pass --network-migration to criu_benchmark.py (auto=yes for tcp/udp workloads)",
+        "--iterations", type=int, default=2, help="Pre-dump iterations (precopy only)"
     )
-    parser.add_argument("--ext-net-map", default=None, help='Optional CRIU ext-net-map mapping "SRC_IP:DST_IP"')
-    parser.add_argument("--page-server-port", type=int, default=9999, help="Postcopy only: page-server TCP port")
+    parser.add_argument(
+        "--page-server-port",
+        type=int,
+        default=9999,
+        help="Postcopy only: page-server TCP port",
+    )
+    parser.add_argument(
+        "--relay-node",
+        default=None,
+        help="Optional relay VM for host-mode transfers (for example: edge-host-1)",
+    )
     parser.add_argument("--base-run-id", default=None)
     parser.add_argument("--csv", default=None, help="CSV output path (optional)")
-    parser.add_argument("--log-file", default=None, help="Append all output to this file (optional)")
+    parser.add_argument(
+        "--log-file", default=None, help="Append all output to this file (optional)"
+    )
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--snapshot-node-metrics", action="store_true")
-    parser.add_argument("--warmup-seconds", type=int, default=2, help="Wait after starting workload before dumping")
-    parser.add_argument("--no-plots", action="store_true", help="Skip plot generation at the end")
+    parser.add_argument(
+        "--warmup-seconds",
+        type=int,
+        default=2,
+        help="Wait after starting workload before dumping",
+    )
+    parser.add_argument(
+        "--no-plots", action="store_true", help="Skip plot generation at the end"
+    )
 
     args = parser.parse_args()
 
@@ -329,42 +367,47 @@ def main() -> int:
     if args.strategies:
         strategies = [s.strip() for s in args.strategies.split(",") if s.strip()]
     else:
-        strategies = ["cold", "precopy"] if args.strategy == "suite" else [args.strategy]
-
-    network_migration = args.network_migration
-    if network_migration == "auto":
-        network_migration = "yes" if args.workload in ("tcp", "udp") else "no"
+        strategies = (
+            ["cold", "precopy"] if args.strategy == "suite" else [args.strategy]
+        )
 
     def auto_base_run_id() -> str:
         # Meaningful batch name for logs/plots (run_ids inside the CSV are independent).
         # Example:
         #   31-03-2026-counter-cold-precopy-postcopy-h30-d30-i5-netno-snap-235124
         strat_part = "-".join(strategies)
-        net_part = f"net{network_migration}"
         snap_part = "snap" if args.snapshot_node_metrics else "nosnap"
         plots_part = "noplots" if args.no_plots else "plots"
         it_part = f"i{args.iterations}" if "precopy" in strategies else "i0"
+        relay_part = f"-relay-{args.relay_node}" if args.relay_node else ""
         return (
-            f"{date_str}-{args.workload}-{strat_part}-h{args.host_runs}-d{args.direct_runs}-"
-            f"{it_part}-{net_part}-{snap_part}-{plots_part}-{time_str}"
+            f"{date_str}-counter-{strat_part}-h{args.host_runs}-d{args.direct_runs}-"
+            f"{it_part}{relay_part}-{snap_part}-{plots_part}-{time_str}"
         )
 
     base_run_id = args.base_run_id or auto_base_run_id()
 
     log_dir = root / "Container" / "metrics" / "run_logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = Path(args.log_file) if args.log_file else (log_dir / f"{base_run_id}.log")
+    log_path = (
+        Path(args.log_file) if args.log_file else (log_dir / f"{base_run_id}.log")
+    )
     run_ids_path = log_path.with_suffix(".run_ids.txt")
 
-    csv_path = Path(args.csv) if args.csv else (root / "Container" / "metrics" / "migration_metrics.csv")
+    csv_path = (
+        Path(args.csv)
+        if args.csv
+        else (root / "Container" / "metrics" / "migration_metrics.csv")
+    )
 
     with log_path.open("a", encoding="utf-8") as lf:
         lf.write(f"=== repeat_benchmarks.py {datetime.now().isoformat()} ===\n")
         lf.write(f"base_run_id={base_run_id}\n")
         lf.write(
-            f"strategies={','.join(strategies)} workload={args.workload} network_migration={network_migration} "
+            f"strategies={','.join(strategies)} workload=counter "
             f"source={args.source} dest={args.dest} host_runs={args.host_runs} direct_runs={args.direct_runs} "
-            f"iterations={args.iterations} snapshot_node_metrics={args.snapshot_node_metrics} no_plots={args.no_plots}\n"
+            f"iterations={args.iterations} relay_node={args.relay_node} "
+            f"snapshot_node_metrics={args.snapshot_node_metrics} no_plots={args.no_plots}\n"
         )
         lf.flush()
 
@@ -377,11 +420,8 @@ def main() -> int:
                 host_runs=args.host_runs,
                 direct_runs=args.direct_runs,
                 iterations=args.iterations,
-                workload=args.workload,
-                port=args.port,
-                network_migration=network_migration,
-                ext_net_map=args.ext_net_map,
                 page_server_port=args.page_server_port,
+                relay_node=args.relay_node,
                 date_str=date_str,
                 csv=args.csv,
                 csv_path=csv_path,

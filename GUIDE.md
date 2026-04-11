@@ -1,7 +1,7 @@
 # Exhaustive Benchmark Guide (CRIU / Podman / Metrics / Plots)
 
 This guide is the **main end-to-end manual** for running migration benchmarks in this repository:
-- Provision the 2 Multipass nodes (`edge-node-1` → `edge-node-2`)
+- Provision the 3 Multipass nodes (`edge-node-1`, `edge-node-2`, `edge-host-1`)
 - Run single migrations (cold / pre-copy / post-copy)
 - Run repeated benchmark batches (host vs direct transfer)
 - Collect node_exporter metrics (CPU / memory / disk IO)
@@ -22,6 +22,7 @@ If you only want folder-specific details, each subdirectory has a scoped README:
 ### Nodes
 - **Source** node: `edge-node-1`
 - **Destination** node: `edge-node-2`
+- **Relay / host-hop** node: `edge-host-1`
 
 ### Strategies (optimization)
 - `cold`: freeze → dump → transfer → restore (baseline, highest downtime)
@@ -29,7 +30,7 @@ If you only want folder-specific details, each subdirectory has a scoped README:
 - `postcopy`: `lazy-pages` (restore quickly, fetch pages on-demand; **experimental**)
 
 ### Transfer modes (channel)
-- `host`: source → host → destination (via `multipass transfer`)
+- `host`: source → relay → destination (recommended: `--relay-node edge-host-1`; without it, the laptop is used)
 - `direct`: source → destination (via SSH/SCP between the VMs)
 
 ### Workloads
@@ -57,7 +58,29 @@ Every run appends a row to `Container/metrics/migration_metrics.csv` with:
 
 ## 1) One-time Infrastructure Setup (Multipass + Terraform)
 
-Provision the two VMs:
+### Host system requirements
+
+Your host machine is responsible for provisioning/controlling the VMs and running the orchestration/plotting scripts. At minimum you need:
+
+- `multipass` (with working virtualization support: KVM/QEMU on Linux)
+- `terraform`
+- `python3` (used by `Container/scripts/orchestrators/*.py` and `Container/scripts/setup/*.py`)
+- `ssh`/`scp` (used for `--transfer-mode direct`)
+- `curl` (used by node_exporter snapshot scripts)
+
+The full host prerequisites + install notes live in the repo root `README.md`.
+
+Quick checks:
+
+```bash
+multipass version
+terraform version
+python3 --version
+ssh -V
+curl --version
+```
+
+Provision the three VMs:
 
 ```bash
 cd tools/terraform
@@ -66,14 +89,16 @@ terraform apply -auto-approve
 cd ../..
 ```
 
-Verify both VMs exist and are reachable:
+Verify the three VMs exist and are reachable:
 
 ```bash
 multipass list
 multipass exec edge-node-1 -- uname -a
 multipass exec edge-node-2 -- uname -a
+multipass exec edge-host-1 -- uname -a
 multipass exec edge-node-1 -- criu --version
 multipass exec edge-node-2 -- criu --version
+multipass exec edge-host-1 -- criu --version
 ```
 
 If your Terraform/Multipass bootstrap installs run in the background, follow:
@@ -83,22 +108,23 @@ If your Terraform/Multipass bootstrap installs run in the background, follow:
 
 ## 2) Optional (Recommended): node_exporter + Time Sync
 
-Install node_exporter on both nodes (CPU/mem/disk IO metrics):
+Install node_exporter on all three nodes (CPU/mem/disk IO metrics):
 
 ```bash
-bash Container/scripts/setup/install_node_exporter.sh edge-node-1 edge-node-2
+bash Container/scripts/setup/install_node_exporter.sh edge-node-1 edge-node-2 edge-host-1
 ```
+
 
 Sanity-check node_exporter output:
 
 ```bash
-bash Container/scripts/setup/check_node_exporter_metrics.sh edge-node-1 edge-node-2
+bash Container/scripts/setup/check_node_exporter_metrics.sh edge-node-1 edge-node-2 edge-host-1
 ```
 
 Check host vs node clocks + NTP status:
 
 ```bash
-bash Container/scripts/setup/check_time_sync.sh edge-node-1 edge-node-2
+bash Container/scripts/setup/check_time_sync.sh edge-node-1 edge-node-2 edge-host-1
 ```
 
 ---
@@ -195,8 +221,8 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --strategies cold,precopy,postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
+  --relay-node edge-host-1 \
   --workload counter \
-  --network-migration no \
   --host-runs 10 \
   --direct-runs 10 \
   --iterations 2 \
@@ -210,13 +236,14 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --strategies cold,precopy,postcopy \
   --source edge-node-1 \
   --dest edge-node-2 \
+  --relay-node edge-host-1 \
   --workload counter \
-  --network-migration no \
   --host-runs 30 \
   --direct-runs 30 \
   --iterations 5 \
   --snapshot-node-metrics
 ```
+
 
 ### 4.3 Key batch artifacts
 
@@ -265,32 +292,13 @@ python3 Container/scripts/visualization/generate_all_plots.py \
 
 The repeat runner runs this automatically unless you pass `--no-plots`.
 
----
 
-## 7) Network-aware Experiments (Experimental)
 
-Workloads:
-- TCP echo: `bash Container/scripts/workloads/start_tcp_echo.sh edge-node-1 5000`
-- UDP echo: `bash Container/scripts/workloads/start_udp_echo.sh edge-node-1 5001`
 
-Enable CRIU socket options:
-- `--network-migration yes`
-- (often) `--ext-net-map SRC_IP:DST_IP`
-
-Example (TCP + cold):
-```bash
-python3 Container/scripts/orchestrators/criu_benchmark.py cold \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --network-migration yes \
-  --ext-net-map 10.0.0.1:10.0.0.2
-```
-
-Note: exact requirements depend on the workload’s network namespace and addresses.
 
 ---
 
-## 8) Podman+CRIU Container Migration Baseline
+## 7) Podman+CRIU Container Migration Baseline
 
 Canonical, copy/paste demo:
 - `Container/PODMAN-MIGRATION.md`
@@ -305,7 +313,7 @@ bash Container/scripts/orchestrators/collect_podman_metrics.sh \
 
 ---
 
-## 9) Troubleshooting and Debugging
+## 8) Troubleshooting and Debugging
 
 ### Common logs
 - Source dump logs: `multipass exec edge-node-1 -- sudo tail -n 120 /tmp/CRIU-counter/dump.log`
@@ -324,7 +332,7 @@ The page-server port may be held by a previous failed run. Fix:
 
 ---
 
-## 10) Strategy Guides (Repo-specific)
+## 9) Strategy Guides (Repo-specific)
 
 Use these when you want the exact CRIU flags and the detailed “manual” flow:
 - Cold: `Container/CRIU-COLD-MIGRATION.md`

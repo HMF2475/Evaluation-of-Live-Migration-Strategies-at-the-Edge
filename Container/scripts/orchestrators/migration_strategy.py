@@ -28,8 +28,6 @@ class MigrationStrategy(ABC):
         dest: MultipassCommand,
         transfer_mode: str = "host",
         relay_node: str | None = None,
-        network_migration: bool = False,
-        ext_net_map: str | None = None,
     ):
         """Initialize migration strategy.
 
@@ -38,15 +36,11 @@ class MigrationStrategy(ABC):
             dest: Destination node command executor
             transfer_mode: "host" for host-mediated or "direct" for SCP
             relay_node: Optional third VM used as intermediate hop for host-mode transfers
-            network_migration: If True, enable CRIU TCP/socket options and mark metrics as networked
-            ext_net_map: Optional CRIU ext-net-map (e.g. "SRC_IP:DST_IP")
         """
         self.source = source
         self.dest = dest
         self.transfer_mode = transfer_mode
         self.relay_node = relay_node
-        self.network_migration = network_migration
-        self.ext_net_map = ext_net_map
         self.metrics = MigrationMetrics(run_id="")
 
     @staticmethod
@@ -70,7 +64,9 @@ class MigrationStrategy(ABC):
         """PID files used by the workload launcher and orchestrators."""
         return ("/home/ubuntu/counter.pid", "/home/ubuntu/app.pid")
 
-    def persist_restored_pid_files(self, restored_pidfile: str = "/tmp/CRIU-counter/restored.pid") -> str | None:
+    def persist_restored_pid_files(
+        self, restored_pidfile: str = "/tmp/CRIU-counter/restored.pid"
+    ) -> str | None:
         """Write restored PID into /home/ubuntu/counter.pid and /home/ubuntu/app.pid on destination.
 
         This makes the restored workload discoverable for subsequent migrations (e.g. "bounce" tests).
@@ -83,11 +79,11 @@ class MigrationStrategy(ABC):
             "sudo bash -lc '"
             "set -e; "
             f"pid=$(cat {restored_pidfile}); "
-            "test -n \"$pid\"; "
-            f"echo \"$pid\" > {counter_pid}; "
+            'test -n "$pid"; '
+            f'echo "$pid" > {counter_pid}; '
             f"cp {counter_pid} {app_pid}; "
             f"chown ubuntu:ubuntu {counter_pid} {app_pid}; "
-            "echo \"$pid\""
+            'echo "$pid"'
             "'"
         )
         rc, out, _ = self.dest.exec(cmd, check=False)
@@ -95,30 +91,31 @@ class MigrationStrategy(ABC):
         if rc == 0 and pid.isdigit():
             return pid
         return None
-    
+
     def log(self, msg: str):
         """Print timestamped log message."""
         from datetime import datetime
+
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] {msg}")
-    
+
     @abstractmethod
     def migrate(self, run_id: str) -> bool:
         """Execute the migration.
-        
+
         Args:
             run_id: Unique identifier for this run
-            
+
         Returns:
             True if migration succeeded, False otherwise
         """
         pass
-    
+
     @abstractmethod
     def get_method_name(self) -> str:
         """Return migration method name (cold, precopy, postcopy)."""
         pass
-    
+
     def finalize_metrics(self):
         """Finalize metrics with timestamp."""
         self.metrics.timestamp = datetime.now().isoformat()

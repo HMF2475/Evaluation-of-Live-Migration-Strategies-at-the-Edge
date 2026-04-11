@@ -13,20 +13,22 @@ class MultipassCommand:
 
     def __init__(self, node: str):
         """Initialize Multipass command executor.
-        
+
         Args:
             node: Multipass VM name (e.g., 'edge-node-1')
         """
         self.node = node
 
-    def exec(self, cmd: str, sudo: bool = False, check: bool = True) -> Tuple[int, str, str]:
+    def exec(
+        self, cmd: str, sudo: bool = False, check: bool = True
+    ) -> Tuple[int, str, str]:
         """Execute command on node and return (returncode, stdout, stderr).
-        
+
         Args:
             cmd: Command to execute
             sudo: If True, prepend 'sudo' to command
             check: If True, raise on non-zero exit
-            
+
         Returns:
             Tuple of (returncode, stdout_str, stderr_str)
         """

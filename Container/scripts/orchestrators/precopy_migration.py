@@ -11,18 +11,24 @@ is still running and incrementally transferring changed pages.
 """
 
 import time
-from pathlib import Path
 
 try:
     from .migration_strategy import MigrationStrategy
     from .metrics import MigrationMetrics
     from .multipass_command import MultipassCommand
-    from .ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
+    from .ssh_utils import (
+        transfer_archive_via_host,
+        transfer_archive_direct,
+        ensure_direct_ssh_trust,
+    )
 except ImportError:
     from migration_strategy import MigrationStrategy
-    from metrics import MigrationMetrics
     from multipass_command import MultipassCommand
-    from ssh_utils import transfer_archive_via_host, transfer_archive_direct, ensure_direct_ssh_trust
+    from ssh_utils import (
+        transfer_archive_via_host,
+        transfer_archive_direct,
+        ensure_direct_ssh_trust,
+    )
 
 
 class PrecopyMigration(MigrationStrategy):
@@ -35,20 +41,18 @@ class PrecopyMigration(MigrationStrategy):
         transfer_mode: str = "host",
         relay_node: str | None = None,
         iterations: int = 2,
-        network_migration: bool = False,
-        ext_net_map: str | None = None,
     ):
         """Initialize precopy migration strategy.
-        
+
         Args:
             source: Source node command executor
             dest: Destination node command executor
             transfer_mode: "host" for host-mediated or "direct" for SCP
             iterations: Number of pre-dump iterations before final dump
         """
-        super().__init__(source, dest, transfer_mode, relay_node=relay_node, network_migration=network_migration, ext_net_map=ext_net_map)
+        super().__init__(source, dest, transfer_mode, relay_node=relay_node)
         self.metrics.migration_method = "precopy"
-        self.metrics.network_migration = "yes" if network_migration else "no"
+        self.metrics.network_migration = "no"
         self.iterations = iterations
 
     def get_method_name(self) -> str:
@@ -57,7 +61,7 @@ class PrecopyMigration(MigrationStrategy):
 
     def _get_source_pid(self) -> str:
         """Read PID from counter.pid or fallback to app.pid.
-        
+
         Returns:
             Process ID as string, or None if not found
         """
@@ -72,7 +76,7 @@ class PrecopyMigration(MigrationStrategy):
 
     def migrate(self, run_id: str) -> bool:
         """Execute precopy live migration.
-        
+
         Process:
         1. Verify source process exists
         2. Setup dump directory
@@ -83,29 +87,33 @@ class PrecopyMigration(MigrationStrategy):
         7. Unpack archive on destination
         8. Restore process on destination
         9. Verify continuity
-        
+
         CRITICAL: Downtime only counts the final dump phase (when service freezes),
         plus transfer and restore. Pre-dump time is NOT downtime because the service
         continues executing and only incremental changes are being copied.
-        
+
         Args:
             run_id: Unique identifier for this run
-            
+
         Returns:
             True if migration succeeded, False otherwise
         """
         self.metrics.run_id = run_id
-        self.metrics.notes = f"transfer_mode={self.transfer_mode};iterations={self.iterations}"
+        self.metrics.notes = (
+            f"transfer_mode={self.transfer_mode};iterations={self.iterations}"
+        )
         if self.relay_node:
             self.metrics.notes += f";relay_node={self.relay_node}"
-        
+
         self.log("=== PRE-COPY LIVE MIGRATION ===")
 
         # Step 1: Verify source process
         self.log("Step 1: Checking source process...")
         pid = self._get_source_pid()
         if not pid:
-            self.log("ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).")
+            self.log(
+                "ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid)."
+            )
             self.metrics.notes += "; pid_not_found"
             return False
 
@@ -124,40 +132,39 @@ class PrecopyMigration(MigrationStrategy):
         if self.metrics.same_arch:
             self.log(f"  Architecture: {self.metrics.src_arch} (compatible)")
         else:
-            self.log(f"  WARNING: Different architectures: {self.metrics.src_arch} → {self.metrics.dst_arch}")
+            self.log(
+                f"  WARNING: Different architectures: {self.metrics.src_arch} → {self.metrics.dst_arch}"
+            )
 
         # Step 2: Setup dump directory
         self.log("Step 2: Preparing dump directory...")
         self.source.exec(
-            "sudo rm -rf /tmp/CRIU-counter && "
-            "sudo mkdir -p /tmp/CRIU-counter",
+            "sudo rm -rf /tmp/CRIU-counter && sudo mkdir -p /tmp/CRIU-counter",
             check=False,
         )
-
-        net_dump_opts = " --tcp-established" if self.network_migration else ""
 
         # Step 3: Pre-dumps (service continues running)
         self.log(f"Step 3: Running {self.iterations} pre-dumps...")
         t_precopy_start = time.time_ns()
 
         for i in range(self.iterations):
-            self.log(f"  Pre-dump {i+1}/{self.iterations}...")
+            self.log(f"  Pre-dump {i + 1}/{self.iterations}...")
             iter_dir = f"/tmp/CRIU-counter/iter-{i}"
             prev_opt = ""
             if i > 0:
-                prev_iter_dir = f"/tmp/CRIU-counter/iter-{i-1}"
+                prev_iter_dir = f"/tmp/CRIU-counter/iter-{i - 1}"
                 prev_opt = f" --prev-images-dir {prev_iter_dir}"
             cmd = (
                 f"sudo mkdir -p {iter_dir} && "
                 f"sudo criu pre-dump -t {pid} -D {iter_dir}{prev_opt} "
-                f"-v4 --shell-job --skip-file-rwx-check --track-mem{net_dump_opts}"
+                "-v4 --shell-job --skip-file-rwx-check --track-mem"
             )
             rc, _, err = self.source.exec(
                 cmd,
                 check=False,
             )
             if rc != 0:
-                self.log(f"WARNING: Pre-dump {i+1} failed (continuing anyway)")
+                self.log(f"WARNING: Pre-dump {i + 1} failed (continuing anyway)")
             time.sleep(1)  # Brief pause between pre-dumps
 
         # Record pre-dump time for detailed analysis
@@ -169,21 +176,23 @@ class PrecopyMigration(MigrationStrategy):
         # Step 4: Final dump (service FREEZES here)
         self.log("Step 4: Final dump (freezing service)...")
         t_final_dump_start = time.time_ns()
-        
+
         prev_opt = ""
         if self.iterations > 0:
             last_iter_dir = f"/tmp/CRIU-counter/iter-{self.iterations - 1}"
             prev_opt = f" --prev-images-dir {last_iter_dir}"
-        
+
         rc, _, err = self.source.exec(
             f"sudo criu dump -t {pid} -D /tmp/CRIU-counter -v4 -o dump.log{prev_opt} "
-            f"--shell-job --skip-file-rwx-check{net_dump_opts}",
+            "--shell-job --skip-file-rwx-check",
             check=False,
         )
 
         if rc != 0:
             self.log("ERROR: Final dump failed")
-            _, dump_log, _ = self.source.exec("sudo tail -n 50 /tmp/CRIU-counter/dump.log", check=False)
+            _, dump_log, _ = self.source.exec(
+                "sudo tail -n 50 /tmp/CRIU-counter/dump.log", check=False
+            )
             if dump_log:
                 self.log(f"Dump log:\n{dump_log}")
             self.metrics.notes += "; dump_failed"
@@ -212,7 +221,9 @@ class PrecopyMigration(MigrationStrategy):
         )
 
         # Get archive size
-        rc, size_str, _ = self.source.exec("stat -c %s /tmp/CRIU-counter.tar.gz", check=False)
+        rc, size_str, _ = self.source.exec(
+            "stat -c %s /tmp/CRIU-counter.tar.gz", check=False
+        )
         try:
             archive_bytes = int(size_str)
         except (ValueError, TypeError):
@@ -222,7 +233,7 @@ class PrecopyMigration(MigrationStrategy):
 
         # Step 6: Transfer
         self.log("Step 6: Transferring archive...")
-        
+
         # Set up direct SSH trust before first SCP transfer
         if self.transfer_mode == "direct":
             self.log("  Setting up direct SSH trust...")
@@ -230,27 +241,29 @@ class PrecopyMigration(MigrationStrategy):
                 self.log("ERROR: Failed to set up SSH trust for direct transfer")
                 self.metrics.notes += "; ssh_trust_failed"
                 return False
-        
+
         t_transfer_start = time.time_ns()
-        
+
         if self.transfer_mode == "host":
             transfer_ok = transfer_archive_via_host(
-                self.source.node, self.dest.node,
+                self.source.node,
+                self.dest.node,
                 "/tmp/CRIU-counter.tar.gz",
                 "/home/ubuntu/CRIU-counter.tar.gz",
                 relay_node=self.relay_node,
             )
         else:
             transfer_ok = transfer_archive_direct(
-                self.source.node, self.dest.node,
+                self.source.node,
+                self.dest.node,
                 "/tmp/CRIU-counter.tar.gz",
                 "/home/ubuntu/CRIU-counter.tar.gz",
             )
-        
+
         if not transfer_ok:
             self.metrics.notes += "; transfer_failed"
             return False
-        
+
         t_transfer_done = time.time_ns()
         transfer_ms = (t_transfer_done - t_transfer_start) // 1_000_000
         self.metrics.transfer_ms = int(transfer_ms)
@@ -261,9 +274,9 @@ class PrecopyMigration(MigrationStrategy):
         self.dest.exec(
             "sudo rm -rf /tmp/CRIU-counter && sudo mkdir -p /tmp/CRIU-counter && "
             "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-counter.tar.gz",
-            check=False
+            check=False,
         )
-        
+
         # Step 7.5: Ensure counter stdout target exists (avoid transferring file contents)
         self.log("Step 7.5: Ensuring counter output file exists on destination...")
         self.ensure_counter_output_file()
@@ -278,7 +291,9 @@ class PrecopyMigration(MigrationStrategy):
                 check=False,
             )
             if rc_src != 0 or not counter_b64.strip():
-                self.log("WARNING: /tmp/counter binary not found on source; restore may fail")
+                self.log(
+                    "WARNING: /tmp/counter binary not found on source; restore may fail"
+                )
                 self.metrics.notes += "; missing_binary"
             else:
                 self.dest.exec(
@@ -292,15 +307,15 @@ class PrecopyMigration(MigrationStrategy):
 
         rc, _, err = self.dest.exec(
             "sudo criu restore -D /tmp/CRIU-counter -v4 -o restore.log "
-            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check"
-            + (" --tcp-established" if self.network_migration else "")
-            + (f" --ext-net-map={self.ext_net_map}" if self.ext_net_map else ""),
+            "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid --skip-file-rwx-check",
             check=False,
         )
 
         if rc != 0:
             self.log("ERROR: Restore failed")
-            _, restore_log, _ = self.dest.exec("sudo tail -n 50 /tmp/CRIU-counter/restore.log", check=False)
+            _, restore_log, _ = self.dest.exec(
+                "sudo tail -n 50 /tmp/CRIU-counter/restore.log", check=False
+            )
             if restore_log:
                 self.log(f"Restore log:\n{restore_log}")
             self.metrics.notes += "; restore_failed"
@@ -315,7 +330,9 @@ class PrecopyMigration(MigrationStrategy):
         # Persist PID files on destination so it can act as a source for "bounce" migrations.
         restored_pid = self.persist_restored_pid_files("/tmp/CRIU-counter/restored.pid")
         if restored_pid:
-            self.log(f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)")
+            self.log(
+                f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)"
+            )
         else:
             self.log("WARNING: Could not persist restored PID files on destination")
             self.metrics.notes += "; pidfile_persist_failed"
@@ -354,8 +371,14 @@ class PrecopyMigration(MigrationStrategy):
                 self.log("✓ Counter value received (continuity verified)")
                 self.metrics.success = True
         else:
-            rc, restored_pid, _ = self.dest.exec("cat /tmp/CRIU-counter/restored.pid", check=False)
-            if rc == 0 and restored_pid.strip().isdigit() and self.dest.test_process_running(restored_pid.strip()):
+            rc, restored_pid, _ = self.dest.exec(
+                "cat /tmp/CRIU-counter/restored.pid", check=False
+            )
+            if (
+                rc == 0
+                and restored_pid.strip().isdigit()
+                and self.dest.test_process_running(restored_pid.strip())
+            ):
                 self.log("✓ Restored process is running on destination")
                 self.metrics.success = True
             else:
@@ -366,16 +389,26 @@ class PrecopyMigration(MigrationStrategy):
         # Final metrics: CRITICAL FIX
         # Downtime = final_dump + transfer + restore (NOT including pre-dumps)
         # Pre-dumps happen while service is still running, so they don't count
-        self.metrics.downtime_ms = self.metrics.final_dump_ms + self.metrics.transfer_ms + self.metrics.restore_ms
+        self.metrics.downtime_ms = (
+            self.metrics.final_dump_ms
+            + self.metrics.transfer_ms
+            + self.metrics.restore_ms
+        )
         # Calculate effective bandwidth in Mbps (bytes → bits, ms → seconds)
         if self.metrics.transfer_ms > 0:
-            self.metrics.bandwidth_mbps = (self.metrics.archive_bytes * 8) / (self.metrics.transfer_ms * 1000)
-        
-        self.log(f"Total downtime: {self.metrics.downtime_ms} ms "
-                 f"(final_dump: {self.metrics.final_dump_ms} + "
-                 f"transfer: {self.metrics.transfer_ms} + "
-                 f"restore: {self.metrics.restore_ms})")
-        self.log(f"Pre-dump time (not counted as downtime): {self.metrics.predump_ms} ms")
+            self.metrics.bandwidth_mbps = (self.metrics.archive_bytes * 8) / (
+                self.metrics.transfer_ms * 1000
+            )
+
+        self.log(
+            f"Total downtime: {self.metrics.downtime_ms} ms "
+            f"(final_dump: {self.metrics.final_dump_ms} + "
+            f"transfer: {self.metrics.transfer_ms} + "
+            f"restore: {self.metrics.restore_ms})"
+        )
+        self.log(
+            f"Pre-dump time (not counted as downtime): {self.metrics.predump_ms} ms"
+        )
         if self.metrics.transfer_ms > 0:
             self.log(f"Effective bandwidth: {self.metrics.bandwidth_mbps:.2f} Mbps")
 

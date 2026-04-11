@@ -18,7 +18,12 @@ _LABEL_RE = re.compile(r'([a-zA-Z_][a-zA-Z0-9_]*)="((?:\\.|[^"\\])*)"')
 
 
 def _unescape_label_value(v: str) -> str:
-    return v.replace(r"\n", "\n").replace(r"\t", "\t").replace(r"\\", "\\").replace(r"\"", '"')
+    return (
+        v.replace(r"\n", "\n")
+        .replace(r"\t", "\t")
+        .replace(r"\\", "\\")
+        .replace(r"\"", '"')
+    )
 
 
 def parse_labels(raw: str) -> Dict[str, str]:
@@ -59,4 +64,3 @@ def iter_samples(text: str, wanted: Optional[Set[str]] = None) -> Iterator[Sampl
         name = m.group(1)
         labels = parse_labels(m.group(2) or "")
         yield Sample(name=name, labels=labels, value=value)
-

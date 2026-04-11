@@ -49,5 +49,5 @@ tools/criu/**
 tools/go-criu/**
 Container/CRIU/**
 
-Container/metrics/node_exporter
+**/node_exporter/**
 Notes-no-commit.md

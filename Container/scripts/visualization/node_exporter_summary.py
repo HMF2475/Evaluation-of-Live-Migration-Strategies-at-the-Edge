@@ -96,7 +96,7 @@ def _delta_sum(before: Dict, after: Dict) -> float:
         v_before = before.get(k)
         if v_before is None:
             continue
-        total += (v_after - v_before)
+        total += v_after - v_before
     return total
 
 
@@ -122,7 +122,11 @@ def compute_cpu_util_pct(before: Snapshot, after: Snapshot) -> Optional[float]:
 
 
 def compute_mem_used_pct(snapshot: Snapshot) -> Optional[float]:
-    if snapshot.mem_total is None or snapshot.mem_avail is None or snapshot.mem_total <= 0:
+    if (
+        snapshot.mem_total is None
+        or snapshot.mem_avail is None
+        or snapshot.mem_total <= 0
+    ):
         return None
     return (1.0 - (snapshot.mem_avail / snapshot.mem_total)) * 100.0
 
@@ -183,7 +187,9 @@ def build_node_exporter_dataframe(
         if not run_dir.exists():
             continue
 
-        def load_pair(node: str) -> Tuple[Optional[Snapshot], Optional[Snapshot], Optional[float]]:
+        def load_pair(
+            node: str,
+        ) -> Tuple[Optional[Snapshot], Optional[Snapshot], Optional[float]]:
             before_p = run_dir / f"{node}-before.prom"
             after_p = run_dir / f"{node}-after.prom"
             before_m = run_dir / f"{node}-before.json"
@@ -192,8 +198,16 @@ def build_node_exporter_dataframe(
                 return None, None, None
             before_s = load_snapshot(before_p)
             after_s = load_snapshot(after_p)
-            t0 = _load_host_time(before_m) if before_m.exists() else before_p.stat().st_mtime
-            t1 = _load_host_time(after_m) if after_m.exists() else after_p.stat().st_mtime
+            t0 = (
+                _load_host_time(before_m)
+                if before_m.exists()
+                else before_p.stat().st_mtime
+            )
+            t1 = (
+                _load_host_time(after_m)
+                if after_m.exists()
+                else after_p.stat().st_mtime
+            )
             dt = float(t1 - t0) if (t0 is not None and t1 is not None) else None
             return before_s, after_s, dt
 
@@ -220,7 +234,9 @@ def build_node_exporter_dataframe(
             mem_after_avg = (src_mem_after + dst_mem_after) / 2.0
         mem_delta_avg = None
         if None not in (src_mem_before, src_mem_after, dst_mem_before, dst_mem_after):
-            mem_delta_avg = ((src_mem_after - src_mem_before) + (dst_mem_after - dst_mem_before)) / 2.0
+            mem_delta_avg = (
+                (src_mem_after - src_mem_before) + (dst_mem_after - dst_mem_before)
+            ) / 2.0
         disk_mb_s_avg = None
         if src_t is not None and dst_t is not None:
             disk_mb_s_avg = (src_t + dst_t) / 2.0
@@ -252,9 +268,13 @@ def plot_node_exporter_summary(
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
 
-    df = build_node_exporter_dataframe(csv_file, node_metrics_dir, run_id_prefix=run_id_prefix, run_ids=run_ids)
+    df = build_node_exporter_dataframe(
+        csv_file, node_metrics_dir, run_id_prefix=run_id_prefix, run_ids=run_ids
+    )
     if df.empty:
-        print("! No node_exporter snapshots found for selected runs (skipping node_exporter plots).")
+        print(
+            "! No node_exporter snapshots found for selected runs (skipping node_exporter plots)."
+        )
         return
 
     melted = df.melt(

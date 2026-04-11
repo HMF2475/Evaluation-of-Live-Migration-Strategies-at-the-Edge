@@ -1,7 +1,7 @@
 """
 Postcopy (Lazy) Migration Strategy: CRIU lazy-pages.
 
-Implements experimental post-copy live migration for the native 
+Implements experimental post-copy live migration for the native
 workloads by using CRIU's --lazy-pages mechanism:
 - Freeze quickly on source with a minimal dump (no full memory transfer)
 - Transfer small image set to destination
@@ -30,7 +30,12 @@ try:
 except ImportError:
     from migration_strategy import MigrationStrategy
     from multipass_command import MultipassCommand
-    from ssh_utils import ensure_direct_ssh_trust, get_node_ip, transfer_archive_direct, transfer_archive_via_host
+    from ssh_utils import (
+        ensure_direct_ssh_trust,
+        get_node_ip,
+        transfer_archive_direct,
+        transfer_archive_via_host,
+    )
 
 
 class PostcopyMigration(MigrationStrategy):
@@ -49,7 +54,9 @@ class PostcopyMigration(MigrationStrategy):
         for port in range(start_port, start_port + max(1, tries)):
             # Prefer ss when available; fall back to assuming "free" if probing fails.
             if has_ss:
-                rc2, out, _ = self.source.exec(f"sudo ss -ltnH 'sport = :{port}' 2>/dev/null || true", check=False)
+                rc2, out, _ = self.source.exec(
+                    f"sudo ss -ltnH 'sport = :{port}' 2>/dev/null || true", check=False
+                )
                 if rc2 == 0 and out.strip():
                     continue
                 if rc2 == 0 and not out.strip():
@@ -65,13 +72,11 @@ class PostcopyMigration(MigrationStrategy):
         dest: MultipassCommand,
         transfer_mode: str = "host",
         relay_node: str | None = None,
-        network_migration: bool = False,
-        ext_net_map: str | None = None,
         page_server_port: int = 9999,
     ):
-        super().__init__(source, dest, transfer_mode, relay_node=relay_node, network_migration=network_migration, ext_net_map=ext_net_map)
+        super().__init__(source, dest, transfer_mode, relay_node=relay_node)
         self.metrics.migration_method = "postcopy"
-        self.metrics.network_migration = "yes" if network_migration else "no"
+        self.metrics.network_migration = "no"
         self.page_server_port = page_server_port
 
     def get_method_name(self) -> str:
@@ -99,7 +104,9 @@ class PostcopyMigration(MigrationStrategy):
         self.log("Step 1: Checking source process...")
         pid = self._get_source_pid()
         if not pid:
-            self.log("ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).")
+            self.log(
+                "ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid)."
+            )
             self.metrics.notes += "; pid_not_found"
             return False
 
@@ -133,7 +140,6 @@ class PostcopyMigration(MigrationStrategy):
             self.log("Step 2: Final dump (freezing service) with --lazy-pages...")
             t_dump_start = time.time_ns()
 
-            net_dump_opts = " --tcp-established" if self.network_migration else ""
             bind_addr = "0.0.0.0"
             dump_start_cmd = (
                 "sudo rm -rf /tmp/CRIU-counter && "
@@ -145,7 +151,7 @@ class PostcopyMigration(MigrationStrategy):
                 f"{pid}"
                 " -D /tmp/CRIU-counter -v4 -o dump.log "
                 f"--shell-job --skip-file-rwx-check --lazy-pages --address {bind_addr} --port {port} "
-                f"--leave-stopped{net_dump_opts} "
+                "--leave-stopped "
                 ">/tmp/CRIU-counter/dump.stdout 2>&1 "
                 "& echo $! > /tmp/CRIU-counter/dump.pid; "
                 "sleep 0.1; "
@@ -155,10 +161,14 @@ class PostcopyMigration(MigrationStrategy):
             rc, dump_pid_str, _ = self.source.exec(dump_start_cmd, check=False)
             if rc != 0 or not dump_pid_str.strip().isdigit():
                 self.log("ERROR: Failed to start lazy-pages dump on source")
-                _, dump_log, _ = self.source.exec("sudo tail -n 80 /tmp/CRIU-counter/dump.log", check=False)
+                _, dump_log, _ = self.source.exec(
+                    "sudo tail -n 80 /tmp/CRIU-counter/dump.log", check=False
+                )
                 if dump_log:
                     self.log(f"Dump log:\n{dump_log}")
-                _, dump_stdout, _ = self.source.exec("sudo tail -n 80 /tmp/CRIU-counter/dump.stdout", check=False)
+                _, dump_stdout, _ = self.source.exec(
+                    "sudo tail -n 80 /tmp/CRIU-counter/dump.stdout", check=False
+                )
                 if dump_stdout:
                     self.log(f"Dump stdout:\n{dump_stdout}")
                 self.metrics.notes += "; dump_start_failed"
@@ -170,15 +180,21 @@ class PostcopyMigration(MigrationStrategy):
             ready = False
             for _ in range(60):  # up to ~12s
                 # If the dump process already died, stop early and surface the log.
-                rc_ps, _, _ = self.source.exec(f"ps -p {dump_pid} >/dev/null 2>&1", check=False)
+                rc_ps, _, _ = self.source.exec(
+                    f"ps -p {dump_pid} >/dev/null 2>&1", check=False
+                )
                 if rc_ps != 0:
                     self.log("ERROR: Dump process exited early")
-                    _, dump_log, _ = self.source.exec("sudo tail -n 120 /tmp/CRIU-counter/dump.log", check=False)
+                    _, dump_log, _ = self.source.exec(
+                        "sudo tail -n 120 /tmp/CRIU-counter/dump.log", check=False
+                    )
                     if dump_log:
                         self.log(f"Dump log:\n{dump_log}")
                     self.metrics.notes += "; dump_exited_early"
                     return False
-                rc_inv, _, _ = self.source.exec("sudo test -f /tmp/CRIU-counter/inventory.img", check=False)
+                rc_inv, _, _ = self.source.exec(
+                    "sudo test -f /tmp/CRIU-counter/inventory.img", check=False
+                )
                 if rc_inv == 0:
                     ready = True
                     break
@@ -189,7 +205,9 @@ class PostcopyMigration(MigrationStrategy):
             self.metrics.checkpoint_ms = int(dump_ms)
             self.metrics.final_dump_ms = int(dump_ms)
             if not ready:
-                self.log("WARNING: inventory.img not detected quickly; dump may still be initializing")
+                self.log(
+                    "WARNING: inventory.img not detected quickly; dump may still be initializing"
+                )
                 self.metrics.notes += "; dump_ready_timeout"
             self.log(f"  Dump init time (approx freeze duration): {dump_ms} ms")
 
@@ -216,8 +234,12 @@ class PostcopyMigration(MigrationStrategy):
                 self.metrics.notes += "; archive_failed"
                 return False
 
-            rc, size_str, _ = self.source.exec("sudo stat -c %s /tmp/CRIU-counter.tar.gz", check=False)
-            self.metrics.archive_bytes = int(size_str) if size_str.strip().isdigit() else 0
+            rc, size_str, _ = self.source.exec(
+                "sudo stat -c %s /tmp/CRIU-counter.tar.gz", check=False
+            )
+            self.metrics.archive_bytes = (
+                int(size_str) if size_str.strip().isdigit() else 0
+            )
             self.log(f"  Archive size: {self.metrics.archive_bytes} bytes")
 
             # Step 5: Transfer
@@ -252,7 +274,9 @@ class PostcopyMigration(MigrationStrategy):
                 return False
 
             t_transfer_done = time.time_ns()
-            self.metrics.transfer_ms = int((t_transfer_done - t_transfer_start) // 1_000_000)
+            self.metrics.transfer_ms = int(
+                (t_transfer_done - t_transfer_start) // 1_000_000
+            )
             self.log(f"  Transfer time: {self.metrics.transfer_ms} ms")
 
             # Step 6: Unpack
@@ -270,10 +294,14 @@ class PostcopyMigration(MigrationStrategy):
             self.ensure_counter_output_file()
 
             # Ensure /tmp/counter exists (counter workload)
-            self.log("Step 6.8: Ensuring /tmp/counter binary is present on destination...")
+            self.log(
+                "Step 6.8: Ensuring /tmp/counter binary is present on destination..."
+            )
             rc, _, _ = self.dest.exec("[ -x /tmp/counter ]", check=False)
             if rc != 0:
-                self.log("  /tmp/counter missing on destination, copying from source...")
+                self.log(
+                    "  /tmp/counter missing on destination, copying from source..."
+                )
                 rc_src, counter_b64, _ = self.source.exec(
                     "if [ -f /tmp/counter ]; then base64 /tmp/counter; else echo ''; fi",
                     check=False,
@@ -305,10 +333,14 @@ class PostcopyMigration(MigrationStrategy):
             rc, lp_pid_str, _ = self.dest.exec(start_lazy_cmd, check=False)
             if rc != 0 or not lp_pid_str.strip().isdigit():
                 self.log("ERROR: Failed to start lazy-pages daemon")
-                _, lp_log, _ = self.dest.exec("sudo tail -n 120 /tmp/CRIU-counter/lazy-pages.log", check=False)
+                _, lp_log, _ = self.dest.exec(
+                    "sudo tail -n 120 /tmp/CRIU-counter/lazy-pages.log", check=False
+                )
                 if lp_log:
                     self.log(f"Lazy-pages log:\n{lp_log}")
-                _, lp_stdout, _ = self.dest.exec("sudo tail -n 120 /tmp/CRIU-counter/lazy-pages.stdout", check=False)
+                _, lp_stdout, _ = self.dest.exec(
+                    "sudo tail -n 120 /tmp/CRIU-counter/lazy-pages.stdout", check=False
+                )
                 if lp_stdout:
                     self.log(f"Lazy-pages stdout:\n{lp_stdout}")
                 self.metrics.notes += "; lazy_pages_start_failed"
@@ -319,7 +351,9 @@ class PostcopyMigration(MigrationStrategy):
 
             # Wait for lazy-pages socket to appear (restore connects to this socket).
             for _ in range(50):  # up to ~5s
-                rc_sock, _, _ = self.dest.exec("test -S /tmp/CRIU-counter/lazy-pages.socket", check=False)
+                rc_sock, _, _ = self.dest.exec(
+                    "test -S /tmp/CRIU-counter/lazy-pages.socket", check=False
+                )
                 if rc_sock == 0:
                     break
                 time.sleep(0.1)
@@ -332,13 +366,13 @@ class PostcopyMigration(MigrationStrategy):
                 "sudo criu restore -D /tmp/CRIU-counter -v4 -o restore.log "
                 "--shell-job --restore-detached --pidfile /tmp/CRIU-counter/restored.pid "
                 "--skip-file-rwx-check --lazy-pages"
-                + (" --tcp-established" if self.network_migration else "")
-                + (f" --ext-net-map={self.ext_net_map}" if self.ext_net_map else "")
             )
             rc, _, _ = self.dest.exec(restore_cmd, check=False)
             if rc != 0:
                 self.log("ERROR: Restore failed")
-                _, restore_log, _ = self.dest.exec("sudo tail -n 80 /tmp/CRIU-counter/restore.log", check=False)
+                _, restore_log, _ = self.dest.exec(
+                    "sudo tail -n 80 /tmp/CRIU-counter/restore.log", check=False
+                )
                 if restore_log:
                     self.log(f"Restore log:\n{restore_log}")
                 self.metrics.notes += "; restore_failed"
@@ -346,13 +380,19 @@ class PostcopyMigration(MigrationStrategy):
                 return False
 
             t_restore_done = time.time_ns()
-            self.metrics.restore_ms = int((t_restore_done - t_restore_start) // 1_000_000)
+            self.metrics.restore_ms = int(
+                (t_restore_done - t_restore_start) // 1_000_000
+            )
             self.log(f"  Restore time: {self.metrics.restore_ms} ms")
 
             # Persist PID files on destination so it can act as a source for "bounce" migrations.
-            restored_pid = self.persist_restored_pid_files("/tmp/CRIU-counter/restored.pid")
+            restored_pid = self.persist_restored_pid_files(
+                "/tmp/CRIU-counter/restored.pid"
+            )
             if restored_pid:
-                self.log(f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)")
+                self.log(
+                    f"  Restored PID: {restored_pid} (written to /home/ubuntu/counter.pid)"
+                )
             else:
                 self.log("WARNING: Could not persist restored PID files on destination")
                 self.metrics.notes += "; pidfile_persist_failed"
@@ -360,7 +400,9 @@ class PostcopyMigration(MigrationStrategy):
             # Wait a bit for lazy-pages to pull pages; keep server alive.
             if lazy_pages_pid:
                 for _ in range(15):  # up to 15s
-                    rc_ps, _, _ = self.dest.exec(f"ps -p {lazy_pages_pid} >/dev/null 2>&1", check=False)
+                    rc_ps, _, _ = self.dest.exec(
+                        f"ps -p {lazy_pages_pid} >/dev/null 2>&1", check=False
+                    )
                     if rc_ps != 0:
                         break
                     time.sleep(1)
@@ -382,7 +424,12 @@ class PostcopyMigration(MigrationStrategy):
                     f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
                     f"Observed: {observed}"
                 )
-                if rc == 0 and observed and observed.isdigit() and int(observed) >= int(expected_after):
+                if (
+                    rc == 0
+                    and observed
+                    and observed.isdigit()
+                    and int(observed) >= int(expected_after)
+                ):
                     self.log("✓ SUCCESS: Counter continued correctly!")
                     self.metrics.success = True
                 else:
@@ -390,8 +437,14 @@ class PostcopyMigration(MigrationStrategy):
                     self.metrics.notes += "; continuity_unknown"
                     self.metrics.success = True
             else:
-                rc, restored_pid, _ = self.dest.exec("cat /tmp/CRIU-counter/restored.pid", check=False)
-                if rc == 0 and restored_pid.strip().isdigit() and self.dest.test_process_running(restored_pid.strip()):
+                rc, restored_pid, _ = self.dest.exec(
+                    "cat /tmp/CRIU-counter/restored.pid", check=False
+                )
+                if (
+                    rc == 0
+                    and restored_pid.strip().isdigit()
+                    and self.dest.test_process_running(restored_pid.strip())
+                ):
                     self.log("✓ Restored process is running on destination")
                     self.metrics.success = True
                 else:
@@ -400,9 +453,15 @@ class PostcopyMigration(MigrationStrategy):
                     self.metrics.success = False
 
             # Final metrics
-            self.metrics.downtime_ms = self.metrics.checkpoint_ms + self.metrics.transfer_ms + self.metrics.restore_ms
+            self.metrics.downtime_ms = (
+                self.metrics.checkpoint_ms
+                + self.metrics.transfer_ms
+                + self.metrics.restore_ms
+            )
             if self.metrics.transfer_ms > 0:
-                self.metrics.bandwidth_mbps = (self.metrics.archive_bytes * 8) / (self.metrics.transfer_ms * 1000)
+                self.metrics.bandwidth_mbps = (self.metrics.archive_bytes * 8) / (
+                    self.metrics.transfer_ms * 1000
+                )
             self.log(
                 f"Total downtime: {self.metrics.downtime_ms} ms "
                 f"(dump: {self.metrics.checkpoint_ms} + transfer: {self.metrics.transfer_ms} + restore: {self.metrics.restore_ms})"
@@ -411,7 +470,11 @@ class PostcopyMigration(MigrationStrategy):
             return True
         finally:
             if lazy_pages_pid:
-                self.dest.exec(f"sudo kill -9 {lazy_pages_pid} 2>/dev/null || true", check=False)
+                self.dest.exec(
+                    f"sudo kill -9 {lazy_pages_pid} 2>/dev/null || true", check=False
+                )
             if page_server_pid:
-                self.source.exec(f"sudo kill -9 {page_server_pid} 2>/dev/null || true", check=False)
+                self.source.exec(
+                    f"sudo kill -9 {page_server_pid} 2>/dev/null || true", check=False
+                )
             self.source.exec(f"sudo kill -9 {pid} 2>/dev/null || true", check=False)

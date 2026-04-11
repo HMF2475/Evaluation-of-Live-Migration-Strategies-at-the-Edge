@@ -12,7 +12,6 @@ Usage:
     --dest edge-node-2 \
     [--container counter] \
     [--archive /tmp/counter-checkpoint.tar.zst] \
-    [--network-migration no] \
     [--transfer-mode host|direct] \
     [--run-id e1-run-001] \
     [--csv Container/metrics/migration_metrics.csv]
@@ -29,7 +28,6 @@ SOURCE=""
 DEST=""
 CONTAINER="counter"
 ARCHIVE_PATH="/tmp/counter-checkpoint.tar.zst"
-NETWORK_MIGRATION="no"
 TRANSFER_MODE="host"
 RUN_ID="run-$(date +%Y%m%d-%H%M%S)"
 CSV_FILE=""
@@ -43,7 +41,6 @@ while [[ $# -gt 0 ]]; do
     --dest) DEST="$2"; shift 2 ;;
     --container) CONTAINER="$2"; shift 2 ;;
     --archive) ARCHIVE_PATH="$2"; shift 2 ;;
-    --network-migration) NETWORK_MIGRATION="$2"; shift 2 ;;
     --scenario) LEGACY_SCENARIO="$2"; shift 2 ;;
     --transfer-mode) TRANSFER_MODE="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
@@ -287,14 +284,14 @@ fi
 NOTES="container=${CONTAINER};transfer_mode=${TRANSFER_MODE};scenario=${LEGACY_SCENARIO:-none};last_before=${LAST_BEFORE};expected_next=${EXPECTED_NEXT};observed_after=${OBSERVED_AFTER}"
 
 printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-  "$RUN_ID" "$TECHNOLOGY" "$MIGRATION_METHOD" "$NETWORK_MIGRATION" "$CHECKPOINT_MS" "$ARCHIVE_BYTES" "$TRANSFER_MS" "$RESTORE_MS" "$DOWNTIME_MS" \
+  "$RUN_ID" "$TECHNOLOGY" "$MIGRATION_METHOD" "no" "$CHECKPOINT_MS" "$ARCHIVE_BYTES" "$TRANSFER_MS" "$RESTORE_MS" "$DOWNTIME_MS" \
   "$BANDWIDTH_MBPS" "$SOURCE_ARCH" "$DEST_ARCH" "$SAME_ARCH" "$SUCCESS" "$NOTES" "$TIMESTAMP" >> "$CSV_FILE"
 
 cat <<EOF
 Run recorded:
   run_id:                 $RUN_ID
   migration_method:       $MIGRATION_METHOD
-  network_migration:      $NETWORK_MIGRATION
+  network_migration:      no
   transfer_mode:          $TRANSFER_MODE
   source/dest:            $SOURCE -> $DEST
   architecture:           $SOURCE_ARCH -> $DEST_ARCH (same_arch=$SAME_ARCH)

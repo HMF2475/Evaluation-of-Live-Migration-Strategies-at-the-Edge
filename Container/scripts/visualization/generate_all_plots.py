@@ -26,10 +26,16 @@ from node_exporter_summary import plot_node_exporter_summary
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate all plots for migration metrics.")
+    parser = argparse.ArgumentParser(
+        description="Generate all plots for migration metrics."
+    )
     parser.add_argument("--csv", default="Container/metrics/migration_metrics.csv")
     parser.add_argument("--out-dir", default=None, help="Output directory for plots")
-    parser.add_argument("--run-id-prefix", default=None, help="Only include runs whose run_id starts with this prefix")
+    parser.add_argument(
+        "--run-id-prefix",
+        default=None,
+        help="Only include runs whose run_id starts with this prefix",
+    )
     parser.add_argument(
         "--run-ids-file",
         default=None,
@@ -52,7 +58,11 @@ def main() -> int:
     if args.run_ids_file:
         p = Path(args.run_ids_file)
         if p.exists():
-            run_ids = {line.strip() for line in p.read_text(encoding="utf-8").splitlines() if line.strip()}
+            run_ids = {
+                line.strip()
+                for line in p.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            }
             if not run_ids:
                 run_ids = None
     if args.run_id_prefix:
