@@ -1,4 +1,4 @@
-# Tactical Edge Service Migration: Containers vs WebAssembly
+# Evaluation of Live Migration Strategies at the Edge 
 
 This repository contains the implementation and experiments for evaluating **service migration strategies in tactical/edge environments**, with a focus on comparing:
 - **CRIU-based migration** (native process + containers via Podman/CRIU), and
