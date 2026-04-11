@@ -1,90 +1,98 @@
 # Tactical Edge Service Migration: Containers vs WebAssembly
 
-This repository contains the implementation and experiments for evaluating **service migration strategies in Tactical Edge Networks**, focusing on a comparison between **container-based migration** and **WebAssembly (WASM) migration**.
+This repository contains the implementation and experiments for evaluating **service migration strategies in tactical/edge environments**, with a focus on comparing:
+- **CRIU-based migration** (native process + containers via Podman/CRIU), and
+- **WebAssembly (WASM) migration**.
 
-The project investigates how different runtime technologies perform when migrating services across distributed edge nodes operating in **Tactical Edge Environments (TEE)**, where networks are constrained and resources are limited.
+## Prerequisites
 
-## Motivation
+### Host System Requirements
 
-Modern military and tactical systems increasingly rely on **edge computing** to process data close to the battlefield. However, tactical networks often suffer from:
+To run this project, your host system must have:
 
-- Limited bandwidth
-- Intermittent connectivity
-- High latency
-- Heterogeneous hardware
+- **Terraform** (v1.0 or newer) – Infrastructure provisioning
+- **Multipass** (v1.13 or newer) – VM provisioning and management
+- **Python 3.8+** – Required for benchmark orchestration scripts
+- **SSH/SCP** – For inter-VM file transfers and remote command execution
+- **Git** – For cloning the repository
+- **curl** – For node_exporter health checks
+- **KVM/QEMU** – Hypervisor support (required by Multipass)
 
-In these environments, **efficient service migration** is essential to maintain service availability and performance when nodes move, fail, or become unreachable.
+### Installation (Ubuntu/Debian example)
 
-This project evaluates whether **container migration** or **WebAssembly-based migration** provides better performance and portability for such environments.
+```bash
+# Install Terraform
+wget -O terraform.zip https://releases.hashicorp.com/terraform/1.x.x/terraform_1.x.x_linux_amd64.zip
+unzip terraform.zip && sudo mv terraform /usr/local/bin/
 
-## Objectives
+# Install Multipass
+snap install multipass
 
-The main goal is to **benchmark and compare service migration mechanisms** using the following metrics:
+# Install Python + dependencies
+sudo apt-get install python3 python3-pip curl git
+pip3 install paramiko  # required by benchmark scripts
+```
 
-- Migration time
-- Service downtime
-- Amount of transferred data
-- CPU and memory usage
-- Network bandwidth consumption
-- Runtime compatibility across heterogeneous hardware
+For installation on other operating systems, see:
+- [Terraform Install Guide](https://www.terraform.io/downloads)
+- [Multipass Install Guide](https://multipass.run/install)
 
-The experiments will compare:
+## Start Here
 
-- **Container migration**
-  - Cold migration
-  - Pre-copy migration
-  - Post-copy migration
-  - Hybrid approaches
+- **Exhaustive end-to-end manual** (setup → run → metrics → plots): `GUIDE.md`
+- **Container/CRIU tooling entrypoint** (folder index + key scripts): `Container/README.md`
 
-- **WebAssembly migration**
-  - Checkpoint/restore mechanisms
-  - Lightweight runtime portability
+## Repository Structure (high level)
 
-## Research Context
+- `Container/` — CRIU + Podman migration experiments, scripts, metrics, and plots
+- `tools/terraform/` — Multipass VM provisioning (`edge-node-1`, `edge-node-2`, `edge-host-1`)
+- `Papers/` — research context / related work
 
-This work is part of a research project focused on **adaptive computing and service orchestration in Tactical Edge Networks**.
+## Quick Sanity Run (CRIU, memory-only counter)
 
-The experiments aim to support future **adaptive orchestration systems**, where services can be proactively or reactively migrated depending on:
+After provisioning the VMs (see `GUIDE.md`), run a small batch:
 
-- network conditions
-- node availability
-- mission requirements
+```bash
+python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
+  --strategies cold,precopy,postcopy \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --relay-node edge-host-1 \
+  --host-runs 1 \
+  --direct-runs 1 \
+  --iterations 2 \
+  --snapshot-node-metrics
+```
 
-## Architecture Overview
+Results are appended to `Container/metrics/migration_metrics.csv`.
+Plots and batch logs are written under `Container/metrics/plots/` and `Container/metrics/run_logs/`.
 
-The evaluation environment includes:
+## Development & Linting
 
-- Distributed edge nodes
-- Container runtime (e.g., Docker / Kubernetes-based systems)
-- WebAssembly runtime
-- Service checkpoint and migration mechanisms
-- Measurement tools for performance evaluation
+This project uses **Ruff** for Python to maintain code quality.
 
-The project integrate with orchestration framework **Oakestra** to simulate realistic edge deployment scenarios.
+### Installing
 
+You can install Ruff using pip:
+```bash
+pip install ruff
+```
 
-## Evaluation Methodology
+### Running Linters & Fixers
 
-Each migration approach will be tested under controlled scenarios to measure:
+You can run Ruff using the standard commands:
 
-1. Migration latency
-2. Service downtime
-3. Network overhead
-4. Resource utilization
-5. Platform portability
+- `ruff check .` - Check for issues.
+- `ruff check --fix .` - Automatically fix safe issues (unused imports, whitespace, etc).
+- `ruff format .` - Format the code.
 
-Results will be analyzed to determine the suitability of each approach for **resource-constrained edge environments**.
+### Pre-commit Hooks (Optional)
 
+The repository includes a `.pre-commit-config.yaml`. You can ensure files are automatically linted before committing by setting up pre-commit:
 
-## Related Research Areas
+```bash
+pip install pre-commit
+pre-commit install
+```
+Once installed, every `git commit` will automatically run Ruff on your staged changes.
 
-- Edge Computing
-- Tactical Edge Networks
-- Service Migration
-- Container Checkpoint/Restore
-- WebAssembly at the Edge
-- Distributed Systems
-
-## License
-
-This project is part of an academic research effort. Licensing will be defined as the project evolves.

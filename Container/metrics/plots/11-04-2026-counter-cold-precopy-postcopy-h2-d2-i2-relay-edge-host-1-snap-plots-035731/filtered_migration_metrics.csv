@@ -1,0 +1,13 @@
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
+11-04-2026-host-cold-0001,CRIU,cold,no,675,25425,6758,391,7824,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-11T03:58:01.370071
+11-04-2026-host-cold-0002,CRIU,cold,no,789,25506,6506,366,7661,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-11T03:58:33.492137
+11-04-2026-direct-cold-0000,CRIU,cold,no,719,25631,2985,385,4089,0.07,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-11T03:59:03.819078
+11-04-2026-direct-cold-0001,CRIU,cold,no,651,25453,2832,433,3916,0.07,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-11T03:59:32.861193
+11-04-2026-host-precopy-0000,CRIU,precopy,no,570,29232,5885,306,6761,0.04,x86_64,x86_64,True,True,transfer_mode=host;iterations=2;relay_node=edge-host-1,2026-04-11T04:00:03.838359
+11-04-2026-host-precopy-0001,CRIU,precopy,no,585,29593,5647,301,6533,0.04,x86_64,x86_64,True,True,transfer_mode=host;iterations=2;relay_node=edge-host-1,2026-04-11T04:00:34.512541
+11-04-2026-direct-precopy-0000,CRIU,precopy,no,601,29392,2513,307,3421,0.09,x86_64,x86_64,True,True,transfer_mode=direct;iterations=2,2026-04-11T04:01:04.001709
+11-04-2026-direct-precopy-0001,CRIU,precopy,no,578,29450,2476,318,3372,0.1,x86_64,x86_64,True,True,transfer_mode=direct;iterations=2,2026-04-11T04:01:32.719516
+11-04-2026-host-postcopy-0000,CRIU,postcopy,no,993,22660,5844,299,7136,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-11T04:02:04.496731
+11-04-2026-host-postcopy-0001,CRIU,postcopy,no,984,22789,5606,305,6895,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-11T04:02:35.327675
+11-04-2026-direct-postcopy-0000,CRIU,postcopy,no,1222,22745,2506,307,4035,0.07,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T04:03:05.888588
+11-04-2026-direct-postcopy-0001,CRIU,postcopy,no,1005,22659,2514,342,3861,0.07,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T04:03:35.817561
