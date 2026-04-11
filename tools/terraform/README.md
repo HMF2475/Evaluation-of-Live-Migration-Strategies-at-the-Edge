@@ -15,6 +15,8 @@ When evaluating stateful service migration, the choice of local infrastructure d
 
 2. **Precise Network Emulation for Tactical Environments:** A core metric of this thesis is evaluating migration under constrained network conditions (high latency, low bandwidth, intermittent connectivity). Each Multipass VM has a distinct virtual Network Interface Card (vNIC). This allows us to inject precise latency and packet loss directly at the VM interface level using Linux Traffic Control (`tc`) and `netem`, bypassing the unpredictable routing behavior of complex container overlay networks.
 
+For the TCP client migration experiment in this repository, use the default Multipass networking (single NIC per VM). On this host/provider combination, adding an extra `networks { ... }` attachment to `mpqemubr0` creates dual interfaces on the same subnet, which can break VIP/ARP behavior during TCP live migration.
+
 3. **Realistic Resource Utilization Metrics:** To accurately measure the CPU and memory spikes during the `dump` and `restore` phases of container and WebAssembly (WASM) migrations, strict hardware boundaries are required. VMs provide rigid resource allocation (e.g., exactly 2 vCPUs and 2GB RAM per node), preventing host-system background noise from skewing the runtime overhead metrics.
 
 ## Prerequisites
@@ -46,6 +48,8 @@ Once provisioned, use the Multipass CLI to verify the nodes are running and retr
 ```bash
 multipass list
 ```
+
+If you are preparing the TCP client migration workflow, confirm each VM has a single primary interface and a single default route.
 ### 4. Accessing the Nodes
 To open a secure shell into a specific node to run manual CRIU tests or apply tc network constraints:
 ```bash

@@ -80,7 +80,7 @@ write_files:
         libprotobuf-dev libprotobuf-c-dev protobuf-c-compiler protobuf-compiler python3-protobuf \
         libbsd-dev iproute2 libnftables-dev libcap-dev libnet1-dev libnl-3-dev libaio-dev \
         libgnutls28-dev libdrm-dev \
-        git asciidoc xmlto uuid-dev python3-yaml python3-pip \ 
+        git asciidoc xmlto uuid-dev python3-yaml python3-pip \
         iputils-arping
 
       if [ ! -d /opt/criu/.git ]; then

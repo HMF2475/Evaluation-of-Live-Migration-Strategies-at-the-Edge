@@ -751,3 +751,9 @@ postcopy-3,CRIU,postcopy,no,1078,22635,2648,347,4073,0.07,x86_64,x86_64,True,Tru
 11-04-2026-host-postcopy-0001,CRIU,postcopy,no,984,22789,5606,305,6895,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-11T04:02:35.327675
 11-04-2026-direct-postcopy-0000,CRIU,postcopy,no,1222,22745,2506,307,4035,0.07,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T04:03:05.888588
 11-04-2026-direct-postcopy-0001,CRIU,postcopy,no,1005,22659,2514,342,3861,0.07,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T04:03:35.817561
+11-04-2026-host-cold-0003,CRIU,cold,no,611,25439,6517,346,7474,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-11T23:42:16.590014
+11-04-2026-direct-cold-0002,CRIU,cold,no,664,25287,2661,350,3675,0.08,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-11T23:42:44.163813
+11-04-2026-host-precopy-0002,CRIU,precopy,no,642,29374,6260,360,7262,0.04,x86_64,x86_64,True,True,transfer_mode=host;iterations=2;relay_node=edge-host-1,2026-04-11T23:43:17.135660
+11-04-2026-direct-precopy-0002,CRIU,precopy,no,636,29757,2653,341,3630,0.09,x86_64,x86_64,True,True,transfer_mode=direct;iterations=2,2026-04-11T23:43:47.109709
+11-04-2026-host-postcopy-0002,CRIU,postcopy,no,1123,22650,6676,331,8130,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-11T23:44:21.627693
+11-04-2026-direct-postcopy-0002,CRIU,postcopy,no,1081,22639,2821,329,4231,0.06,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T23:44:53.071408

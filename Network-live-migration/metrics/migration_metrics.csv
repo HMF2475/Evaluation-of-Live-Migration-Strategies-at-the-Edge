@@ -1,0 +1,11 @@
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
+11-04-2026-host-cold-0003,CRIU,cold,yes,371,27870,6023,350,6744,0.04,x86_64,x86_64,True,False,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1; server_new_conn: 3->11,2026-04-11T23:13:15.878643
+11-04-2026-direct-cold-0000,CRIU,cold,yes,374,28002,2676,362,3412,0.08,x86_64,x86_64,True,False,transfer_mode=direct;workload=tcp-client; server_new_conn: 20->28,2026-04-11T23:13:57.691426
+12-04-2026-host-cold-0000,CRIU,cold,yes,453,28323,7573,481,8507,0.03,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1,2026-04-12T00:16:41.490845
+12-04-2026-direct-cold-0000,CRIU,cold,yes,372,27541,2697,343,3412,0.08,x86_64,x86_64,True,True,transfer_mode=direct;workload=tcp-client,2026-04-12T00:17:29.308942
+12-04-2026-host-cold-0001,CRIU,cold,yes,346,27286,6464,348,7158,0.03,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1,2026-04-12T00:22:50.498818
+12-04-2026-direct-cold-0001,CRIU,cold,yes,342,27437,2925,319,3586,0.08,x86_64,x86_64,True,True,transfer_mode=direct;workload=tcp-client,2026-04-12T00:23:36.614833
+12-04-2026-host-precopy-0000,CRIU,precopy,yes,321,45536,5773,328,6422,0.06,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1;iterations=2,2026-04-12T00:24:25.738055
+12-04-2026-direct-precopy-0000,CRIU,precopy,yes,310,45459,2595,323,3228,0.14,x86_64,x86_64,True,True,transfer_mode=direct;workload=tcp-client;iterations=2,2026-04-12T00:25:14.671825
+12-04-2026-host-postcopy-0000,CRIU,postcopy,yes,724,24799,5873,372,6969,0.03,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1;lazy_pages_port=9999,2026-04-12T00:26:03.792864
+12-04-2026-direct-postcopy-0000,CRIU,postcopy,yes,734,24536,2580,324,3638,0.08,x86_64,x86_64,True,True,transfer_mode=direct;workload=tcp-client;lazy_pages_port=9999,2026-04-12T00:26:51.460515
