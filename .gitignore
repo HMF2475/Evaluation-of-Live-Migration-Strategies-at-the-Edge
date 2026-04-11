@@ -23,7 +23,7 @@ tools/test/stats-*
 **/*.elf
 **/*.bin
 **/*.out
-
+**/tcp-howto
 # Editor & IDE
 .vscode/
 .idea/
@@ -44,6 +44,7 @@ tools/test/stats-*
 
 
 Container/simplest-example/checkpoint/**
+Network-live-migration/simplest-example/img-dir/**
 tools/checkpointctl/**
 tools/criu/**
 tools/go-criu/**
