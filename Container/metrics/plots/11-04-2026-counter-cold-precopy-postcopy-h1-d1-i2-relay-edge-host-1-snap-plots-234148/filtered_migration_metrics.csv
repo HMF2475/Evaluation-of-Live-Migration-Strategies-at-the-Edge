@@ -1,7 +1,0 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
-11-04-2026-host-cold-0003,CRIU,cold,no,611,25439,6517,346,7474,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-11T23:42:16.590014
-11-04-2026-direct-cold-0002,CRIU,cold,no,664,25287,2661,350,3675,0.08,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-11T23:42:44.163813
-11-04-2026-host-precopy-0002,CRIU,precopy,no,642,29374,6260,360,7262,0.04,x86_64,x86_64,True,True,transfer_mode=host;iterations=2;relay_node=edge-host-1,2026-04-11T23:43:17.135660
-11-04-2026-direct-precopy-0002,CRIU,precopy,no,636,29757,2653,341,3630,0.09,x86_64,x86_64,True,True,transfer_mode=direct;iterations=2,2026-04-11T23:43:47.109709
-11-04-2026-host-postcopy-0002,CRIU,postcopy,no,1123,22650,6676,331,8130,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-11T23:44:21.627693
-11-04-2026-direct-postcopy-0002,CRIU,postcopy,no,1081,22639,2821,329,4231,0.06,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-11T23:44:53.071408

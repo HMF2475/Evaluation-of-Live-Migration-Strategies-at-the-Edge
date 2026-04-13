@@ -70,12 +70,14 @@ def plot_downtime(csv_file: str, output_file: str = None):
             list(unique.values()),
             list(unique.keys()),
             title="transfer_mode",
-            loc="best",
+            bbox_to_anchor=(1.02, 1),
+            loc="upper left",
+            borderaxespad=0,
         )
     plt.title("Migration Downtime by Strategy (Host vs Direct)")
     plt.ylabel("Downtime (ms)")
     plt.xlabel("Migration Method")
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)
     print(f"✓ Saved: {output_file}")
     plt.close()

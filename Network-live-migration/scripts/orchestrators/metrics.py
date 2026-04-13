@@ -9,7 +9,7 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class MigrationMetrics:
-    """Container for migration benchmark results.
+    """Migration benchmark results.
 
     Unified 16-column CSV schema compatible across all migration types.
     """

@@ -88,8 +88,14 @@ def plot_phase_breakdown(csv_file: str, output_file: str = None):
     plt.ylabel("Time (ms)")
     plt.title("Migration Phase Breakdown (Mean)")
     plt.xticks(x, methods, rotation=0)
-    plt.legend(ncol=3, fontsize=8, frameon=False)
-    plt.tight_layout()
+    plt.legend(
+        ncol=1,
+        fontsize=8,
+        frameon=False,
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left",
+    )
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)
     print(f"✓ Saved: {output_file}")
     plt.close()
