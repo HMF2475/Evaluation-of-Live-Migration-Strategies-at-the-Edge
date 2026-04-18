@@ -1,4 +1,4 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name
 12-04-2026-host-cold-0002,CRIU,cold,yes,340,27344,5803,328,6471,0.04,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1,2026-04-12T23:01:29.401921
 12-04-2026-host-cold-0003,CRIU,cold,yes,330,27484,6338,327,6995,0.03,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1,2026-04-12T23:02:15.706535
 12-04-2026-host-cold-0004,CRIU,cold,yes,327,27426,5660,310,6297,0.04,x86_64,x86_64,True,True,transfer_mode=host;workload=tcp-client;relay_node=edge-host-1,2026-04-12T23:03:01.382053

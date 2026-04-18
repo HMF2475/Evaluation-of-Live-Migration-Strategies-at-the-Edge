@@ -17,6 +17,7 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 try:
     from .multipass_command import MultipassCommand
@@ -44,29 +45,75 @@ def get_csv_path() -> Path:
     return csv_path
 
 
+_FIELDNAMES_16: list[str] = [
+    "run_id",
+    "technology",
+    "migration_method",
+    "network_migration",
+    "checkpoint_ms",
+    "archive_bytes",
+    "transfer_ms",
+    "restore_ms",
+    "downtime_ms",
+    "bandwidth_mbps",
+    "src_arch",
+    "dst_arch",
+    "same_arch",
+    "success",
+    "notes",
+    "timestamp",
+    "profile_name",
+]
+
+
+def _read_csv_header(csv_path: Path) -> Optional[list[str]]:
+    if not csv_path.exists():
+        return None
+    try:
+        with csv_path.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            return next(reader, None)
+    except Exception:
+        return None
+
+
+def _rewrite_csv_keep_columns(csv_path: Path, keep: list[str]) -> None:
+    """
+    Rewrite CSV in-place, keeping only the selected columns.
+
+    This normalizes accidental schema drift (e.g., an extra `profile_name`
+    column) so Network-live-migration remains compatible with the shared
+    16-column schema used by Container.
+    """
+    tmp_path = csv_path.with_suffix(csv_path.suffix + ".tmp")
+    with csv_path.open("r", newline="", encoding="utf-8") as src, tmp_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as dst:
+        reader = csv.DictReader(src)
+        writer = csv.DictWriter(dst, fieldnames=keep)
+        writer.writeheader()
+        for row in reader:
+            writer.writerow({k: row.get(k, "") for k in keep})
+    tmp_path.replace(csv_path)
+
+
+def ensure_metrics_schema(csv_path: Path) -> None:
+    header = _read_csv_header(csv_path)
+    if not header:
+        return
+    if header == _FIELDNAMES_16:
+        return
+    # Normalize any drift (missing/extra columns) to the canonical schema.
+    _rewrite_csv_keep_columns(csv_path, _FIELDNAMES_16)
+
+
 def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path) -> None:
+    ensure_metrics_schema(csv_path)
     file_exists = csv_path.exists()
     with csv_path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=[
-                "run_id",
-                "technology",
-                "migration_method",
-                "network_migration",
-                "checkpoint_ms",
-                "archive_bytes",
-                "transfer_ms",
-                "restore_ms",
-                "downtime_ms",
-                "bandwidth_mbps",
-                "src_arch",
-                "dst_arch",
-                "same_arch",
-                "success",
-                "notes",
-                "timestamp",
-            ],
+            fieldnames=_FIELDNAMES_16,
         )
         if not file_exists:
             writer.writeheader()
@@ -88,6 +135,7 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path) -> None:
                 "success": metrics.success,
                 "notes": metrics.notes,
                 "timestamp": metrics.timestamp,
+                "profile_name": getattr(metrics, "profile_name", ""),
             }
         )
 
@@ -167,7 +215,11 @@ def main() -> int:
         default=None,
         help="CSV path (default: Network-live-migration/metrics/migration_metrics.csv)",
     )
-
+    parser.add_argument(
+        "--profile-name",
+        default="",
+        help="Optional profile name for experiment tracking (saved in CSV column)",
+    )
     args = parser.parse_args()
 
     csv_path = Path(args.csv) if args.csv else get_csv_path()
@@ -222,6 +274,11 @@ def main() -> int:
             relay_node=args.relay_node,
             page_server_port=args.page_server_port,
         )
+
+    # Set profile_name in metrics if provided
+    if hasattr(strategy, "metrics"):
+        if args.profile_name:
+            strategy.metrics.profile_name = args.profile_name
 
     ok = strategy.migrate(args.run_id)
     strategy.finalize_metrics()

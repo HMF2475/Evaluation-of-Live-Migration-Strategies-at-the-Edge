@@ -21,7 +21,7 @@ Supported transfer modes:
 - `host`: source -> relay -> destination
 - `direct`: source -> destination via SCP/SSH
 
-Metrics are appended to `Network-live-migration/metrics/migration_metrics.csv` using the same 16-column schema as `Container/metrics/migration_metrics.csv`.
+Metrics are appended to `Network-live-migration/metrics/migration_metrics.csv` using the same schema as `Container/metrics/migration_metrics.csv`.
 
 ## Prerequisites
 

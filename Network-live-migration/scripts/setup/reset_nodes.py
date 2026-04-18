@@ -3,7 +3,7 @@
 Reset nodes to a clean state before running CRIU migration tests.
 
 Cleans up:
-- Old TCP workload processes
+- Old TCP workload processes (client + server)
 - CRIU dump directories
 - Log files
 - State files
@@ -36,9 +36,6 @@ def _kill_tcp_processes(node: str) -> None:
     """Best-effort kill of legacy TCP workload processes on a node."""
     patterns = [
         "tcp-howto",
-        "tcp_client.py",
-        "tcp_echo.py",
-        "tcp_server.py",
     ]
     for pattern in patterns:
         exec_cmd(node, f"sudo pkill -9 -f '{pattern}' 2>/dev/null || true")
@@ -56,7 +53,7 @@ def _remove_vip_alias(node: str, vip: str) -> None:
             "done"
         ),
     )
-    exec_cmd(node, f"sudo ip neigh del {vip} dev ens3 2>/dev/null || true")
+    exec_cmd(node, f"sudo ip neigh del {vip} 2>/dev/null || true")
 
 
 def reset_nodes(
@@ -154,15 +151,13 @@ def reset_nodes(
             server,
             "sudo pkill -9 -f '^criu (dump|restore|page-server|lazy-pages)' 2>/dev/null || true",
         )
-        exec_cmd(server, "sudo fuser -k 5000/tcp 2>/dev/null || true")
-        exec_cmd(server, "sudo fuser -k 25565/tcp 2>/dev/null || true")
         exec_cmd(
             server,
-            "rm -f /home/ubuntu/tcp_server.pid /home/ubuntu/tcp_server.out /home/ubuntu/tcp_echo.py /home/ubuntu/tcp_client.py",
+            "rm -f /home/ubuntu/tcp_server.pid /home/ubuntu/tcp_server.out /home/ubuntu/tcp-howto.c",
         )
         exec_cmd(
             server,
-            "sudo rm -rf /tmp/CRIU-tcp-server* /tmp/CRIU-tcp-client* /tmp/criu* 2>/dev/null || true",
+            "sudo rm -rf /tmp/CRIU-tcp-client* /tmp/criu* 2>/dev/null || true",
         )
         _remove_vip_alias(server, vip)
 
@@ -173,8 +168,10 @@ def reset_nodes(
 
 def main():
     if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <source_node> <dest_node>")
-        print(f"Example: {sys.argv[0]} edge-node-1 edge-node-2")
+        print(f"Usage: {sys.argv[0]} <source_node> <dest_node> [server_node] [vip]")
+        print(
+            f"Example: {sys.argv[0]} edge-node-1 edge-node-2 edge-host-1 10.22.132.250"
+        )
         sys.exit(1)
 
     source = sys.argv[1]

@@ -195,6 +195,12 @@ def main() -> int:
     parser.add_argument("--snapshot-node-metrics", action="store_true")
     parser.add_argument("--no-plots", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
+
+    parser.add_argument(
+        "--profile-name",
+        default="",
+        help="Optional profile name for experiment tracking (passed to orchestrator)",
+    )
     args = parser.parse_args()
 
     root = repo_root()
@@ -272,7 +278,14 @@ def main() -> int:
 
                 # Reset edge nodes
                 rc = run_and_tee(
-                    ["python3", str(reset_script), args.source, args.dest, args.server],
+                    [
+                        "python3",
+                        str(reset_script),
+                        args.source,
+                        args.dest,
+                        args.server,
+                        args.vip,
+                    ],
                     log_file,
                     cwd=root,
                 )
@@ -340,6 +353,8 @@ def main() -> int:
                     "--csv",
                     str(metrics_csv),
                 ]
+                if args.profile_name:
+                    cmd += ["--profile-name", args.profile_name]
                 if args.relay_node and mode == "host":
                     cmd += ["--relay-node", args.relay_node]
                 if strategy_name == "precopy":
@@ -416,6 +431,8 @@ def main() -> int:
                 str(run_ids_path),
                 "--node-metrics-dir",
                 str(node_snap_dir),
+                "--profile-name",
+                args.profile_name,
             ],
             check=False,
         )

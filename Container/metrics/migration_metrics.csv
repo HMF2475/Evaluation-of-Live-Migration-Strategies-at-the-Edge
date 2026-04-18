@@ -1,4 +1,4 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name
 repeat-suite-20260330-185020-cold-host-001,CRIU,cold,no,642,24973,867,322,1831,0.23,x86_64,x86_64,True,True,transfer_mode=host,2026-03-30T18:50:42.099676
 repeat-suite-20260330-185020-cold-host-002,CRIU,cold,no,597,25123,851,322,1770,0.24,x86_64,x86_64,True,True,transfer_mode=host,2026-03-30T18:51:03.797177
 repeat-suite-20260330-185020-cold-host-003,CRIU,cold,no,614,25278,839,327,1780,0.24,x86_64,x86_64,True,True,transfer_mode=host,2026-03-30T18:51:25.824057

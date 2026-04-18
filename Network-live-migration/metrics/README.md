@@ -2,19 +2,19 @@
 
 This folder stores the “holy grail” metrics for `Network-live-migration/`.
 
-The main CSV **matches the exact 16-column schema** used by the memory-only
+The main CSV **matches the exact schema** used by the memory-only
 benchmark in `Container/metrics/migration_metrics.csv`, so plots and analyses
 can compare both experiments directly.
 
 ## Files
 
-- `migration_metrics.csv`: one row per migration run (16-column compatible schema)
+- `migration_metrics.csv`: one row per migration run (schema-compatible with `Container/`)
 - `node_exporter_metrics.csv`: one row per run with source/destination CPU/memory/disk deltas
 - `node_exporter/`: raw `node_exporter` snapshots per run (only when snapshots are enabled)
 - `run_logs/`: per-suite execution logs and run-id lists
 - `plots/`: generated PNG figures
 
-## `migration_metrics.csv` schema (16 columns)
+## `migration_metrics.csv` schema
 
 - `run_id`
 - `technology`
@@ -32,6 +32,9 @@ can compare both experiments directly.
 - `success`
 - `notes`
 - `timestamp`
+- `profile_name`
+
+The `profile_name` column is filled when you run suite runners with `--profile-name` (for example via `run_all.py`).
 
 ## `node_exporter_metrics.csv` schema
 

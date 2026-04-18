@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Counter Migration",
+        "command": "python3 Container/scripts/orchestrators/repeat_benchmarks.py suite --strategies cold,precopy,postcopy --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 1 --direct-runs 1 --iterations 3 --snapshot-node-metrics --profile-name \"{profile_name}\""
+    },
+    {
+        "name": "TCP Client Migration",
+        "command": "python3 Network-live-migration/scripts/orchestrators/repeat_tcp_client_benchmarks.py --source edge-node-1 --dest edge-node-2 --server edge-host-1 --relay-node edge-host-1 --port 5000 --vip 10.22.132.250 --strategies cold precopy postcopy --iterations 3 --host-runs 1 --direct-runs 1 --snapshot-node-metrics --profile-name \"{profile_name}\""
+    }
+]

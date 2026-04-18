@@ -45,6 +45,7 @@ For installation on other operating systems, see:
 ## Repository Structure (high level)
 
 - `Container/` — CRIU + Podman migration experiments, scripts, metrics, and plots
+- `Network-live-migration/` — CRIU TCP client migration (established socket + VIP handoff), metrics, and plots
 - `tools/terraform/` — Multipass VM provisioning (`edge-node-1`, `edge-node-2`, `edge-host-1`)
 - `Papers/` — research context / related work
 
@@ -66,6 +67,20 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
 
 Results are appended to `Container/metrics/migration_metrics.csv`.
 Plots and batch logs are written under `Container/metrics/plots/` and `Container/metrics/run_logs/`.
+
+## Run Everything Across Network Profiles (Optional)
+
+To sweep multiple network conditions (bandwidth/latency/loss) and run the main suites automatically:
+
+```bash
+python3 run_all.py
+```
+
+This uses:
+- `network_profiles.json` (profiles)
+- `benchmarks.json` (suite registry)
+
+See `GUIDE.md` for details and options.
 
 ## Development & Linting
 
@@ -95,4 +110,3 @@ pip install pre-commit
 pre-commit install
 ```
 Once installed, every `git commit` will automatically run Ruff on your staged changes.
-

@@ -11,7 +11,7 @@ from dataclasses import dataclass, asdict
 class MigrationMetrics:
     """Migration benchmark results.
 
-    Unified 16-column CSV schema compatible across all migration types.
+    Unified CSV schema compatible across all migration types.
     """
 
     run_id: str
@@ -30,6 +30,7 @@ class MigrationMetrics:
     success: bool = False
     notes: str = ""
     timestamp: str = ""
+    profile_name: str = ""
 
     # Additional metrics for detailed analysis
     final_dump_ms: int = 0  # Time to perform final dump (freeze duration)
@@ -60,4 +61,5 @@ def get_csv_header() -> list:
         "success",
         "notes",
         "timestamp",
+        "profile_name",
     ]

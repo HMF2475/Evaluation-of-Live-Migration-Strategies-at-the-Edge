@@ -158,6 +158,7 @@ def run_strategy(
     iterations: int,
     page_server_port: int,
     relay_node: Optional[str],
+    profile_name: str,
     date_str: str,
     csv: Optional[str],
     csv_path: Path,
@@ -257,6 +258,9 @@ def run_strategy(
         if strategy == "postcopy":
             cmd += ["--page-server-port", str(page_server_port)]
 
+        if profile_name:
+            cmd += ["--profile-name", profile_name]
+
         rc = run_and_tee(cmd, log_file, cwd=root)
         if rc != 0 and not continue_on_failure:
             return rc
@@ -340,6 +344,11 @@ def main() -> int:
         default=None,
         help="Optional relay VM for host-mode transfers (for example: edge-host-1)",
     )
+    parser.add_argument(
+        "--profile-name",
+        default="",
+        help="Optional profile name for experiment tracking (passed to orchestrator)",
+    )
     parser.add_argument("--base-run-id", default=None)
     parser.add_argument("--csv", default=None, help="CSV output path (optional)")
     parser.add_argument(
@@ -406,7 +415,7 @@ def main() -> int:
         lf.write(
             f"strategies={','.join(strategies)} workload=counter "
             f"source={args.source} dest={args.dest} host_runs={args.host_runs} direct_runs={args.direct_runs} "
-            f"iterations={args.iterations} relay_node={args.relay_node} "
+            f"iterations={args.iterations} relay_node={args.relay_node} profile_name={args.profile_name} "
             f"snapshot_node_metrics={args.snapshot_node_metrics} no_plots={args.no_plots}\n"
         )
         lf.flush()
@@ -423,6 +432,7 @@ def main() -> int:
                 page_server_port=args.page_server_port,
                 relay_node=args.relay_node,
                 date_str=date_str,
+                profile_name=args.profile_name,
                 csv=args.csv,
                 csv_path=csv_path,
                 run_ids_out=batch_run_ids,
@@ -457,6 +467,8 @@ def main() -> int:
                 str(out_dir),
                 "--node-metrics-dir",
                 str(root / "Container" / "metrics" / "node_exporter"),
+                "--profile-name",
+                args.profile_name,
             ],
             check=False,
         )
