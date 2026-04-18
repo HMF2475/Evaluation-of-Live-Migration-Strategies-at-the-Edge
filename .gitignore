@@ -24,6 +24,8 @@ tools/test/stats-*
 **/*.bin
 **/*.out
 **/tcp-howto
+**/gol.pid
+**/gol_service
 # Editor & IDE
 .vscode/
 .idea/
@@ -44,6 +46,7 @@ tools/test/stats-*
 
 
 Container/simplest-example/checkpoint/**
+Game-of-life-migration/simplest-example/checkpoint/**
 Network-live-migration/simplest-example/img-dir/**
 tools/checkpointctl/**
 tools/criu/**

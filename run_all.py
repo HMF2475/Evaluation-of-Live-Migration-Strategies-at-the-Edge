@@ -23,8 +23,21 @@ def run_cmd(cmd, check=True):
 
 def get_primary_interface(node_name):
     """Dynamically finds the default network interface of a Multipass VM."""
-    cmd = f"multipass exec {node_name} -- ip -o -4 route show to default | awk '{{print $5}}'"
-    return run_cmd(cmd)
+    cmd = (
+        f"multipass exec {node_name} -- bash -lc "
+        "\"ip -o -4 route show default 2>/dev/null | awk '{print \\$5; exit}'\""
+    )
+    iface = run_cmd(cmd).strip()
+    if iface:
+        return iface
+
+    # Fallback: first non-loopback interface (better than passing an empty dev)
+    cmd = f"multipass exec {node_name} -- bash -lc \"ls /sys/class/net | grep -v '^lo$' | head -n 1\""
+    iface = run_cmd(cmd).strip()
+    if not iface:
+        print(f"[ERROR] Could not determine primary interface for {node_name}")
+        sys.exit(1)
+    return iface
 
 
 def get_node_ip(node_name):
@@ -37,6 +50,17 @@ def clear_tc_rules(node_name, interface):
     """Removes any existing traffic control rules."""
     cmd = f"multipass exec {node_name} -- sudo tc qdisc del dev {interface} root"
     # We do not check return code here, as it fails if no rules exist, which is fine.
+    subprocess.run(cmd, shell=True, stderr=subprocess.DEVNULL)
+
+
+def clear_all_tc_rules(node_name):
+    """Best-effort: remove qdisc root from all non-lo interfaces."""
+    cmd = (
+        f"multipass exec {node_name} -- bash -lc "
+        "\"for iface in $(ls /sys/class/net | grep -v '^lo$'); do "
+        "sudo tc qdisc del dev $iface root 2>/dev/null || true; "
+        'done"'
+    )
     subprocess.run(cmd, shell=True, stderr=subprocess.DEVNULL)
 
 
@@ -58,30 +82,30 @@ def apply_tc_rules(node_name, interface, bw_mbps, latency_ms, loss_pct, peer_ips
         f"[{node_name}] Applying TC: {bw_mbps}Mbps, {latency_ms}ms, {loss_pct}% loss on {interface}"
     )
 
-    # Root qdisc: prio with 2 bands
-    # - band 1 (1:1): shaped (tbf + netem) for VM-to-VM traffic only
-    # - band 2 (1:2): default, unshaped (host control traffic unaffected)
+    # HTB root:
+    # - default class (1:20): effectively unshaped (host control traffic stays responsive)
+    # - shaped class (1:10): bandwidth/latency/loss for VM-to-VM traffic only
+    root_rate = "1000mbit"
     run_cmd(
-        f"multipass exec {node_name} -- sudo tc qdisc add dev {interface} root handle 1: prio bands 2"
+        f"multipass exec {node_name} -- sudo tc qdisc add dev {interface} root handle 1: htb default 20"
+    )
+    run_cmd(
+        f"multipass exec {node_name} -- sudo tc class add dev {interface} parent 1: classid 1:1 htb rate {root_rate}"
+    )
+    run_cmd(
+        f"multipass exec {node_name} -- sudo tc class add dev {interface} parent 1:1 classid 1:20 htb rate {root_rate}"
+    )
+    run_cmd(
+        f"multipass exec {node_name} -- sudo tc class add dev {interface} parent 1:1 classid 1:10 htb rate {bw_mbps}mbit ceil {bw_mbps}mbit"
+    )
+    run_cmd(
+        f"multipass exec {node_name} -- sudo tc qdisc add dev {interface} parent 1:10 handle 10: netem delay {latency_ms}ms loss {loss_pct}%"
     )
 
-    # Band 1: bandwidth limiter + netem
-    # Use TBF for rate-limiting and netem for delay/loss.
-    # Burst chosen conservatively; latency in TBF just needs to be large enough
-    # to queue under the configured delay.
-    burst = "32kb"
-    tbf_latency = f"{max(1000, int(latency_ms) * 3)}ms"
-    run_cmd(
-        f"multipass exec {node_name} -- sudo tc qdisc add dev {interface} parent 1:1 handle 10: tbf rate {bw_mbps}mbit burst {burst} latency {tbf_latency}"
-    )
-    run_cmd(
-        f"multipass exec {node_name} -- sudo tc qdisc add dev {interface} parent 10:1 handle 20: netem delay {latency_ms}ms loss {loss_pct}%"
-    )
-
-    # Classify only traffic to peer VM IPs into band 1 (shaped)
+    # Classify only traffic to peer VM IPs into the shaped class.
     for ip in peer_ips:
         run_cmd(
-            f"multipass exec {node_name} -- sudo tc filter add dev {interface} protocol ip parent 1: prio 1 u32 match ip dst {ip}/32 flowid 1:1"
+            f"multipass exec {node_name} -- sudo tc filter add dev {interface} protocol ip parent 1: prio 1 u32 match ip dst {ip}/32 flowid 1:10"
         )
 
 
@@ -149,6 +173,9 @@ def main():
     # Determine interfaces for each node dynamically
     interfaces = {node: get_primary_interface(node) for node in NODES}
     ips = {node: get_node_ip(node) for node in NODES}
+    print("\n[INFO] Nodes:")
+    for node in NODES:
+        print(f"  - {node}: ip={ips[node]} iface={interfaces[node]}")
 
     try:
         for profile in profiles:
@@ -184,7 +211,7 @@ def main():
     finally:
         print("\n[CLEANUP] Removing all TC rules to restore node network states.")
         for node in NODES:
-            clear_tc_rules(node, interfaces[node])
+            clear_all_tc_rules(node)
         print("Done.")
 
 
