@@ -87,14 +87,7 @@ multipass list
 Quick readiness check after start:
 
 ```bash
-for n in edge-node-1 edge-node-2 edge-host-1; do
-	echo "=== $n ==="
-	multipass exec $n -- bash -c '
-		systemctl is-active node-bootstrap || true
-		criu --version 2>/dev/null | head -1 || true
-		sudo podman --version
-	'
-done
+bash check_bootstrap.sh
 ```
 
 ### 7. Reset Nodes for a Fresh Migration Run
