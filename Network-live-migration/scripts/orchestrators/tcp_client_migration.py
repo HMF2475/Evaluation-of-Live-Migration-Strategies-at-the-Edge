@@ -49,6 +49,36 @@ class TcpClientMigrationBase(MigrationStrategy):
     Shared helpers for TCP client migrations.
     """
 
+    def ensure_state_files_on_source(self, endpoint, vip):
+        """
+        Ensure /home/ubuntu/tcp_server_endpoint.txt and /home/ubuntu/tcp_vip.txt exist on the source node.
+        If missing, create them using the provided endpoint and vip.
+        """
+        # Check and create tcp_server_endpoint.txt
+        if endpoint:
+            rc, _, _ = self.source.exec(
+                "test -f /home/ubuntu/tcp_server_endpoint.txt", check=False
+            )
+            if rc != 0:
+                self.log(
+                    "  Creating missing /home/ubuntu/tcp_server_endpoint.txt on source..."
+                )
+                self.source.exec(
+                    f"echo '{endpoint.ip}:{endpoint.port}' | sudo tee /home/ubuntu/tcp_server_endpoint.txt >/dev/null && "
+                    "sudo chown ubuntu:ubuntu /home/ubuntu/tcp_server_endpoint.txt",
+                    check=False,
+                )
+        # Check and create tcp_vip.txt
+        if vip:
+            rc, _, _ = self.source.exec("test -f /home/ubuntu/tcp_vip.txt", check=False)
+            if rc != 0:
+                self.log("  Creating missing /home/ubuntu/tcp_vip.txt on source...")
+                self.source.exec(
+                    f"echo '{vip}' | sudo tee /home/ubuntu/tcp_vip.txt >/dev/null && "
+                    "sudo chown ubuntu:ubuntu /home/ubuntu/tcp_vip.txt",
+                    check=False,
+                )
+
     def __init__(
         self,
         source: MultipassCommand,
@@ -208,12 +238,15 @@ class TcpClientMigrationBase(MigrationStrategy):
 
     def persist_restored_pid_files(self, restored_pidfile: str) -> str | None:  # type: ignore[override]
         """
-        Persist restored PID on destination for TCP workload.
+        Persist restored PID and required state files on destination for TCP workload.
 
         Writes:
         - /home/ubuntu/tcp_client.pid
         - /home/ubuntu/client.pid (legacy alias)
+        - /home/ubuntu/tcp_server_endpoint.txt
+        - /home/ubuntu/tcp_vip.txt
         """
+        # Persist PID files
         cmd = (
             "sudo bash -lc '"
             "set -e; "
@@ -227,6 +260,16 @@ class TcpClientMigrationBase(MigrationStrategy):
         )
         rc, out, _ = self.dest.exec(cmd, check=False)
         pid = out.strip().splitlines()[-1] if out else ""
+        # Always persist endpoint and VIP files for bounce migrations
+        endpoint = getattr(self, "_last_endpoint", None)
+        vip = getattr(self, "_last_vip", None)
+        if endpoint and vip:
+            self.dest.exec(
+                f"echo '{endpoint.ip}:{endpoint.port}' | sudo tee /home/ubuntu/tcp_server_endpoint.txt >/dev/null && "
+                f"echo '{vip}' | sudo tee /home/ubuntu/tcp_vip.txt >/dev/null && "
+                "sudo chown ubuntu:ubuntu /home/ubuntu/tcp_server_endpoint.txt /home/ubuntu/tcp_vip.txt",
+                check=False,
+            )
         if rc == 0 and pid.isdigit():
             return pid
         return None
@@ -267,11 +310,22 @@ class TcpClientColdMigration(TcpClientMigrationBase):
         endpoint = self._read_server_endpoint()
         vip = self._read_vip()
         if not endpoint or not vip:
+            # Try to use last known values if available
+            endpoint = getattr(self, "_last_endpoint", None) or endpoint
+            vip = getattr(self, "_last_vip", None) or vip
+            self.ensure_state_files_on_source(endpoint, vip)
+            # Re-read after creation attempt
+            endpoint = self._read_server_endpoint()
+            vip = self._read_vip()
+        if not endpoint or not vip:
             self.log(
-                "ERROR: Missing /home/ubuntu/tcp_server_endpoint.txt or /home/ubuntu/tcp_vip.txt on source"
+                "ERROR: Missing /home/ubuntu/tcp_server_endpoint.txt or /home/ubuntu/tcp_vip.txt on source (even after recreation attempt)"
             )
             self.metrics.notes += "; missing_endpoint_or_vip"
             return False
+        # Save for bounce migration state file recreation
+        self._last_endpoint = endpoint
+        self._last_vip = vip
 
         before_conn = self._server_conn_count()
         if before_conn is not None:
@@ -504,9 +558,19 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
         endpoint = self._read_server_endpoint()
         vip = self._read_vip()
         if not endpoint or not vip:
-            self.log("ERROR: Missing endpoint/vip files on source")
+            endpoint = getattr(self, "_last_endpoint", None) or endpoint
+            vip = getattr(self, "_last_vip", None) or vip
+            self.ensure_state_files_on_source(endpoint, vip)
+            endpoint = self._read_server_endpoint()
+            vip = self._read_vip()
+        if not endpoint or not vip:
+            self.log(
+                "ERROR: Missing endpoint/vip files on source (even after recreation attempt)"
+            )
             self.metrics.notes += "; missing_endpoint_or_vip"
             return False
+        self._last_endpoint = endpoint
+        self._last_vip = vip
 
         before_conn = self._server_conn_count()
         if before_conn is not None:
@@ -762,9 +826,19 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
         endpoint = self._read_server_endpoint()
         vip = self._read_vip()
         if not endpoint or not vip:
-            self.log("ERROR: Missing endpoint/vip files on source")
+            endpoint = getattr(self, "_last_endpoint", None) or endpoint
+            vip = getattr(self, "_last_vip", None) or vip
+            self.ensure_state_files_on_source(endpoint, vip)
+            endpoint = self._read_server_endpoint()
+            vip = self._read_vip()
+        if not endpoint or not vip:
+            self.log(
+                "ERROR: Missing endpoint/vip files on source (even after recreation attempt)"
+            )
             self.metrics.notes += "; missing_endpoint_or_vip"
             return False
+        self._last_endpoint = endpoint
+        self._last_vip = vip
 
         before_conn = self._server_conn_count()
         if before_conn is not None:

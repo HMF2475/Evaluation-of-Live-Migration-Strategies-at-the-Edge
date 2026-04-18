@@ -46,6 +46,11 @@ def main() -> int:
     parser.add_argument(
         "--node-metrics-dir", default="Network-live-migration/metrics/node_exporter"
     )
+    parser.add_argument(
+        "--profile-name",
+        default="",
+        help="Network profile name to append to plot titles",
+    )
 
     args = parser.parse_args()
 
@@ -82,9 +87,21 @@ def main() -> int:
         return 0
     df.to_csv(filtered_csv, index=False)
 
-    plot_downtime(str(filtered_csv), str(out_dir / "downtime_comparison.png"))
-    plot_phase_breakdown(str(filtered_csv), str(out_dir / "phase_breakdown.png"))
-    plot_transfer_analysis(str(filtered_csv), str(out_dir / "transfer_analysis.png"))
+    plot_downtime(
+        str(filtered_csv),
+        str(out_dir / "downtime_comparison.png"),
+        title_suffix=args.profile_name,
+    )
+    plot_phase_breakdown(
+        str(filtered_csv),
+        str(out_dir / "phase_breakdown.png"),
+        title_suffix=args.profile_name,
+    )
+    plot_transfer_analysis(
+        str(filtered_csv),
+        str(out_dir / "transfer_analysis.png"),
+        title_suffix=args.profile_name,
+    )
     plot_node_exporter_summary(
         str(filtered_csv),
         args.node_metrics_dir,
