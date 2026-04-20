@@ -1,0 +1,8 @@
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name
+21-04-2026-host-cold-0000,CRIU,cold,no,593,25572,5870,306,6769,0.03,x86_64,x86_64,True,False,transfer_mode=host;relay_node=edge-host-1; process_validation_failed,2026-04-21T01:32:20.604960,
+21-04-2026-direct-cold-0000,CRIU,cold,no,606,25579,2505,307,3418,0.08,x86_64,x86_64,True,False,transfer_mode=direct; process_validation_failed,2026-04-21T01:32:46.768344,
+21-04-2026-host-precopy-0000,CRIU,precopy,no,577,30401,5896,308,6781,0.04,x86_64,x86_64,True,False,transfer_mode=host;iterations=2;relay_node=edge-host-1; process_validation_failed,2026-04-21T01:33:18.113670,
+21-04-2026-direct-precopy-0000,CRIU,precopy,no,561,29997,2462,304,3327,0.10,x86_64,x86_64,True,False,transfer_mode=direct;iterations=2; process_validation_failed,2026-04-21T01:33:46.854483,
+21-04-2026-host-postcopy-0000,CRIU,postcopy,no,996,23299,5837,320,7153,0.03,x86_64,x86_64,True,False,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1; process_validation_failed,2026-04-21T01:34:18.212002,
+21-04-2026-direct-postcopy-0000,CRIU,postcopy,no,995,23457,2480,316,3791,0.08,x86_64,x86_64,True,False,transfer_mode=direct;lazy_pages_port=9999; process_validation_failed,2026-04-21T01:34:47.375663,
+21-04-2026-direct-cold-0001,CRIU,cold,no,584,25564,2502,308,3394,0.08,x86_64,x86_64,True,False,transfer_mode=direct; process_validation_failed,2026-04-21T01:39:49.942158,

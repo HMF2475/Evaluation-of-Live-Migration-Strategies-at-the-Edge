@@ -1,0 +1,49 @@
+=== repeat_benchmarks.py 2026-04-21T01:24:36.229664 ===
+base_run_id=21-04-2026-gol-cold-precopy-postcopy-h10-d10-i2-relay-edge-host-1-snap-plots-012436
+strategies=cold,precopy,postcopy workload=gol source=edge-node-1 dest=edge-node-2 host_runs=10 direct_runs=10 iterations=2 relay_node=edge-host-1 profile_name= snapshot_node_metrics=True no_plots=False
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[01:24:36] Resetting nodes: edge-node-1 -> edge-node-2
+[01:24:36] Step 1: Killing any existing processes on source...
+[01:24:37]   Killing any remaining background processes...
+[01:24:38] Step 2: Cleaning source node...
+[01:24:40] Step 3: Cleaning destination node...
+[01:24:40]   Killing all remaining gol processes on destination...
+[01:24:44] ✓ Reset complete, nodes are clean
+[01:24:44]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[01:24:44] Transferring gol.c to edge-node-1...
+[2026-04-21T01:24:44.847] [error] [sftp] cannot access /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/workloads/../gol.c: No such file or directory
+[01:24:44] Compiling gol.c on edge-node-1...
+cc1: fatal error: /home/ubuntu/gol.c: No such file or directory
+compilation terminated.
+[01:24:45] Starting gol on edge-node-1...
+✗ Gol failed
+[01:24:46] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 21-04-2026-host-cold-0000 --relay-node edge-host-1
+[01:24:49] Starting cold migration...
+[01:24:49] Source: edge-node-1, Dest: edge-node-2
+[01:24:49] Transfer mode: host
+[01:24:49] Relay node: edge-host-1
+
+[01:24:49] === COLD MIGRATION ===
+[01:24:49] Step 1: Checking source process...
+[01:24:49]   Using PID from /home/ubuntu/gol.pid: 30831
+Traceback (most recent call last):
+  File "/home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py", line 279, in <module>
+    main()
+  File "/home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py", line 265, in main
+    success = strategy.migrate(args.run_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/orchestrators/cold_migration.py", line 108, in migrate
+    out_path = self.gol_output_path()
+               ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ColdMigration' object has no attribute 'gol_output_path'. Did you mean: 'gol_output_path'?
+[exit=1]

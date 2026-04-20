@@ -1,0 +1,97 @@
+=== repeat_benchmarks.py 2026-04-21T01:26:52.334485 ===
+base_run_id=21-04-2026-gol-cold-precopy-postcopy-h10-d10-i2-relay-edge-host-1-snap-plots-012652
+strategies=cold,precopy,postcopy workload=gol source=edge-node-1 dest=edge-node-2 host_runs=10 direct_runs=10 iterations=2 relay_node=edge-host-1 profile_name= snapshot_node_metrics=True no_plots=False
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[01:26:52] Resetting nodes: edge-node-1 -> edge-node-2
+[01:26:52] Step 1: Killing any existing processes on source...
+[01:26:53]   Killing PID 30831 (from /home/ubuntu/app.pid)
+[01:26:53]   Killing PID 30831 (from /home/ubuntu/gol.pid)
+[01:26:54]   Killing any remaining background processes...
+[01:26:55] Step 2: Cleaning source node...
+[01:26:56] Step 3: Cleaning destination node...
+[01:26:57]   Killing all remaining gol processes on destination...
+[01:27:00] ✓ Reset complete, nodes are clean
+[01:27:00]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[01:27:00] Transferring gol.c to edge-node-1...
+[2026-04-21T01:27:01.212] [error] [sftp] cannot access /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/workloads/../gol.c: No such file or directory
+[01:27:01] Compiling gol.c on edge-node-1...
+cc1: fatal error: /home/ubuntu/gol.c: No such file or directory
+compilation terminated.
+[01:27:01] Starting gol on edge-node-1...
+✗ Gol failed
+[01:27:02] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 21-04-2026-host-cold-0000 --relay-node edge-host-1
+[01:27:05] Starting cold migration...
+[01:27:05] Source: edge-node-1, Dest: edge-node-2
+[01:27:05] Transfer mode: host
+[01:27:05] Relay node: edge-host-1
+
+[01:27:05] === COLD MIGRATION ===
+[01:27:05] Step 1: Checking source process...
+[01:27:06]   Using PID from /home/ubuntu/gol.pid: 31826
+[01:27:06]   Last gol value (pre-freeze): nohup: failed to run command '/tmp/gol': No such file or directory
+[01:27:06]   Architecture: x86_64 (compatible)
+[01:27:06] Step 2: Dumping process with CRIU...
+[01:27:07] ERROR: Dump failed
+[01:27:07] Dump log:
+(00.099223) cg-prop: 	Strategy "replace"
+(00.099225) cg-prop: 	Property "cpuset.cpus"
+(00.099226) cg-prop: 	Property "cpuset.mems"
+(00.099229) cg-prop: 	Property "cpuset.memory_migrate"
+(00.099230) cg-prop: 	Property "cpuset.cpu_exclusive"
+(00.099232) cg-prop: 	Property "cpuset.mem_exclusive"
+(00.099233) cg-prop: 	Property "cpuset.mem_hardwall"
+(00.099235) cg-prop: 	Property "cpuset.memory_spread_page"
+(00.099236) cg-prop: 	Property "cpuset.memory_spread_slab"
+(00.099237) cg-prop: 	Property "cpuset.sched_load_balance"
+(00.099239) cg-prop: 	Property "cpuset.sched_relax_domain_level"
+(00.099240) cg-prop: Parsing controller "blkio"
+(00.099242) cg-prop: 	Strategy "replace"
+(00.099243) cg-prop: 	Property "blkio.weight"
+(00.099244) cg-prop: Parsing controller "freezer"
+(00.099246) cg-prop: 	Strategy "replace"
+(00.099247) cg-prop: Parsing controller "perf_event"
+(00.099250) cg-prop: 	Strategy "replace"
+(00.099251) cg-prop: Parsing controller "net_cls"
+(00.099252) cg-prop: 	Strategy "replace"
+(00.099254) cg-prop: 	Property "net_cls.classid"
+(00.099255) cg-prop: Parsing controller "net_prio"
+(00.099257) cg-prop: 	Strategy "replace"
+(00.099258) cg-prop: 	Property "net_prio.ifpriomap"
+(00.099259) cg-prop: Parsing controller "pids"
+(00.099261) cg-prop: 	Strategy "replace"
+(00.099264) cg-prop: 	Property "pids.max"
+(00.099265) cg-prop: Parsing controller "devices"
+(00.099266) cg-prop: 	Strategy "replace"
+(00.099268) cg-prop: 	Property "devices.list"
+(00.099289) Preparing image inventory (version 1)
+(00.099315) Add pid ns 1 pid 32146
+(00.099324) Add net ns 2 pid 32146
+(00.099333) Add ipc ns 3 pid 32146
+(00.099342) Add uts ns 4 pid 32146
+(00.099350) Add time ns 5 pid 32146
+(00.099365) Add mnt ns 6 pid 32146
+(00.099401) Add user ns 7 pid 32146
+(00.099413) Add cgroup ns 8 pid 32146
+(00.099415) cg: Dumping cgroups for thread 32146
+(00.099432) cg:  `- New css ID 1
+(00.099434) cg:     `- [] -> [/user.slice/user-1000.slice/session-301.scope] [0]
+(00.099435) cg: Set 1 is criu one
+(00.099446) Detected cgroup V1 freezer
+(00.099449) Warn  (compel/src/lib/infect.c:131): Unable to interrupt task: 31826 (No such process)
+(00.099455) net: Unlock network
+(00.099458) Unfreezing tasks into 1
+(00.099460) 	Unseizing 31826 into 1
+(00.099461) Error (compel/src/lib/infect.c:416): Unable to detach from 31826: No such process
+(00.099466) Error (criu/cr-dump.c:2130): Dumping FAILED.
+[01:27:07] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Game-of-life-migration/metrics/migration_metrics.csv
+[exit=1]
