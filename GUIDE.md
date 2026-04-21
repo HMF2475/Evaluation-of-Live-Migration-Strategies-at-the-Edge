@@ -1,4 +1,4 @@
-# Exhaustive Benchmark Guide (CRIU / Podman / Metrics / Plots)
+# Exhaustive Benchmark Guide (CRIU / Metrics / Plots)
 
 This guide is the **main end-to-end manual** for running migration benchmarks in this repository:
 - Provision the 3 Multipass nodes (`edge-node-1`, `edge-node-2`, `edge-host-1`)
@@ -339,15 +339,22 @@ Use these when you want the exact CRIU flags and the detailed “manual” flow:
 
 ---
 
-## 10) Network Live Migration (TCP client)
 
-The TCP experiment lives under `Network-live-migration/` and follows the same philosophy as the memory-only counter:
-- same migration strategies (`cold|precopy|postcopy`)
-- same transfer modes (`host|direct`)
-- same metrics schema for cross-experiment plots
+## 10) Workload Modules
 
-The key difference is that the workload is a **TCP client with an established connection**, so you must preserve the client’s local IP after restore.
-This is done via a **VIP handoff** (source → destination) between dump and restore.
+This repository supports three main migration workloads, each with its own module and scripts:
+
+- **Counter**: Memory-only baseline. See `Container/`.
+- **Game of Life**: Stateful C application. See `Game-of-life-migration/`.
+- **TCP client/server**: Socket migration. See `Network-live-migration/`.
+
+Each module supports the same migration strategies (`cold|precopy|postcopy`), transfer modes (`host|direct`), and unified metrics schema for cross-experiment plots.
+
+### Game of Life
+See `Game-of-life-migration/README.md` for details and quick start. The workload prints an evolving grid to stdout and is used to test migration of a non-trivial, stateful process.
+
+### TCP client/server
+The TCP experiment lives under `Network-live-migration/` and follows the same migration strategies and metrics as the other workloads. The key difference is that the workload is a **TCP client with an established connection**, so you must preserve the client’s local IP after restore. This is done via a **VIP handoff** (source → destination) between dump and restore.
 
 Read first:
 - `Network-live-migration/TCP-live-migration.md` (step-by-step guide)
@@ -391,6 +398,15 @@ Outputs:
 - `Network-live-migration/metrics/plots/<suite>/`
 
 ---
+
+
+## Appendix: Workload Summary
+
+| Workload      | Folder/module              | Description                                      | Output file on VM           |
+|-------------- |---------------------------|--------------------------------------------------|-----------------------------|
+| Counter       | Container/                | Prints incrementing numbers to stdout            | /home/ubuntu/counter.out    |
+| Game of Life  | Game-of-life-migration/   | Prints evolving 50x20 grid (Conway's Game of Life) | /home/ubuntu/gol.out        |
+| TCP client    | Network-live-migration/   | Echo client/server, tests socket migration       | (see TCP guide)             |
 
 ## 11) Run everything across network profiles (`tc`)
 

@@ -45,28 +45,67 @@ For installation on other operating systems, see:
 ## Repository Structure (high level)
 
 - `Container/` — CRIU + Podman migration experiments, scripts, metrics, and plots
+- `Game-of-life-migration/` — CRIU migration experiments for the Game of Life workload (C implementation)
 - `Network-live-migration/` — CRIU TCP client migration (established socket + VIP handoff), metrics, and plots
 - `tools/terraform/` — Multipass VM provisioning (`edge-node-1`, `edge-node-2`, `edge-host-1`)
 - `Papers/` — research context / related work
 
-## Quick Sanity Run (CRIU, memory-only counter)
 
-After provisioning the VMs (see `GUIDE.md`), run a small batch:
+## Quick Sanity Run (All Workloads)
 
-```bash
-python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
-  --strategies cold,precopy,postcopy \
-  --source edge-node-1 \
-  --dest edge-node-2 \
-  --relay-node edge-host-1 \
-  --host-runs 1 \
-  --direct-runs 1 \
-  --iterations 2 \
-  --snapshot-node-metrics
-```
+After provisioning the VMs (see `GUIDE.md`), you can run a small batch for any of the three main workloads:
 
-Results are appended to `Container/metrics/migration_metrics.csv`.
-Plots and batch logs are written under `Container/metrics/plots/` and `Container/metrics/run_logs/`.
+- **Counter** (memory-only baseline):
+  ```bash
+  python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
+    --strategies cold,precopy,postcopy \
+    --source edge-node-1 \
+    --dest edge-node-2 \
+    --relay-node edge-host-1 \
+    --host-runs 1 \
+    --direct-runs 1 \
+    --iterations 2 \
+    --snapshot-node-metrics
+  ```
+- **Game of Life** (C application):
+  ```bash
+  python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite \
+    --strategies cold,precopy,postcopy \
+    --source edge-node-1 \
+    --dest edge-node-2 \
+    --relay-node edge-host-1 \
+    --host-runs 1 \
+    --direct-runs 1 \
+    --iterations 2 \
+    --snapshot-node-metrics
+  ```
+- **TCP client/server** (socket migration):
+  ```bash
+  python3 Network-live-migration/scripts/orchestrators/repeat_tcp_client_benchmarks.py \
+    --source edge-node-1 \
+    --dest edge-node-2 \
+    --server edge-host-1 \
+    --relay-node edge-host-1 \
+    --port 5000 \
+    --vip 10.22.132.250 \
+    --strategies cold precopy postcopy \
+    --iterations 2 \
+    --host-runs 1 \
+    --direct-runs 1 \
+    --snapshot-node-metrics
+  ```
+
+Results are appended to the corresponding `metrics/migration_metrics.csv` in each module.
+Plots and batch logs are written under each module's `metrics/plots/` and `metrics/run_logs/`.
+# (add section at end)
+
+## Supported Workloads
+
+This repository supports three main migration workloads:
+
+- **Counter**: A minimal C program that prints incrementing numbers to stdout. Used as a memory-only baseline for CRIU migration.
+- **Game of Life**: A C implementation of Conway's Game of Life, printing an evolving grid to stdout. Used to test migration of a non-trivial, stateful application. See `Game-of-life-migration/`.
+- **TCP client/server**: An echo server/client pair for testing migration of established TCP connections (socket state preservation). See `Network-live-migration/`.
 
 ## Run Everything Across Network Profiles (Optional)
 

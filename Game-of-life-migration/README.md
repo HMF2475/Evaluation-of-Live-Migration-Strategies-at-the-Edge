@@ -1,6 +1,7 @@
 # Game of Life / CRIU Migration Experiments
 
-This directory contains a **Game of Life workload** plus a CRIU migration/benchmark pipeline modeled after the gol “holy grail” experiment:
+
+This directory contains a **Game of Life workload** (C implementation) and a CRIU migration/benchmark pipeline modeled after the "holy grail" experiment:
 - Native (non-container) CRIU migrations: **cold**, **pre-copy**, **post-copy (lazy-pages, experimental)**
 - Repeatable benchmarking + metrics collection + plotting
 - Optional node_exporter snapshots per run (CPU/memory/disk IO)
@@ -10,7 +11,7 @@ This directory contains a **Game of Life workload** plus a CRIU migration/benchm
 - `Game-of-life-migration/scripts/setup/` — reset/cleanup, node_exporter install/checks, time sync checks, `tc` netem helper
   - See: `Game-of-life-migration/scripts/setup/README.md`
 - `Game-of-life-migration/scripts/workloads/` — workload launchers
-  - `start_game_of_life.sh` compiles + starts `/tmp/gol_service` and writes `/home/ubuntu/gol.pid`
+  - `start_gol_c.sh` compiles + starts `/tmp/gol` and writes `/home/ubuntu/gol.pid`
   - See: `Game-of-life-migration/scripts/workloads/README.md`
 - `Game-of-life-migration/scripts/orchestrators/` — benchmark runners (`criu_benchmark.py`, `repeat_benchmarks.py`)
   - See: `Game-of-life-migration/scripts/orchestrators/README.md`
@@ -36,3 +37,16 @@ python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite 
   --iterations 2 \
   --snapshot-node-metrics
 ```
+
+
+## About the Game of Life Workload
+
+The Game of Life workload is a C program (`gol.c`) that simulates Conway's Game of Life, printing an evolving 50x20 grid to stdout every second. It is used to test CRIU's ability to checkpoint and restore a non-trivial, stateful application.
+
+To launch the workload manually:
+
+```bash
+bash Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+```
+
+Output is written to `/home/ubuntu/gol.out` on the node. PID files: `/home/ubuntu/gol.pid`, `/home/ubuntu/app.pid`.
