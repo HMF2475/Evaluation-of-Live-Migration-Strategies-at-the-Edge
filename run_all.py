@@ -54,14 +54,17 @@ def clear_tc_rules(node_name, interface):
 
 
 def clear_all_tc_rules(node_name):
-    """Best-effort: remove qdisc root from all non-lo interfaces."""
+    """Best-effort: remove qdisc root from all non-lo interfaces, only valid names."""
+    # Only allow interface names with alphanumeric, dash, underscore, or dot (no empty or weird names)
     cmd = (
         f"multipass exec {node_name} -- bash -lc "
-        "\"for iface in $(ls /sys/class/net | grep -v '^lo$'); do "
+        "\"for iface in $(ls /sys/class/net | grep -v '^lo$' | grep -E '^[a-zA-Z0-9._-]+$'); do "
         "sudo tc qdisc del dev $iface root 2>/dev/null || true; "
         'done"'
     )
-    subprocess.run(cmd, shell=True, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
 
 
 def apply_tc_rules(node_name, interface, bw_mbps, latency_ms, loss_pct, peer_ips):

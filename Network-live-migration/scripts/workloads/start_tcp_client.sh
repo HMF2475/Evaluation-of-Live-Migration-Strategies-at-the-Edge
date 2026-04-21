@@ -75,10 +75,11 @@ multipass exec "${CLIENT_NODE}" -- bash -lc "
   fi
 "
 
+
 echo "[tcp-client] Waiting for established TCP connection..."
-for _ in $(seq 1 30); do
+for _ in $(seq 1 120); do
   if multipass exec "${CLIENT_NODE}" -- bash -lc "ss -tn state established | grep -q ':${PORT} '"; then
-    echo "✓ TCP client connected (PID: $(multipass exec "${CLIENT_NODE}" -- cat "${PID_PATH}"))"
+    echo "✓ TCP client connected (PID: $(multipass exec "${CLIENT_NODE}" -- cat "${PID_PATH}")")"
     echo "[tcp-client] Logs: multipass exec ${CLIENT_NODE} -- tail -f ${OUT_PATH}"
     exit 0
   fi
