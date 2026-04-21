@@ -24,8 +24,7 @@ tools/test/stats-*
 **/*.bin
 **/*.out
 **/tcp-howto
-**/gol.pid
-**/gol_service
+**/gol
 # Editor & IDE
 .vscode/
 .idea/
