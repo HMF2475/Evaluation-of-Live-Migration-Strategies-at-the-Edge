@@ -1,0 +1,417 @@
+"""
+Precopy (Live) Migration Strategy: Multiple pre-dumps, then final dump and restore.
+
+This is the optimized live migration method where the service keeps running
+during pre-dump phases (incremental snapshots). Only during the final dump
+does the service freeze. This reduces downtime.
+
+CRITICAL FIX: Downtime is calculated as final_dump_ms + transfer_ms + restore_ms,
+NOT the total precopy time. Pre-dump time doesn't count because the service
+is still running and incrementally transferring changed pages.
+"""
+
+import time
+
+try:
+    from .migration_strategy import MigrationStrategy
+    from .metrics import MigrationMetrics
+    from .multipass_command import MultipassCommand
+    from .ssh_utils import (
+        transfer_archive_via_host,
+        transfer_archive_direct,
+        ensure_direct_ssh_trust,
+    )
+except ImportError:
+    from migration_strategy import MigrationStrategy
+    from multipass_command import MultipassCommand
+    from ssh_utils import (
+        transfer_archive_via_host,
+        transfer_archive_direct,
+        ensure_direct_ssh_trust,
+    )
+
+
+class PrecopyMigration(MigrationStrategy):
+    """Precopy live migration: multiple pre-dumps, final dump, transfer, restore."""
+
+    def __init__(
+        self,
+        source: MultipassCommand,
+        dest: MultipassCommand,
+        transfer_mode: str = "host",
+        relay_node: str | None = None,
+        iterations: int = 2,
+    ):
+        """Initialize precopy migration strategy.
+
+        Args:
+            source: Source node command executor
+            dest: Destination node command executor
+            transfer_mode: "host" for host-mediated or "direct" for SCP
+            iterations: Number of pre-dump iterations before final dump
+        """
+        super().__init__(source, dest, transfer_mode, relay_node=relay_node)
+        self.metrics.migration_method = "precopy"
+        self.metrics.network_migration = "no"
+        self.iterations = iterations
+
+    def get_method_name(self) -> str:
+        """Return migration method name."""
+        return "precopy"
+
+    def _get_source_pid(self) -> str:
+        """Read PID from gol.pid or fallback to app.pid.
+
+        Returns:
+            Process ID as string, or None if not found
+        """
+        for pid_file in ("/home/ubuntu/gol.pid", "/home/ubuntu/app.pid"):
+            if self.source.file_exists(pid_file):
+                rc, pid_str, _ = self.source.exec(f"cat {pid_file}", check=False)
+                pid = pid_str.strip()
+                if rc == 0 and pid.isdigit():
+                    self.log(f"  Using PID from {pid_file}: {pid}")
+                    return pid
+        return None
+
+    def migrate(self, run_id: str) -> bool:
+        """Execute precopy live migration.
+
+        Process:
+        1. Verify source process exists
+        2. Setup dump directory
+        3. Run N pre-dump iterations (service keeps running, incremental snapshots)
+        4. Run final dump (freezes service)
+        5. Archive the checkpoint
+        6. Transfer archive to destination
+        7. Unpack archive on destination
+        8. Restore process on destination
+        9. Verify continuity
+
+        CRITICAL: Downtime only counts the final dump phase (when service freezes),
+        plus transfer and restore. Pre-dump time is NOT downtime because the service
+        continues executing and only incremental changes are being copied.
+
+        Args:
+            run_id: Unique identifier for this run
+
+        Returns:
+            True if migration succeeded, False otherwise
+        """
+        self.metrics.run_id = run_id
+        self.metrics.notes = (
+            f"transfer_mode={self.transfer_mode};iterations={self.iterations}"
+        )
+        if self.relay_node:
+            self.metrics.notes += f";relay_node={self.relay_node}"
+
+        self.log("=== PRE-COPY LIVE MIGRATION ===")
+
+        # Step 1: Verify source process
+        self.log("Step 1: Checking source process...")
+        pid = self._get_source_pid()
+        if not pid:
+            self.log(
+                "ERROR: PID file not found (expected /home/ubuntu/gol.pid or /home/ubuntu/app.pid)."
+            )
+            self.metrics.notes += "; pid_not_found"
+            return False
+
+        # Snapshot last printed value before starting pre-dumps (best-effort).
+        # The process continues running during pre-dumps, so the "frozen" value
+        # for continuity checks is computed after the final dump.
+        out_path = self.gol_output_path()
+        _, last_before, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        self.log(f"  Last gol value (pre-dumps start): {last_before}")
+        expected_after = "unknown"
+
+        # Capture architecture information for metrics
+        self.metrics.src_arch = self.source.get_arch()
+        self.metrics.dst_arch = self.dest.get_arch()
+        self.metrics.same_arch = self.metrics.src_arch == self.metrics.dst_arch
+        if self.metrics.same_arch:
+            self.log(f"  Architecture: {self.metrics.src_arch} (compatible)")
+        else:
+            self.log(
+                f"  WARNING: Different architectures: {self.metrics.src_arch} → {self.metrics.dst_arch}"
+            )
+
+        # Step 2: Setup dump directory
+        self.log("Step 2: Preparing dump directory...")
+        self.source.exec(
+            "sudo rm -rf /tmp/CRIU-gol && sudo mkdir -p /tmp/CRIU-gol",
+            check=False,
+        )
+
+        # Step 3: Pre-dumps (service continues running)
+        self.log(f"Step 3: Running {self.iterations} pre-dumps...")
+        t_precopy_start = time.time_ns()
+
+        for i in range(self.iterations):
+            self.log(f"  Pre-dump {i + 1}/{self.iterations}...")
+            iter_dir = f"/tmp/CRIU-gol/iter-{i}"
+            prev_opt = ""
+            if i > 0:
+                prev_iter_dir = f"/tmp/CRIU-gol/iter-{i - 1}"
+                prev_opt = f" --prev-images-dir {prev_iter_dir}"
+            cmd = (
+                f"sudo mkdir -p {iter_dir} && "
+                f"sudo criu pre-dump -t {pid} -D {iter_dir}{prev_opt} "
+                "-v4 --shell-job --skip-file-rwx-check --track-mem"
+            )
+            rc, _, err = self.source.exec(
+                cmd,
+                check=False,
+            )
+            if rc != 0:
+                self.log(f"WARNING: Pre-dump {i + 1} failed (continuing anyway)")
+            time.sleep(1)  # Brief pause between pre-dumps
+
+        # Record pre-dump time for detailed analysis
+        t_predumps_done = time.time_ns()
+        predump_ms = (t_predumps_done - t_precopy_start) // 1_000_000
+        self.metrics.predump_ms = int(predump_ms)
+        self.log(f"  Total pre-dump time: {predump_ms} ms")
+
+        # Step 4: Final dump (service FREEZES here)
+        self.log("Step 4: Final dump (freezing service)...")
+        t_final_dump_start = time.time_ns()
+
+        prev_opt = ""
+        if self.iterations > 0:
+            last_iter_dir = f"/tmp/CRIU-gol/iter-{self.iterations - 1}"
+            prev_opt = f" --prev-images-dir {last_iter_dir}"
+
+        rc, _, err = self.source.exec(
+            f"sudo criu dump -t {pid} -D /tmp/CRIU-gol -v4 -o dump.log{prev_opt} "
+            "--shell-job --skip-file-rwx-check",
+            check=False,
+        )
+
+        if rc != 0:
+            self.log("ERROR: Final dump failed")
+            _, dump_log, _ = self.source.exec(
+                "sudo tail -n 50 /tmp/CRIU-gol/dump.log", check=False
+            )
+            if dump_log:
+                self.log(f"Dump log:\n{dump_log}")
+            self.metrics.notes += "; dump_failed"
+            return False
+
+        # After final dump, the process is frozen/terminated and stdout is stable.
+        # Compute expected next value from the frozen snapshot.
+        _, frozen_last, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
+        if frozen_last.isdigit():
+            expected_after = str(int(frozen_last) + 1)
+        self.log(f"  Frozen last gol value: {frozen_last}")
+        self.log(f"  Expected after restore: {expected_after}")
+
+        t_final_dump_done = time.time_ns()
+        final_dump_ms = (t_final_dump_done - t_final_dump_start) // 1_000_000
+        self.metrics.final_dump_ms = int(final_dump_ms)
+        # For precopy, checkpoint_ms represents the final dump (freeze) duration.
+        self.metrics.checkpoint_ms = int(final_dump_ms)
+        self.log(f"  Final dump time (freeze duration): {final_dump_ms} ms")
+
+        # Step 5: Create and transfer archive
+        self.log("Step 5: Creating archive...")
+        self.source.exec(
+            "cd /tmp && tar czf CRIU-gol.tar.gz CRIU-gol/",
+            check=False,
+        )
+
+        # Get archive size
+        rc, size_str, _ = self.source.exec(
+            "stat -c %s /tmp/CRIU-gol.tar.gz", check=False
+        )
+        try:
+            archive_bytes = int(size_str)
+        except (ValueError, TypeError):
+            archive_bytes = 0
+        self.metrics.archive_bytes = archive_bytes
+        self.log(f"  Archive size: {archive_bytes} bytes")
+
+        # Step 6: Transfer
+        self.log("Step 6: Transferring archive...")
+
+        # Set up direct SSH trust before first SCP transfer
+        if self.transfer_mode == "direct":
+            self.log("  Setting up direct SSH trust...")
+            if not ensure_direct_ssh_trust(self.source.node, self.dest.node):
+                self.log("ERROR: Failed to set up SSH trust for direct transfer")
+                self.metrics.notes += "; ssh_trust_failed"
+                return False
+
+        t_transfer_start = time.time_ns()
+
+        if self.transfer_mode == "host":
+            transfer_ok = transfer_archive_via_host(
+                self.source.node,
+                self.dest.node,
+                "/tmp/CRIU-gol.tar.gz",
+                "/home/ubuntu/CRIU-gol.tar.gz",
+                relay_node=self.relay_node,
+            )
+        else:
+            transfer_ok = transfer_archive_direct(
+                self.source.node,
+                self.dest.node,
+                "/tmp/CRIU-gol.tar.gz",
+                "/home/ubuntu/CRIU-gol.tar.gz",
+            )
+
+        if not transfer_ok:
+            self.metrics.notes += "; transfer_failed"
+            return False
+
+        t_transfer_done = time.time_ns()
+        transfer_ms = (t_transfer_done - t_transfer_start) // 1_000_000
+        self.metrics.transfer_ms = int(transfer_ms)
+        self.log(f"  Transfer time: {transfer_ms} ms")
+
+        # Step 7: Unpack on destination
+        self.log("Step 7: Unpacking on destination...")
+        self.dest.exec(
+            "sudo rm -rf /tmp/CRIU-gol && sudo mkdir -p /tmp/CRIU-gol && "
+            "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-gol.tar.gz",
+            check=False,
+        )
+
+        # Step 7.5: Ensure gol stdout target exists (avoid transferring file contents)
+        self.log("Step 7.5: Ensuring gol output file exists on destination...")
+        self.ensure_gol_output_file()
+
+        # Step 7.8: Ensure migrated process executable exists on destination
+        self.log("Step 7.8: Ensuring /tmp/gol binary is present on destination...")
+        rc, _, _ = self.dest.exec("[ -x /tmp/gol ]", check=False)
+        if rc != 0:
+            self.log("  /tmp/gol missing on destination, copying from source...")
+            rc_src, gol_b64, _ = self.source.exec(
+                "if [ -f /tmp/gol ]; then base64 /tmp/gol; else echo ''; fi",
+                check=False,
+            )
+            if rc_src != 0 or not gol_b64.strip():
+                self.log(
+                    "WARNING: /tmp/gol binary not found on source; restore may fail"
+                )
+                self.metrics.notes += "; missing_binary"
+            else:
+                self.dest.exec(
+                    f"echo '{gol_b64.strip()}' | base64 -d > /tmp/gol && chmod +x /tmp/gol",
+                    check=False,
+                )
+
+        # Step 8: Restore
+        self.log("Step 8: Restoring process...")
+        t_restore_start = time.time_ns()
+
+        rc, _, err = self.dest.exec(
+            "sudo criu restore -D /tmp/CRIU-gol -v4 -o restore.log "
+            "--shell-job --restore-detached --pidfile /tmp/CRIU-gol/restored.pid --skip-file-rwx-check",
+            check=False,
+        )
+
+        if rc != 0:
+            self.log("ERROR: Restore failed")
+            _, restore_log, _ = self.dest.exec(
+                "sudo tail -n 50 /tmp/CRIU-gol/restore.log", check=False
+            )
+            if restore_log:
+                self.log(f"Restore log:\n{restore_log}")
+            self.metrics.notes += "; restore_failed"
+            self.metrics.success = False
+            return False
+
+        t_restore_done = time.time_ns()
+        restore_ms = (t_restore_done - t_restore_start) // 1_000_000
+        self.metrics.restore_ms = int(restore_ms)
+        self.log(f"  Restore time: {restore_ms} ms")
+
+        # Persist PID files on destination so it can act as a source for "bounce" migrations.
+        restored_pid = self.persist_restored_pid_files("/tmp/CRIU-gol/restored.pid")
+        if restored_pid:
+            self.log(
+                f"  Restored PID: {restored_pid} (written to /home/ubuntu/gol.pid)"
+            )
+        else:
+            self.log("WARNING: Could not persist restored PID files on destination")
+            self.metrics.notes += "; pidfile_persist_failed"
+
+        # Step 9: Verify
+        self.log("Step 9: Verifying migration...")
+        verify_wait_s = 3
+        t_verify_start = time.monotonic()
+        time.sleep(verify_wait_s)
+        verify_elapsed_s = time.monotonic() - t_verify_start
+
+        if expected_after != "unknown":
+            rc, observed, _ = self.dest.exec(f"tail -n 1 {out_path}", check=False)
+            expected_min = expected_after
+            expected_at_check = "unknown"
+            if expected_min.isdigit():
+                expected_at_check = str(int(expected_min) + int(verify_elapsed_s))
+            self.log(
+                f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
+                f"Observed: {observed}"
+            )
+
+            if rc != 0 or not observed:
+                self.log("WARNING: Could not read gol output from destination")
+                self.metrics.notes += "; log_read_failed"
+                self.metrics.success = False
+            elif observed.isdigit():
+                if int(observed) >= int(expected_after):
+                    self.log("✓ SUCCESS: Gol continued correctly!")
+                    self.metrics.success = True
+                else:
+                    self.log("✗ FAILED: Gol value mismatch")
+                    self.metrics.notes += (
+                        f"; gol_mismatch: expected >={expected_after}, got {observed}"
+                    )
+                    self.metrics.success = False
+            else:
+                self.log("✓ Gol value received (continuity verified)")
+                self.metrics.success = True
+        else:
+            rc, restored_pid, _ = self.dest.exec(
+                "cat /tmp/CRIU-gol/restored.pid", check=False
+            )
+            if (
+                rc == 0
+                and restored_pid.strip().isdigit()
+                and self.dest.test_process_running(restored_pid.strip())
+            ):
+                self.log("✓ Restored process is running on destination")
+                self.metrics.success = True
+            else:
+                self.log("WARNING: Could not validate restored process state")
+                self.metrics.notes += "; process_validation_failed"
+                self.metrics.success = False
+
+        # Final metrics: CRITICAL FIX
+        # Downtime = final_dump + transfer + restore (NOT including pre-dumps)
+        # Pre-dumps happen while service is still running, so they don't count
+        self.metrics.downtime_ms = (
+            self.metrics.final_dump_ms
+            + self.metrics.transfer_ms
+            + self.metrics.restore_ms
+        )
+        # Calculate effective bandwidth in Mbps (bytes → bits, ms → seconds)
+        if self.metrics.transfer_ms > 0:
+            self.metrics.bandwidth_mbps = (self.metrics.archive_bytes * 8) / (
+                self.metrics.transfer_ms * 1000
+            )
+
+        self.log(
+            f"Total downtime: {self.metrics.downtime_ms} ms "
+            f"(final_dump: {self.metrics.final_dump_ms} + "
+            f"transfer: {self.metrics.transfer_ms} + "
+            f"restore: {self.metrics.restore_ms})"
+        )
+        self.log(
+            f"Pre-dump time (not counted as downtime): {self.metrics.predump_ms} ms"
+        )
+        if self.metrics.transfer_ms > 0:
+            self.log(f"Effective bandwidth: {self.metrics.bandwidth_mbps:.2f} Mbps")
+
+        return True

@@ -1,4 +1,4 @@
-# Exhaustive Benchmark Guide (CRIU / Podman / Metrics / Plots)
+# Exhaustive Benchmark Guide (CRIU / Metrics / Plots)
 
 This guide is the **main end-to-end manual** for running migration benchmarks in this repository:
 - Provision the 3 Multipass nodes (`edge-node-1`, `edge-node-2`, `edge-host-1`)
@@ -222,7 +222,6 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --source edge-node-1 \
   --dest edge-node-2 \
   --relay-node edge-host-1 \
-  --workload counter \
   --host-runs 10 \
   --direct-runs 10 \
   --iterations 2 \
@@ -237,7 +236,6 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --source edge-node-1 \
   --dest edge-node-2 \
   --relay-node edge-host-1 \
-  --workload counter \
   --host-runs 30 \
   --direct-runs 30 \
   --iterations 5 \
@@ -338,3 +336,105 @@ Use these when you want the exact CRIU flags and the detailed “manual” flow:
 - Cold: `Container/CRIU-COLD-MIGRATION.md`
 - Pre-copy: `Container/CRIU-PRE-COPY.md`
 - Post-copy: `Container/CRIU-POST-COPY.md`
+
+---
+
+
+## 10) Workload Modules
+
+This repository supports three main migration workloads, each with its own module and scripts:
+
+- **Counter**: Memory-only baseline. See `Container/`.
+- **Game of Life**: Stateful C application. See `Game-of-life-migration/`.
+- **TCP client/server**: Socket migration. See `Network-live-migration/`.
+
+Each module supports the same migration strategies (`cold|precopy|postcopy`), transfer modes (`host|direct`), and unified metrics schema for cross-experiment plots.
+
+### Game of Life
+See `Game-of-life-migration/README.md` for details and quick start. The workload prints an evolving grid to stdout and is used to test migration of a non-trivial, stateful process.
+
+### TCP client/server
+The TCP experiment lives under `Network-live-migration/` and follows the same migration strategies and metrics as the other workloads. The key difference is that the workload is a **TCP client with an established connection**, so you must preserve the client’s local IP after restore. This is done via a **VIP handoff** (source → destination) between dump and restore.
+
+Read first:
+- `Network-live-migration/TCP-live-migration.md` (step-by-step guide)
+- `Network-live-migration/CRIU-limitations.md` (why VIP is required)
+
+### 10.1 One manual run (cold)
+
+```bash
+export TCP_PORT=5000
+export TCP_VIP=10.22.132.250
+
+python3 Network-live-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2 edge-host-1 "$TCP_VIP"
+bash Network-live-migration/scripts/workloads/start_tcp_server.sh edge-host-1 "$TCP_PORT"
+TCP_VIP="$TCP_VIP" bash Network-live-migration/scripts/workloads/start_tcp_client.sh edge-node-1 edge-host-1 "$TCP_PORT"
+
+python3 Network-live-migration/scripts/orchestrators/tcp_client_benchmark.py cold \
+  --source edge-node-1 --dest edge-node-2 --server edge-host-1 \
+  --transfer-mode host --relay-node edge-host-1
+```
+
+### 10.2 Repeat suite (recommended)
+
+```bash
+python3 Network-live-migration/scripts/orchestrators/repeat_tcp_client_benchmarks.py \
+  --source edge-node-1 \
+  --dest edge-node-2 \
+  --server edge-host-1 \
+  --relay-node edge-host-1 \
+  --port 5000 \
+  --vip 10.22.132.250 \
+  --strategies cold precopy postcopy \
+  --iterations 2 \
+  --host-runs 10 \
+  --direct-runs 10 \
+  --snapshot-node-metrics
+```
+
+Outputs:
+- `Network-live-migration/metrics/migration_metrics.csv`
+- `Network-live-migration/metrics/run_logs/<suite>.log`
+- `Network-live-migration/metrics/plots/<suite>/`
+
+---
+
+
+## Appendix: Workload Summary
+
+| Workload      | Folder/module              | Description                                      | Output file on VM           |
+|-------------- |---------------------------|--------------------------------------------------|-----------------------------|
+| Counter       | Container/                | Prints incrementing numbers to stdout            | /home/ubuntu/counter.out    |
+| Game of Life  | Game-of-life-migration/   | Prints evolving 50x20 grid (Conway's Game of Life) | /home/ubuntu/gol.out        |
+| TCP client    | Network-live-migration/   | Echo client/server, tests socket migration       | (see TCP guide)             |
+
+## 11) Run everything across network profiles (`tc`)
+
+If you want to repeat the main benchmark suites across multiple network conditions (bandwidth/latency/loss), use:
+- `run_all.py` (runner)
+- `network_profiles.json` (profile registry)
+- `benchmarks.json` (suite registry)
+
+Run from repo root:
+
+```bash
+python3 run_all.py
+```
+
+Useful options:
+
+```bash
+# Run only a subset of profiles
+python3 run_all.py --profiles 1_TEE_Best,2_TEE_Avg
+
+# Keep going even if one suite fails
+python3 run_all.py --continue-on-failure
+
+# Adjust cooldown between suites/profiles
+python3 run_all.py --cooldown-seconds 20
+```
+
+Notes:
+- `run_all.py` applies `tc` rules on the **default interface** of `edge-node-1`, `edge-node-2`, and `edge-host-1`, and removes them in a `finally` cleanup block.
+- The `tc` rules are applied **only to VM→VM traffic** (filtered by destination IP), so host↔VM control traffic (like `multipass exec`) stays responsive.
+- Benchmarks can record the `profile_name` via `--profile-name` (saved in the `profile_name` CSV column).

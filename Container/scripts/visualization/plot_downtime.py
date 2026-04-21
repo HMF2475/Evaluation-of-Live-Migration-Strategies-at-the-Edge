@@ -14,7 +14,7 @@ from pathlib import Path
 from common import load_migration_csv, ordered_methods, resolve_output_file
 
 
-def plot_downtime(csv_file: str, output_file: str = None):
+def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""):
     """
     Create downtime comparison chart.
 
@@ -70,12 +70,16 @@ def plot_downtime(csv_file: str, output_file: str = None):
             list(unique.values()),
             list(unique.keys()),
             title="transfer_mode",
-            loc="best",
+            bbox_to_anchor=(1.02, 1),
+            loc="upper left",
+            borderaxespad=0,
         )
-    plt.title("Migration Downtime by Strategy (Host vs Direct)")
+    base_title = "Migration Downtime by Strategy (Host vs Direct)"
+    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
+    plt.title(full_title)
     plt.ylabel("Downtime (ms)")
     plt.xlabel("Migration Method")
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)
     print(f"✓ Saved: {output_file}")
     plt.close()
@@ -90,4 +94,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         output_path = sys.argv[2]
 
-    plot_downtime(csv_path, output_path)
+    title_suffix = ""
+    if len(sys.argv) > 3:
+        title_suffix = sys.argv[3]
+
+    plot_downtime(csv_path, output_path, title_suffix)

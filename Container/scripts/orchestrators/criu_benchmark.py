@@ -74,12 +74,11 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
                 "success",
                 "notes",
                 "timestamp",
+                "profile_name",
             ],
         )
-
         if not file_exists:
             writer.writeheader()
-
         writer.writerow(
             {
                 "run_id": metrics.run_id,
@@ -98,6 +97,7 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
                 "success": metrics.success,
                 "notes": metrics.notes,
                 "timestamp": metrics.timestamp,
+                "profile_name": getattr(metrics, "profile_name", ""),
             }
         )
 
@@ -142,10 +142,10 @@ def main():
         description="CRIU Migration Benchmark Tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  python3 scripts/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2
-  python3 scripts/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --iterations 2
-  python3 scripts/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 (⚠️ EXPERIMENTAL)
+        Examples:
+        python3 scripts/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2
+        python3 scripts/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --iterations 2
+        python3 scripts/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 
         """,
     )
 
@@ -189,6 +189,12 @@ Examples:
         type=int,
         default=9999,
         help="Postcopy only: TCP port for lazy-pages page-server (default: 9999)",
+    )
+
+    parser.add_argument(
+        "--profile-name",
+        default="",
+        help="Optional profile name for experiment tracking (added to metrics)",
     )
 
     args = parser.parse_args()
@@ -250,6 +256,10 @@ Examples:
     else:
         print(f"ERROR: Unknown strategy {args.strategy}")
         sys.exit(1)
+
+    # Set profile_name in metrics if provided
+    if hasattr(strategy, "metrics"):
+        strategy.metrics.profile_name = args.profile_name
 
     # Execute migration
     success = strategy.migrate(args.run_id)

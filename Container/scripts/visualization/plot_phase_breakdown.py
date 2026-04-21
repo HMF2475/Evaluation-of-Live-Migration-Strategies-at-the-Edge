@@ -14,13 +14,16 @@ import numpy as np
 from common import load_migration_csv, ordered_methods, resolve_output_file
 
 
-def plot_phase_breakdown(csv_file: str, output_file: str = None):
+def plot_phase_breakdown(
+    csv_file: str, output_file: str = None, title_suffix: str = ""
+):
     """
     Create phase breakdown stacked bar chart.
 
     Args:
         csv_file: Path to migration metrics CSV
         output_file: Output PNG filepath (defaults to Container/metrics/plots/phase_breakdown.png)
+        title_suffix: Suffix for the chart title
     """
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
@@ -86,10 +89,18 @@ def plot_phase_breakdown(csv_file: str, output_file: str = None):
 
     plt.xlabel("Migration Method")
     plt.ylabel("Time (ms)")
-    plt.title("Migration Phase Breakdown (Mean)")
+    base_title = "Migration Phase Breakdown (Mean)"
+    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
+    plt.title(full_title)
     plt.xticks(x, methods, rotation=0)
-    plt.legend(ncol=3, fontsize=8, frameon=False)
-    plt.tight_layout()
+    plt.legend(
+        ncol=1,
+        fontsize=8,
+        frameon=False,
+        bbox_to_anchor=(1.02, 1),
+        loc="upper left",
+    )
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)
     print(f"✓ Saved: {output_file}")
     plt.close()
@@ -104,4 +115,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         output_path = sys.argv[2]
 
-    plot_phase_breakdown(csv_path, output_path)
+    title_suffix = ""
+    if len(sys.argv) > 3:
+        title_suffix = sys.argv[3]
+
+    plot_phase_breakdown(csv_path, output_path, title_suffix)

@@ -23,7 +23,8 @@ tools/test/stats-*
 **/*.elf
 **/*.bin
 **/*.out
-
+**/tcp-howto
+**/gol
 # Editor & IDE
 .vscode/
 .idea/
@@ -44,6 +45,8 @@ tools/test/stats-*
 
 
 Container/simplest-example/checkpoint/**
+Game-of-life-migration/simplest-example/checkpoint/**
+Network-live-migration/simplest-example/img-dir/**
 tools/checkpointctl/**
 tools/criu/**
 tools/go-criu/**
@@ -51,3 +54,4 @@ Container/CRIU/**
 
 **/node_exporter/**
 Notes-no-commit.md
+shortTerminalName.txt
