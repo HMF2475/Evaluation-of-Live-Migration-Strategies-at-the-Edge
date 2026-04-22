@@ -196,6 +196,7 @@ def run_strategy(
         + 1,
     }
 
+    any_failures = False
     for mode, idx in iter_runs(host_runs, direct_runs):
         run_n = next_n_by_mode[mode]
         next_n_by_mode[mode] = run_n + 1
@@ -206,13 +207,25 @@ def run_strategy(
         rc = run_and_tee(
             ["python3", str(reset_script), source, dest], log_file, cwd=root
         )
-        if rc != 0 and not continue_on_failure:
-            return rc
+        if rc != 0:
+            any_failures = True
+            log_file.write(f"[repeat] ERROR: reset failed for run_id={run_id}\n")
+            log_file.flush()
+            if not continue_on_failure:
+                return rc
+            continue
 
         # Workload start happens on the SOURCE node before each migration.
         rc = run_and_tee(start_cmd, log_file, cwd=root)
-        if rc != 0 and not continue_on_failure:
-            return rc
+        if rc != 0:
+            any_failures = True
+            log_file.write(
+                f"[repeat] ERROR: workload start failed for run_id={run_id}\n"
+            )
+            log_file.flush()
+            if not continue_on_failure:
+                return rc
+            continue
 
         if warmup_seconds > 0:
             log_file.write(f"[repeat] warmup {warmup_seconds}s\n")
@@ -270,8 +283,13 @@ def run_strategy(
             cmd += ["--profile-name", profile_name]
 
         rc = run_and_tee(cmd, log_file, cwd=root)
-        if rc != 0 and not continue_on_failure:
-            return rc
+        if rc != 0:
+            any_failures = True
+            log_file.write(f"[repeat] ERROR: benchmark failed for run_id={run_id}\n")
+            log_file.flush()
+            if not continue_on_failure:
+                return rc
+            continue
 
         if snapshot_node_metrics:
             ok = snapshot_node_exporter(
@@ -321,7 +339,7 @@ def run_strategy(
                 )
                 log_file.flush()
 
-    return 0
+    return 1 if any_failures else 0
 
 
 def main() -> int:
@@ -429,6 +447,7 @@ def main() -> int:
         lf.flush()
 
         batch_run_ids: list[str] = []
+        any_failures = False
         for strategy in strategies:
             rc = run_strategy(
                 strategy=strategy,
@@ -451,13 +470,18 @@ def main() -> int:
                 continue_on_failure=args.continue_on_failure,
             )
             if rc != 0:
-                return rc
+                any_failures = True
+                if not args.continue_on_failure:
+                    return rc
 
         print(f"\nAll runs complete. Log: {log_path}")
         if batch_run_ids:
             run_ids_path.write_text("\n".join(batch_run_ids) + "\n", encoding="utf-8")
             lf.write(f"[repeat] run_ids_file={run_ids_path}\n")
             lf.flush()
+
+    if any_failures:
+        return 1
 
     if not args.no_plots:
         out_dir = root / "Game-of-life-migration" / "metrics" / "plots" / base_run_id

@@ -255,6 +255,7 @@ def main() -> int:
     run_ids_path = run_logs_dir / f"{suite_id}.run_ids.txt"
 
     run_ids: list[str] = []
+    any_failures = False
 
     with log_path.open("w", encoding="utf-8") as log_file:
         for strategy_name in args.strategies:
@@ -289,8 +290,14 @@ def main() -> int:
                     log_file,
                     cwd=root,
                 )
-                if rc != 0 and not args.continue_on_failure:
-                    return rc
+                if rc != 0:
+                    any_failures = True
+                    if not args.continue_on_failure:
+                        return rc
+                    # Best-effort cleanup before skipping to next run.
+                    remove_vip(args.source, args.vip)
+                    remove_vip(args.dest, args.vip)
+                    continue
 
                 # Ensure VIP is not lingering on the wrong node from previous run
                 remove_vip(args.source, args.vip)
@@ -302,8 +309,11 @@ def main() -> int:
                     log_file,
                     cwd=root,
                 )
-                if rc != 0 and not args.continue_on_failure:
-                    return rc
+                if rc != 0:
+                    any_failures = True
+                    if not args.continue_on_failure:
+                        return rc
+                    continue
 
                 rc = run_and_tee(
                     [
@@ -317,8 +327,11 @@ def main() -> int:
                     cwd=root,
                     env={**os.environ, "TCP_VIP": args.vip},
                 )
-                if rc != 0 and not args.continue_on_failure:
-                    return rc
+                if rc != 0:
+                    any_failures = True
+                    if not args.continue_on_failure:
+                        return rc
+                    continue
 
                 if args.warmup_seconds > 0:
                     time.sleep(args.warmup_seconds)
@@ -363,8 +376,11 @@ def main() -> int:
                     cmd += ["--page-server-port", str(args.page_server_port)]
 
                 rc = run_and_tee(cmd, log_file, cwd=root)
-                if rc != 0 and not args.continue_on_failure:
-                    return rc
+                if rc != 0:
+                    any_failures = True
+                    if not args.continue_on_failure:
+                        return rc
+                    continue
 
                 if args.snapshot_node_metrics:
                     for node in (args.source, args.dest, args.server):
@@ -437,7 +453,7 @@ def main() -> int:
             check=False,
         )
 
-    return 0
+    return 1 if any_failures else 0
 
 
 if __name__ == "__main__":

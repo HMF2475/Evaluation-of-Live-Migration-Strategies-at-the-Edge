@@ -7,6 +7,7 @@ import csv
 import datetime as _dt
 from pathlib import Path
 import re
+import shlex
 
 # Configuration
 CONFIG_FILE = "network_profiles.json"
@@ -29,6 +30,46 @@ def _slugify(value: str) -> str:
     value = re.sub(r"[^a-z0-9._-]+", "-", value)
     value = re.sub(r"-{2,}", "-", value).strip("-")
     return value or "unnamed"
+
+
+def _cmd_supports_flag(cmd: str, flag: str) -> bool:
+    """
+    Best-effort detection for whether a `python3 some_script.py ...` command supports a flag.
+    Avoids injecting flags into commands that would fail with "unrecognized arguments".
+    """
+    try:
+        parts = shlex.split(cmd)
+    except ValueError:
+        return False
+
+    if not parts or parts[0] not in ("python", "python3"):
+        return False
+
+    script = None
+    for token in parts[1:5]:
+        if token.endswith(".py"):
+            script = token
+            break
+    if script is None:
+        return False
+
+    script_path = Path(script)
+    if not script_path.exists() or not script_path.is_file():
+        return False
+    try:
+        return flag in script_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return False
+
+
+def _maybe_inject_continue_on_failure(cmd: str, enabled: bool) -> str:
+    if not enabled:
+        return cmd
+    if "--continue-on-failure" in cmd:
+        return cmd
+    if not _cmd_supports_flag(cmd, "--continue-on-failure"):
+        return cmd
+    return f"{cmd} --continue-on-failure"
 
 
 def run_cmd(cmd, check=True):
@@ -160,6 +201,7 @@ def execute_benchmarks_with_artifacts(
         bench_name = bench.get("name", f"Suite {i+1}")
         raw_cmd = bench.get("command", "")
         cmd = raw_cmd.format(profile_name=profile_name)
+        cmd = _maybe_inject_continue_on_failure(cmd, continue_on_failure)
 
         bench_log_path = logs_dir / (
             f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}.log"
