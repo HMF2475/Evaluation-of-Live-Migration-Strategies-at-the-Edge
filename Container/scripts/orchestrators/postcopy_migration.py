@@ -134,6 +134,7 @@ class PostcopyMigration(MigrationStrategy):
 
         page_server_pid: str | None = None
         lazy_pages_pid: str | None = None
+        lazy_pages_start_ns: int | None = None
 
         try:
             # Step 2: Start dump in background (may act as page-server on some CRIU versions)
@@ -348,6 +349,7 @@ class PostcopyMigration(MigrationStrategy):
 
             lazy_pages_pid = lp_pid_str.strip()
             self.log(f"  Lazy-pages PID: {lazy_pages_pid}")
+            lazy_pages_start_ns = time.monotonic_ns()
 
             # Wait for lazy-pages socket to appear (restore connects to this socket).
             for _ in range(50):  # up to ~5s
@@ -469,6 +471,17 @@ class PostcopyMigration(MigrationStrategy):
 
             return True
         finally:
+            if lazy_pages_start_ns is not None:
+                self.metrics.lazy_pages_active_ms = int(
+                    (time.monotonic_ns() - lazy_pages_start_ns) // 1_000_000
+                )
+            if lazy_pages_pid:
+                rc_sz, out_sz, _ = self.dest.exec(
+                    "sudo stat -c %s /tmp/CRIU-counter/lazy-pages.log 2>/dev/null || echo 0",
+                    check=False,
+                )
+                s = (out_sz or "").strip()
+                self.metrics.lazy_pages_log_bytes = int(s) if s.isdigit() else 0
             if lazy_pages_pid:
                 self.dest.exec(
                     f"sudo kill -9 {lazy_pages_pid} 2>/dev/null || true", check=False

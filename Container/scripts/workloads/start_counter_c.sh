@@ -6,6 +6,8 @@
 # Usage: bash Container/scripts/workloads/start_counter_c.sh [node-name]
 # Example: bash Container/scripts/workloads/start_counter_c.sh edge-node-1
 
+set -euo pipefail
+
 NODE="${1:-edge-node-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COUNTER_C="$SCRIPT_DIR/../counter.c"
@@ -33,7 +35,7 @@ PID=\$!
 echo \$PID > /home/ubuntu/counter.pid
 cp /home/ubuntu/counter.pid /home/ubuntu/app.pid
 sleep 1
-ps -p \$PID >/dev/null 2>&1 && echo '✓ C counter running (PID: '\$PID')' || echo '✗ Counter failed'
+ps -p \$PID >/dev/null 2>&1
 "
 
 echo "[$(date +'%H:%M:%S')] ✓ Counter started"

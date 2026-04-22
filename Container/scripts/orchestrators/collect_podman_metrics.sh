@@ -118,7 +118,7 @@ last_numeric_from_logs() {
     awk '/^[0-9]+$/{v=$1} END{if (v != "") print v}'
 }
 
-EXPECTED_HEADER="run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp"
+EXPECTED_HEADER="run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes"
 
 ensure_csv_schema() {
   mkdir -p "$(dirname "$CSV_FILE")"
@@ -282,10 +282,17 @@ if [[ "$OBSERVED_AFTER" =~ ^[0-9]+$ ]]; then
   SUCCESS="true"
 fi
 NOTES="container=${CONTAINER};transfer_mode=${TRANSFER_MODE};scenario=${LEGACY_SCENARIO:-none};last_before=${LAST_BEFORE};expected_next=${EXPECTED_NEXT};observed_after=${OBSERVED_AFTER}"
+PROFILE_NAME="${PROFILE_NAME:-}"
+PREDUMP_MS=0
+FINAL_DUMP_MS=0
+TOTAL_MS="$DOWNTIME_MS"
+LAZY_PAGES_ACTIVE_MS=0
+LAZY_PAGES_LOG_BYTES=0
 
-printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
   "$RUN_ID" "$TECHNOLOGY" "$MIGRATION_METHOD" "no" "$CHECKPOINT_MS" "$ARCHIVE_BYTES" "$TRANSFER_MS" "$RESTORE_MS" "$DOWNTIME_MS" \
-  "$BANDWIDTH_MBPS" "$SOURCE_ARCH" "$DEST_ARCH" "$SAME_ARCH" "$SUCCESS" "$NOTES" "$TIMESTAMP" >> "$CSV_FILE"
+  "$BANDWIDTH_MBPS" "$SOURCE_ARCH" "$DEST_ARCH" "$SAME_ARCH" "$SUCCESS" "$NOTES" "$TIMESTAMP" \
+  "$PROFILE_NAME" "$PREDUMP_MS" "$FINAL_DUMP_MS" "$TOTAL_MS" "$LAZY_PAGES_ACTIVE_MS" "$LAZY_PAGES_LOG_BYTES" >> "$CSV_FILE"
 
 cat <<EOF
 Run recorded:

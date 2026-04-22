@@ -6,6 +6,8 @@
 # Usage: bash Game-of-life-migration/scripts/workloads/start_gol_c.sh [node-name]
 # Example: bash Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
 
+set -euo pipefail
+
 NODE="${1:-edge-node-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Correct path to gol.c in simplest-example
@@ -34,7 +36,7 @@ PID=\$!
 echo \$PID > /home/ubuntu/gol.pid
 cp /home/ubuntu/gol.pid /home/ubuntu/app.pid
 sleep 1
-ps -p \$PID >/dev/null 2>&1 && echo '✓ C gol running (PID: '\$PID')' || echo '✗ Gol failed'
+ps -p \$PID >/dev/null 2>&1
 "
 
 echo "[$(date +'%H:%M:%S')] ✓ Gol started"

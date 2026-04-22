@@ -35,6 +35,9 @@ class MigrationMetrics:
     # Additional metrics for detailed analysis
     final_dump_ms: int = 0  # Time to perform final dump (freeze duration)
     predump_ms: int = 0  # Total time spent on pre-dumps
+    total_ms: int = 0  # End-to-end wall time for the run (best-effort)
+    lazy_pages_active_ms: int = 0  # Postcopy: time lazy-pages was active (best-effort)
+    lazy_pages_log_bytes: int = 0  # Postcopy: size of lazy-pages log (best-effort)
 
 
 def metrics_to_dict(metrics: MigrationMetrics) -> dict:
@@ -62,4 +65,9 @@ def get_csv_header() -> list:
         "notes",
         "timestamp",
         "profile_name",
+        "predump_ms",
+        "final_dump_ms",
+        "total_ms",
+        "lazy_pages_active_ms",
+        "lazy_pages_log_bytes",
     ]

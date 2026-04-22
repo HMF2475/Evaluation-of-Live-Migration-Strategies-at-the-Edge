@@ -802,6 +802,7 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
 
         page_server_pid: str | None = None
         lazy_pages_pid: str | None = None
+        lazy_pages_start_ns: int | None = None
 
         try:
             # Step 2: Dump with --lazy-pages (background)
@@ -960,6 +961,7 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
                 self.metrics.notes += "; lazy_pages_start_failed"
                 return False
             lazy_pages_pid = lp_pid_str.strip()
+            lazy_pages_start_ns = time.monotonic_ns()
 
             for _ in range(50):
                 rc_sock, _, _ = self.dest.exec(
@@ -1041,6 +1043,17 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
                 )
             return self.metrics.success
         finally:
+            if lazy_pages_start_ns is not None:
+                self.metrics.lazy_pages_active_ms = int(
+                    (time.monotonic_ns() - lazy_pages_start_ns) // 1_000_000
+                )
+            if lazy_pages_pid:
+                _, out_sz, _ = self.dest.exec(
+                    "sudo stat -c %s /tmp/CRIU-tcp-client/lazy-pages.log 2>/dev/null || echo 0",
+                    check=False,
+                )
+                s = (out_sz or "").strip()
+                self.metrics.lazy_pages_log_bytes = int(s) if s.isdigit() else 0
             # Cleanup: stop lazy-pages and page-server processes (best-effort)
             if lazy_pages_pid:
                 self.dest.exec(

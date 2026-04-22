@@ -20,6 +20,7 @@ import argparse
 import sys
 import csv
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -50,32 +51,74 @@ def get_csv_path() -> Path:
     return csv_path
 
 
+_FIELDNAMES: list[str] = [
+    "run_id",
+    "technology",
+    "migration_method",
+    "network_migration",
+    "checkpoint_ms",
+    "archive_bytes",
+    "transfer_ms",
+    "restore_ms",
+    "downtime_ms",
+    "bandwidth_mbps",
+    "src_arch",
+    "dst_arch",
+    "same_arch",
+    "success",
+    "notes",
+    "timestamp",
+    "profile_name",
+    "predump_ms",
+    "final_dump_ms",
+    "total_ms",
+    "lazy_pages_active_ms",
+    "lazy_pages_log_bytes",
+]
+
+
+def _read_csv_header(csv_path: Path) -> list[str] | None:
+    if not csv_path.exists():
+        return None
+    try:
+        with csv_path.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            return next(reader, None)
+    except Exception:
+        return None
+
+
+def _rewrite_csv_keep_columns(csv_path: Path, keep: list[str]) -> None:
+    tmp_path = csv_path.with_suffix(csv_path.suffix + ".tmp")
+    with csv_path.open("r", newline="", encoding="utf-8") as src, tmp_path.open(
+        "w", newline="", encoding="utf-8"
+    ) as dst:
+        reader = csv.DictReader(src)
+        writer = csv.DictWriter(dst, fieldnames=keep)
+        writer.writeheader()
+        for row in reader:
+            writer.writerow({k: row.get(k, "") for k in keep})
+    tmp_path.replace(csv_path)
+
+
+def ensure_metrics_schema(csv_path: Path) -> None:
+    header = _read_csv_header(csv_path)
+    if not header:
+        return
+    if header == _FIELDNAMES:
+        return
+    _rewrite_csv_keep_columns(csv_path, _FIELDNAMES)
+
+
 def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
     """Append migration metrics to CSV file."""
+    ensure_metrics_schema(csv_path)
     file_exists = csv_path.exists()
 
     with open(csv_path, "a", newline="") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=[
-                "run_id",
-                "technology",
-                "migration_method",
-                "network_migration",
-                "checkpoint_ms",
-                "archive_bytes",
-                "transfer_ms",
-                "restore_ms",
-                "downtime_ms",
-                "bandwidth_mbps",
-                "src_arch",
-                "dst_arch",
-                "same_arch",
-                "success",
-                "notes",
-                "timestamp",
-                "profile_name",
-            ],
+            fieldnames=_FIELDNAMES,
         )
         if not file_exists:
             writer.writeheader()
@@ -98,6 +141,11 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
                 "notes": metrics.notes,
                 "timestamp": metrics.timestamp,
                 "profile_name": getattr(metrics, "profile_name", ""),
+                "predump_ms": getattr(metrics, "predump_ms", 0),
+                "final_dump_ms": getattr(metrics, "final_dump_ms", 0),
+                "total_ms": getattr(metrics, "total_ms", 0),
+                "lazy_pages_active_ms": getattr(metrics, "lazy_pages_active_ms", 0),
+                "lazy_pages_log_bytes": getattr(metrics, "lazy_pages_log_bytes", 0),
             }
         )
 
@@ -262,7 +310,11 @@ def main():
         strategy.metrics.profile_name = args.profile_name
 
     # Execute migration
+    t_total_start = time.monotonic_ns()
     success = strategy.migrate(args.run_id)
+    t_total_end = time.monotonic_ns()
+    if hasattr(strategy, "metrics"):
+        strategy.metrics.total_ms = int((t_total_end - t_total_start) // 1_000_000)
 
     # Finalize metrics
     strategy.finalize_metrics()

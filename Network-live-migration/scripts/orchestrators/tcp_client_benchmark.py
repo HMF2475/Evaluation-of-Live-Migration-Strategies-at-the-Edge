@@ -15,6 +15,7 @@ import argparse
 import csv
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -45,7 +46,7 @@ def get_csv_path() -> Path:
     return csv_path
 
 
-_FIELDNAMES_16: list[str] = [
+_FIELDNAMES: list[str] = [
     "run_id",
     "technology",
     "migration_method",
@@ -63,6 +64,11 @@ _FIELDNAMES_16: list[str] = [
     "notes",
     "timestamp",
     "profile_name",
+    "predump_ms",
+    "final_dump_ms",
+    "total_ms",
+    "lazy_pages_active_ms",
+    "lazy_pages_log_bytes",
 ]
 
 
@@ -101,10 +107,10 @@ def ensure_metrics_schema(csv_path: Path) -> None:
     header = _read_csv_header(csv_path)
     if not header:
         return
-    if header == _FIELDNAMES_16:
+    if header == _FIELDNAMES:
         return
     # Normalize any drift (missing/extra columns) to the canonical schema.
-    _rewrite_csv_keep_columns(csv_path, _FIELDNAMES_16)
+    _rewrite_csv_keep_columns(csv_path, _FIELDNAMES)
 
 
 def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path) -> None:
@@ -113,7 +119,7 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path) -> None:
     with csv_path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=_FIELDNAMES_16,
+            fieldnames=_FIELDNAMES,
         )
         if not file_exists:
             writer.writeheader()
@@ -136,6 +142,11 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path) -> None:
                 "notes": metrics.notes,
                 "timestamp": metrics.timestamp,
                 "profile_name": getattr(metrics, "profile_name", ""),
+                "predump_ms": getattr(metrics, "predump_ms", 0),
+                "final_dump_ms": getattr(metrics, "final_dump_ms", 0),
+                "total_ms": getattr(metrics, "total_ms", 0),
+                "lazy_pages_active_ms": getattr(metrics, "lazy_pages_active_ms", 0),
+                "lazy_pages_log_bytes": getattr(metrics, "lazy_pages_log_bytes", 0),
             }
         )
 
@@ -280,7 +291,12 @@ def main() -> int:
         if args.profile_name:
             strategy.metrics.profile_name = args.profile_name
 
+    t_total_start = time.monotonic_ns()
     ok = strategy.migrate(args.run_id)
+    if hasattr(strategy, "metrics"):
+        strategy.metrics.total_ms = int(
+            (time.monotonic_ns() - t_total_start) // 1_000_000
+        )
     strategy.finalize_metrics()
     write_metrics_to_csv(strategy.metrics, csv_path)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Metrics saved to {csv_path}")
