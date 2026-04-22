@@ -1,0 +1,241 @@
+=== repeat_benchmarks.py 2026-04-22T21:43:49.867692 ===
+base_run_id=22-04-2026-counter-cold-precopy-postcopy-h1-d1-i1-relay-edge-host-1-snap-plots-214349
+strategies=cold,precopy,postcopy workload=counter source=edge-node-1 dest=edge-node-2 host_runs=1 direct_runs=1 iterations=1 relay_node=edge-host-1 profile_name=SMOKE-2026-04-22 snapshot_node_metrics=True no_plots=False
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:43:49] Resetting nodes: edge-node-1 -> edge-node-2
+[21:43:49] Step 1: Killing any existing processes on source...
+[21:43:50]   Killing any remaining background processes...
+[21:43:50] Step 2: Cleaning source node...
+[21:43:51] Step 3: Cleaning destination node...
+[21:43:51]   Killing all remaining counter processes on destination...
+[21:43:52] ✓ Reset complete, nodes are clean
+[21:43:52]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:43:52] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:52] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:52] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:53] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 22-04-2026-host-cold-0020 --relay-node edge-host-1 --profile-name SMOKE-2026-04-22
+[21:43:55] Starting cold migration...
+[21:43:55] Source: edge-node-1, Dest: edge-node-2
+[21:43:55] Transfer mode: host
+[21:43:55] Relay node: edge-host-1
+
+[21:43:55] === COLD MIGRATION ===
+[21:43:55] Step 1: Checking source process...
+[21:43:55] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:43:55] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-host-cold-0020
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:43:55] Resetting nodes: edge-node-1 -> edge-node-2
+[21:43:55] Step 1: Killing any existing processes on source...
+[21:43:55]   Killing any remaining background processes...
+[21:43:56] Step 2: Cleaning source node...
+[21:43:56] Step 3: Cleaning destination node...
+[21:43:56]   Killing all remaining counter processes on destination...
+[21:43:58] ✓ Reset complete, nodes are clean
+[21:43:58]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:43:58] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:58] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:58] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:43:58] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 22-04-2026-direct-cold-0020 --profile-name SMOKE-2026-04-22
+[21:44:00] Starting cold migration...
+[21:44:00] Source: edge-node-1, Dest: edge-node-2
+[21:44:00] Transfer mode: direct
+
+[21:44:00] === COLD MIGRATION ===
+[21:44:00] Step 1: Checking source process...
+[21:44:00] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:44:00] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-direct-cold-0020
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:44:01] Resetting nodes: edge-node-1 -> edge-node-2
+[21:44:01] Step 1: Killing any existing processes on source...
+[21:44:01]   Killing any remaining background processes...
+[21:44:01] Step 2: Cleaning source node...
+[21:44:02] Step 3: Cleaning destination node...
+[21:44:02]   Killing all remaining counter processes on destination...
+[21:44:03] ✓ Reset complete, nodes are clean
+[21:44:03]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:44:03] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:03] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:04] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:04] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 22-04-2026-host-precopy-0020 --relay-node edge-host-1 --iterations 1 --profile-name SMOKE-2026-04-22
+[21:44:06] Starting precopy migration...
+[21:44:06] Source: edge-node-1, Dest: edge-node-2
+[21:44:06] Transfer mode: host
+[21:44:06] Relay node: edge-host-1
+
+[21:44:06] === PRE-COPY LIVE MIGRATION ===
+[21:44:06] Step 1: Checking source process...
+[21:44:06] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:44:06] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-host-precopy-0020
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:44:06] Resetting nodes: edge-node-1 -> edge-node-2
+[21:44:06] Step 1: Killing any existing processes on source...
+[21:44:06]   Killing any remaining background processes...
+[21:44:07] Step 2: Cleaning source node...
+[21:44:07] Step 3: Cleaning destination node...
+[21:44:08]   Killing all remaining counter processes on destination...
+[21:44:09] ✓ Reset complete, nodes are clean
+[21:44:09]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:44:09] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:09] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:09] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:09] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 22-04-2026-direct-precopy-0020 --iterations 1 --profile-name SMOKE-2026-04-22
+[21:44:11] Starting precopy migration...
+[21:44:11] Source: edge-node-1, Dest: edge-node-2
+[21:44:11] Transfer mode: direct
+
+[21:44:11] === PRE-COPY LIVE MIGRATION ===
+[21:44:11] Step 1: Checking source process...
+[21:44:12] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:44:12] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-direct-precopy-0020
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:44:12] Resetting nodes: edge-node-1 -> edge-node-2
+[21:44:12] Step 1: Killing any existing processes on source...
+[21:44:12]   Killing any remaining background processes...
+[21:44:13] Step 2: Cleaning source node...
+[21:44:13] Step 3: Cleaning destination node...
+[21:44:13]   Killing all remaining counter processes on destination...
+[21:44:14] ✓ Reset complete, nodes are clean
+[21:44:14]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:44:14] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:15] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:15] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:15] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 22-04-2026-host-postcopy-0020 --relay-node edge-host-1 --page-server-port 9999 --profile-name SMOKE-2026-04-22
+[21:44:17] Starting postcopy migration...
+[21:44:17] Source: edge-node-1, Dest: edge-node-2
+[21:44:17] Transfer mode: host
+[21:44:17] Relay node: edge-host-1
+
+[21:44:17] === POST-COPY (LAZY-PAGES) MIGRATION ===
+[21:44:17] Step 1: Checking source process...
+[21:44:17] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:44:17] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-host-postcopy-0020
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[21:44:17] Resetting nodes: edge-node-1 -> edge-node-2
+[21:44:17] Step 1: Killing any existing processes on source...
+[21:44:17]   Killing any remaining background processes...
+[21:44:18] Step 2: Cleaning source node...
+[21:44:18] Step 3: Cleaning destination node...
+[21:44:19]   Killing all remaining counter processes on destination...
+[21:44:20] ✓ Reset complete, nodes are clean
+[21:44:20]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/workloads/start_counter_c.sh edge-node-1
+[21:44:20] Transferring counter.c to edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:20] Compiling counter.c on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:20] Starting counter on edge-node-1...
+snap-confine has elevated permissions and is not confined but should be. Refusing to continue to avoid permission escalation attacks
+Please make sure that the snapd.apparmor service is enabled and started.
+[21:44:20] ✓ Counter started
+[exit=0]
+[repeat] warmup 2s
+[repeat] WARNING: node_exporter snapshot failed: edge-node-1 (before)
+[repeat] WARNING: node_exporter snapshot failed: edge-node-2 (before)
+
+$ python3 /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/scripts/orchestrators/criu_benchmark.py postcopy --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 22-04-2026-direct-postcopy-0020 --page-server-port 9999 --profile-name SMOKE-2026-04-22
+[21:44:23] Starting postcopy migration...
+[21:44:23] Source: edge-node-1, Dest: edge-node-2
+[21:44:23] Transfer mode: direct
+
+[21:44:23] === POST-COPY (LAZY-PAGES) MIGRATION ===
+[21:44:23] Step 1: Checking source process...
+[21:44:23] ERROR: PID file not found (expected /home/ubuntu/counter.pid or /home/ubuntu/app.pid).
+[21:44:23] Metrics saved to /home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=22-04-2026-direct-postcopy-0020
+[repeat] run_ids_file=/home/ivo/Documents/University/4to/Thesis-AAAAAAAa/Container-vs-Wasm-Service-Migration/Container/metrics/run_logs/22-04-2026-counter-cold-precopy-postcopy-h1-d1-i1-relay-edge-host-1-snap-plots-214349.run_ids.txt
