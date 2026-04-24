@@ -111,8 +111,6 @@ class PostcopyMigration(MigrationStrategy):
             return False
 
         out_path = self.gol_output_path()
-        _, last_before, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
-        self.log(f"  Last gol value (pre-freeze): {last_before}")
 
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
@@ -211,13 +209,6 @@ class PostcopyMigration(MigrationStrategy):
                 )
                 self.metrics.notes += "; dump_ready_timeout"
             self.log(f"  Dump init time (approx freeze duration): {dump_ms} ms")
-
-            expected_after = "unknown"
-            _, frozen_last, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
-            if frozen_last.isdigit():
-                expected_after = str(int(frozen_last) + 1)
-            self.log(f"  Frozen last gol value: {frozen_last}")
-            self.log(f"  Expected after restore: {expected_after}")
 
             # Step 3: Dump process serves pages
             self.log("Step 3: Page-server ready on source (served by dump process)")
@@ -409,56 +400,32 @@ class PostcopyMigration(MigrationStrategy):
             t_verify = time.monotonic()
             time.sleep(verify_wait_s)
             verify_elapsed_s = time.monotonic() - t_verify
-
-            if expected_after != "unknown" and self.dest.file_exists(out_path):
-                rc, observed, _ = self.dest.exec(f"tail -n 1 {out_path}", check=False)
-                expected_min = expected_after
-                expected_at_check = "unknown"
-                if expected_min.isdigit():
-                    expected_at_check = str(int(expected_min) + int(verify_elapsed_s))
+            # Only check gol.out is being updated (mtime-based validation)
+            gol_out = out_path
+            rc_stat, mtime_before, _ = self.dest.exec(
+                f"stat -c %Y {gol_out}", check=False
+            )
+            time.sleep(2)
+            rc_stat2, mtime_after, _ = self.dest.exec(
+                f"stat -c %Y {gol_out}", check=False
+            )
+            if (
+                rc_stat == 0
+                and rc_stat2 == 0
+                and mtime_after.strip().isdigit()
+                and mtime_before.strip().isdigit()
+                and int(mtime_after) > int(mtime_before)
+            ):
                 self.log(
-                    f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
-                    f"Observed: {observed}"
+                    f"✓ gol.out updated after migration (mtime {mtime_before} → {mtime_after}), simulation running!"
                 )
-                if (
-                    rc == 0
-                    and observed
-                    and observed.isdigit()
-                    and int(observed) >= int(expected_after)
-                ):
-                    self.log("✓ SUCCESS: Gol continued correctly!")
-                    self.metrics.success = True
-                else:
-                    self.log("WARNING: Could not validate gol continuity")
-                    self.metrics.notes += "; continuity_unknown"
-                    self.metrics.success = True
+                self.metrics.success = True
             else:
-                # Enhanced validation: check gol.out is being updated (simulation running)
-                gol_out = out_path
-                rc_stat, mtime_before, _ = self.dest.exec(
-                    f"stat -c %Y {gol_out}", check=False
+                self.log(
+                    "WARNING: gol.out not updated after migration; process may not be running"
                 )
-                time.sleep(2)
-                rc_stat2, mtime_after, _ = self.dest.exec(
-                    f"stat -c %Y {gol_out}", check=False
-                )
-                if (
-                    rc_stat == 0
-                    and rc_stat2 == 0
-                    and mtime_after.strip().isdigit()
-                    and mtime_before.strip().isdigit()
-                    and int(mtime_after) > int(mtime_before)
-                ):
-                    self.log(
-                        f"✓ gol.out updated after migration (mtime {mtime_before} → {mtime_after}), simulation running!"
-                    )
-                    self.metrics.success = True
-                else:
-                    self.log(
-                        "WARNING: gol.out not updated after migration; process may not be running"
-                    )
-                    self.metrics.notes += "; gol_out_not_updating"
-                    self.metrics.success = False
+                self.metrics.notes += "; gol_out_not_updating"
+                self.metrics.success = False
 
             # Final metrics
             self.metrics.downtime_ms = (

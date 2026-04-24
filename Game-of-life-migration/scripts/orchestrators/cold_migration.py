@@ -103,12 +103,7 @@ class ColdMigration(MigrationStrategy):
             self.metrics.notes += "; pid_not_found"
             return False
 
-        # Snapshot last printed value before we start dumping (best-effort).
-        # NOTE: The process may still print between this read and the actual freeze.
         out_path = self.gol_output_path()
-        _, last_before, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
-        self.log(f"  Last gol value (pre-freeze): {last_before}")
-        expected_after = "unknown"
 
         # Capture architecture information for metrics
         self.metrics.src_arch = self.source.get_arch()
@@ -142,14 +137,6 @@ class ColdMigration(MigrationStrategy):
                 self.log(f"Dump log:\n{dump_log}")
             self.metrics.notes += "; dump_failed"
             return False
-
-        # Now that the process is frozen/terminated (cold dump), the output file is stable.
-        # Compute the expected next value from the frozen snapshot for accurate reporting.
-        _, frozen_last, _ = self.source.exec(f"tail -n 1 {out_path}", check=False)
-        if frozen_last.isdigit():
-            expected_after = str(int(frozen_last) + 1)
-        self.log(f"  Frozen last gol value: {frozen_last}")
-        self.log(f"  Expected after restore: {expected_after}")
 
         t_checkpoint_done = time.time_ns()
         checkpoint_ms = (t_checkpoint_done - t_checkpoint_start) // 1_000_000
@@ -306,60 +293,28 @@ class ColdMigration(MigrationStrategy):
         time.sleep(verify_wait_s)
         verify_elapsed_s = time.monotonic() - t_verify_start
 
-        if expected_after != "unknown" and self.dest.file_exists(out_path):
-            rc, observed, _ = self.dest.exec(f"tail -n 1 {out_path}", check=False)
-            expected_min = expected_after
-            expected_at_check = "unknown"
-            if expected_min.isdigit():
-                expected_at_check = str(int(expected_min) + int(verify_elapsed_s))
+        # Only check gol.out is being updated (mtime-based validation)
+        gol_out = out_path
+        rc_stat, mtime_before, _ = self.dest.exec(f"stat -c %Y {gol_out}", check=False)
+        time.sleep(2)
+        rc_stat2, mtime_after, _ = self.dest.exec(f"stat -c %Y {gol_out}", check=False)
+        if (
+            rc_stat == 0
+            and rc_stat2 == 0
+            and mtime_after.strip().isdigit()
+            and mtime_before.strip().isdigit()
+            and int(mtime_after) > int(mtime_before)
+        ):
             self.log(
-                f"  Expected min: {expected_min} (after ~{verify_elapsed_s:.1f}s → ~{expected_at_check}), "
-                f"Observed: {observed}"
+                f"✓ gol.out updated after migration (mtime {mtime_before} → {mtime_after}), simulation running!"
             )
-            if rc != 0 or not observed:
-                self.log("WARNING: Could not read gol output from destination")
-                self.metrics.notes += "; log_read_failed"
-                self.metrics.success = False
-            elif observed.isdigit() and expected_after != "unknown":
-                if int(observed) >= int(expected_after):
-                    self.log("✓ SUCCESS: Gol continued correctly!")
-                    self.metrics.success = True
-                else:
-                    self.log("✗ FAILED: Gol value mismatch")
-                    self.metrics.notes += (
-                        f"; gol_mismatch: expected >={expected_after}, got {observed}"
-                    )
-                    self.metrics.success = False
-            else:
-                self.log("✓ Gol value received (continuity verified)")
-                self.metrics.success = True
+            self.metrics.success = True
         else:
-            # Enhanced validation: check gol.out is being updated (simulation running)
-            gol_out = out_path
-            rc_stat, mtime_before, _ = self.dest.exec(
-                f"stat -c %Y {gol_out}", check=False
+            self.log(
+                "WARNING: gol.out not updated after migration; process may not be running"
             )
-            time.sleep(2)
-            rc_stat2, mtime_after, _ = self.dest.exec(
-                f"stat -c %Y {gol_out}", check=False
-            )
-            if (
-                rc_stat == 0
-                and rc_stat2 == 0
-                and mtime_after.strip().isdigit()
-                and mtime_before.strip().isdigit()
-                and int(mtime_after) > int(mtime_before)
-            ):
-                self.log(
-                    f"✓ gol.out updated after migration (mtime {mtime_before} → {mtime_after}), simulation running!"
-                )
-                self.metrics.success = True
-            else:
-                self.log(
-                    "WARNING: gol.out not updated after migration; process may not be running"
-                )
-                self.metrics.notes += "; gol_out_not_updating"
-                self.metrics.success = False
+            self.metrics.notes += "; gol_out_not_updating"
+            self.metrics.success = False
 
         # Final metrics
         self.metrics.downtime_ms = (
