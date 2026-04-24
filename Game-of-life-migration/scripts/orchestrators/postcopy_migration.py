@@ -433,19 +433,31 @@ class PostcopyMigration(MigrationStrategy):
                     self.metrics.notes += "; continuity_unknown"
                     self.metrics.success = True
             else:
-                rc, restored_pid, _ = self.dest.exec(
-                    "cat /tmp/CRIU-gol/restored.pid", check=False
+                # Enhanced validation: check gol.out is being updated (simulation running)
+                gol_out = out_path
+                rc_stat, mtime_before, _ = self.dest.exec(
+                    f"stat -c %Y {gol_out}", check=False
+                )
+                time.sleep(2)
+                rc_stat2, mtime_after, _ = self.dest.exec(
+                    f"stat -c %Y {gol_out}", check=False
                 )
                 if (
-                    rc == 0
-                    and restored_pid.strip().isdigit()
-                    and self.dest.test_process_running(restored_pid.strip())
+                    rc_stat == 0
+                    and rc_stat2 == 0
+                    and mtime_after.strip().isdigit()
+                    and mtime_before.strip().isdigit()
+                    and int(mtime_after) > int(mtime_before)
                 ):
-                    self.log("✓ Restored process is running on destination")
+                    self.log(
+                        f"✓ gol.out updated after migration (mtime {mtime_before} → {mtime_after}), simulation running!"
+                    )
                     self.metrics.success = True
                 else:
-                    self.log("WARNING: Could not validate restored process state")
-                    self.metrics.notes += "; process_validation_failed"
+                    self.log(
+                        "WARNING: gol.out not updated after migration; process may not be running"
+                    )
+                    self.metrics.notes += "; gol_out_not_updating"
                     self.metrics.success = False
 
             # Final metrics
