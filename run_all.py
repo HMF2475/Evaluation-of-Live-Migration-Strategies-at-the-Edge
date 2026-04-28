@@ -1,3 +1,13 @@
+"""Run every migration benchmark suite under each configured network profile.
+
+This is the top-level experiment driver:
+1. read `network_profiles.json`;
+2. apply tc/netem shaping between Multipass VMs;
+3. run each command from `benchmarks.json`;
+4. keep one run_all session log plus one log per benchmark command;
+5. always remove traffic-control rules at the end.
+"""
+
 import json
 import subprocess
 import time
@@ -60,6 +70,41 @@ def _cmd_supports_flag(cmd: str, flag: str) -> bool:
         return flag in script_path.read_text(encoding="utf-8", errors="ignore")
     except Exception:
         return False
+
+
+def load_benchmarks() -> list[dict]:
+    """Load and validate `benchmarks.json` before any long experiment starts."""
+    try:
+        with open(BENCHMARKS_FILE, "r", encoding="utf-8") as f:
+            benchmarks = json.load(f)
+    except FileNotFoundError:
+        log(f"[ERROR] {BENCHMARKS_FILE} not found.")
+        return []
+
+    if not isinstance(benchmarks, list) or not benchmarks:
+        log(f"[ERROR] {BENCHMARKS_FILE} must be a non-empty JSON list.")
+        return []
+
+    valid: list[dict] = []
+    for i, bench in enumerate(benchmarks, start=1):
+        if not isinstance(bench, dict):
+            log(f"[ERROR] Benchmark #{i} must be an object.")
+            return []
+        name = bench.get("name")
+        command = bench.get("command")
+        if not isinstance(name, str) or not name.strip():
+            log(f"[ERROR] Benchmark #{i} has missing/invalid name.")
+            return []
+        if not isinstance(command, str) or not command.strip():
+            log(f"[ERROR] Benchmark '{name}' has missing/invalid command.")
+            return []
+        if "{profile_name}" not in command:
+            log(
+                f"[WARN] Benchmark '{name}' does not receive profile_name; "
+                "metrics may be harder to group by network profile."
+            )
+        valid.append({"name": name, "command": command})
+    return valid
 
 
 def _maybe_inject_continue_on_failure(cmd: str, enabled: bool) -> str:
@@ -185,11 +230,8 @@ def execute_benchmarks_with_artifacts(
     timings_csv,
 ):
     """Run benchmarks for one profile, writing per-benchmark logs + timing CSV rows."""
-    try:
-        with open(BENCHMARKS_FILE, "r") as f:
-            benchmarks = json.load(f)
-    except FileNotFoundError:
-        log(f"[ERROR] {BENCHMARKS_FILE} not found.")
+    benchmarks = load_benchmarks()
+    if not benchmarks:
         return 1
 
     bw = profile_cfg.get("bandwidth_mbps")
@@ -200,6 +242,8 @@ def execute_benchmarks_with_artifacts(
     for i, bench in enumerate(benchmarks):
         bench_name = bench.get("name", f"Suite {i+1}")
         raw_cmd = bench.get("command", "")
+        # Each benchmark command owns its internal repeats. run_all only injects
+        # profile name, captures stdout/stderr, and records total wall time.
         cmd = raw_cmd.format(profile_name=profile_name)
         cmd = _maybe_inject_continue_on_failure(cmd, continue_on_failure)
 

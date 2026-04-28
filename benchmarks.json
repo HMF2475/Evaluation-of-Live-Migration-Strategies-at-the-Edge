@@ -10,5 +10,9 @@
     {
         "name": "Game of Life Migration",
         "command": "python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite --strategies cold,precopy,postcopy --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 20 --direct-runs 20 --iterations 3 --snapshot-node-metrics --profile-name \"{profile_name}\""
+    },
+    {
+        "name": "WASM Migration",
+        "command": "python3 WASM-migration/scripts/orchestrators/repeat_wasm_benchmarks.py suite --strategies cold --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 20 --direct-runs 20 --snapshot-node-metrics --profile-name \"{profile_name}\""
     }
 ]

@@ -14,8 +14,11 @@ tools/test/core-*
 tools/test/dump.log
 tools/test/restore.log
 tools/test/stats-*
+tools/**
+!tools/terraform/**
 
 # Build artifacts & compiled binaries
+build/
 **/*.o
 **/*.d
 **/*.a
@@ -47,9 +50,6 @@ tools/test/stats-*
 Container/simplest-example/checkpoint/**
 Game-of-life-migration/simplest-example/checkpoint/**
 Network-live-migration/simplest-example/img-dir/**
-tools/checkpointctl/**
-tools/criu/**
-tools/go-criu/**
 Container/CRIU/**
 
 **/node_exporter/**
