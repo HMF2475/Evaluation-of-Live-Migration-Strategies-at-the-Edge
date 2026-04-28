@@ -42,7 +42,7 @@ def plot_phase_breakdown(
 
     phases = (
         df.groupby(["migration_method", "transfer_mode"])[
-            ["checkpoint_ms", "transfer_ms", "restore_ms"]
+            ["checkpoint_plot_ms", "transfer_ms", "restore_ms"]
         ]
         .mean()
         .reset_index()
@@ -66,7 +66,7 @@ def plot_phase_breakdown(
     for j, mode in enumerate(modes):
         sub = phases[phases["transfer_mode"] == mode].set_index("migration_method")
         chk = [
-            float(sub.loc[m, "checkpoint_ms"]) if m in sub.index else 0.0
+            float(sub.loc[m, "checkpoint_plot_ms"]) if m in sub.index else 0.0
             for m in methods
         ]
         trn = [

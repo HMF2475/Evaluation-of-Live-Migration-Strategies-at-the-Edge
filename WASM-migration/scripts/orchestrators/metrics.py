@@ -14,6 +14,8 @@ class MigrationMetrics:
     migration_method: str = "WASM-migration"
     network_migration: str = "no"
     checkpoint_ms: int = 0
+    checkpoint_us: int = 0
+    checkpoint_ns: int = 0
     archive_bytes: int = 0
     transfer_ms: int = 0
     restore_ms: int = 0
@@ -39,6 +41,8 @@ FIELDNAMES = [
     "migration_method",
     "network_migration",
     "checkpoint_ms",
+    "checkpoint_us",
+    "checkpoint_ns",
     "archive_bytes",
     "transfer_ms",
     "restore_ms",
@@ -66,6 +70,20 @@ def default_csv_path() -> Path:
 def write_metrics(metrics: MigrationMetrics, csv_path: Path | None = None) -> None:
     path = csv_path or default_csv_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        with path.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames and reader.fieldnames != FIELDNAMES:
+                rows = list(reader)
+                with path.open("w", newline="", encoding="utf-8") as out:
+                    writer = csv.DictWriter(out, fieldnames=FIELDNAMES)
+                    writer.writeheader()
+                    for old_row in rows:
+                        writer.writerow(
+                            {field: old_row.get(field, "") for field in FIELDNAMES}
+                        )
+
     exists = path.exists()
     with path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)

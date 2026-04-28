@@ -43,7 +43,7 @@ def plot_transfer_analysis(
     plt.figure(figsize=(10, 6))
     sns.scatterplot(
         data=df,
-        x="archive_bytes",
+        x="archive_kib",
         y="transfer_ms",
         hue="migration_method",
         style="transfer_mode",
@@ -52,7 +52,7 @@ def plot_transfer_analysis(
     base_title = "Archive Size vs Transfer Time"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     plt.title(full_title)
-    plt.xlabel("Archive Size (bytes)")
+    plt.xlabel("Archive Size (KiB)")
     plt.ylabel("Transfer Time (ms)")
     plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout(rect=[0, 0, 0.85, 1])

@@ -74,9 +74,19 @@ def mp_transfer(source: str | Path, dest: str) -> None:
 
 def monotonic_elapsed_ms(start_ns: int) -> int:
     delta_ns = max(0, time.monotonic_ns() - start_ns)
+    return ns_to_ms_ceil(delta_ns)
+
+
+def ns_to_ms_ceil(delta_ns: int) -> int:
     if delta_ns == 0:
         return 0
     return max(1, int((delta_ns + 999_999) // 1_000_000))
+
+
+def ns_to_us_ceil(delta_ns: int) -> int:
+    if delta_ns == 0:
+        return 0
+    return max(1, int((delta_ns + 999) // 1_000))
 
 
 def event_times_from_text(text: str) -> dict[str, int]:
@@ -92,13 +102,10 @@ def event_times_from_text(text: str) -> dict[str, int]:
     return events
 
 
-def elapsed_ms(events: dict[str, int], start: str, end: str) -> int:
+def elapsed_ns(events: dict[str, int], start: str, end: str) -> int:
     if start not in events or end not in events:
         return 0
-    delta_ns = max(0, events[end] - events[start])
-    if delta_ns == 0:
-        return 0
-    return max(1, int((delta_ns + 999_999) // 1_000_000))
+    return max(0, events[end] - events[start])
 
 
 def remote_file_text(node: str, path: Path) -> str:
@@ -408,11 +415,13 @@ def main() -> int:
         )
 
         source_events = event_times_from_text(remote_file_text(args.source, source_log))
-        metrics.checkpoint_ms = elapsed_ms(
+        metrics.checkpoint_ns = elapsed_ns(
             source_events,
             "request_server - checkpoint start",
             "request_server - checkpoint completed",
         )
+        metrics.checkpoint_us = ns_to_us_ceil(metrics.checkpoint_ns)
+        metrics.checkpoint_ms = ns_to_ms_ceil(metrics.checkpoint_ns)
         metrics.final_dump_ms = metrics.checkpoint_ms
 
         # TRANSFER PHASE: package both WASM memory files and move archive.
@@ -490,6 +499,9 @@ def main() -> int:
     print(
         f"checkpoint_ms={metrics.checkpoint_ms} transfer_ms={metrics.transfer_ms} "
         f"restore_ms={metrics.restore_ms} downtime_ms={metrics.downtime_ms}"
+    )
+    print(
+        f"checkpoint_us={metrics.checkpoint_us} checkpoint_ns={metrics.checkpoint_ns}"
     )
     print(f"archive_bytes={metrics.archive_bytes}")
     print(f"artifacts={local_run_dir}")

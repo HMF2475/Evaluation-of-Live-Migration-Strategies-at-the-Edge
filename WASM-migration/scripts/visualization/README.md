@@ -9,6 +9,7 @@ optional node_exporter snapshots captured by the WASM repeat runner.
 
 - `plot_downtime.py` — downtime comparison by strategy and transfer mode.
 - `plot_phase_breakdown.py` — stacked phase breakdown (dump/final_dump + transfer + restore).
+- `plot_checkpoint_precision.py` — checkpoint duration in microseconds.
 - `plot_transfer_analysis.py` — archive size vs transfer time scatter.
 - `node_exporter_summary.py` — summarizes CPU/memory/disk IO from node_exporter snapshots.
 - `generate_all_plots.py` — generates all plots into a single output directory and supports filtering.
@@ -27,6 +28,7 @@ python3 WASM-migration/scripts/visualization/generate_all_plots.py \
 # Single plots (optional)
 python3 WASM-migration/scripts/visualization/plot_downtime.py WASM-migration/metrics/migration_metrics.csv
 python3 WASM-migration/scripts/visualization/plot_phase_breakdown.py WASM-migration/metrics/migration_metrics.csv
+python3 WASM-migration/scripts/visualization/plot_checkpoint_precision.py WASM-migration/metrics/migration_metrics.csv
 python3 WASM-migration/scripts/visualization/plot_transfer_analysis.py WASM-migration/metrics/migration_metrics.csv
 ```
 
