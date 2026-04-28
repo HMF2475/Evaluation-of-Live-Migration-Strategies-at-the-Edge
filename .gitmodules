@@ -1,0 +1,4 @@
+[submodule "WASM-migration/wasm-migrate-commands"]
+	path = WASM-migration/wasm-migrate-commands
+	url = https://github.com/HMF2475/wasm-migrate-commands
+	branch = main
