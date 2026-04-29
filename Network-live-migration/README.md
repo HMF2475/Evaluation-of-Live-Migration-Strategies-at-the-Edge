@@ -4,7 +4,7 @@ This module benchmarks CRIU live migration for a running TCP client with an esta
 
 ## Documentation Map
 
-- `TCP-live-migration.md`: exhaustive end-to-end guide (manual flow, repeat suite, plots, troubleshooting).
+- `TCP-live-migration.md`: detailed TCP migration guide (manual flow, repeat suite, plots, troubleshooting).
 - `CRIU-limitations.md`: TCP/IP constraints that explain why VIP handoff is required.
 - `metrics/README.md`: metrics schema and artifact layout.
 - `scripts/orchestrators/README.md`: benchmark entrypoints and strategy implementation map.

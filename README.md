@@ -39,21 +39,23 @@ For installation on other operating systems, see:
 
 ## Start Here
 
-- **Exhaustive end-to-end manual** (setup → run → metrics → plots): `GUIDE.md`
+- **Repo-level benchmark guide** (shared setup → smoke runs → metrics → plots): `GUIDE.md`
 - **Container/CRIU tooling entrypoint** (folder index + key scripts): `Container/README.md`
+- **WebAssembly benchmark entrypoint**: `WASM-migration/README.md`
 
 ## Repository Structure (high level)
 
 - `Container/` — CRIU + Podman migration experiments, scripts, metrics, and plots
 - `Game-of-life-migration/` — CRIU migration experiments for the Game of Life workload (C implementation)
 - `Network-live-migration/` — CRIU TCP client migration (established socket + VIP handoff), metrics, and plots
+- `WASM-migration/` — WebAssembly checkpoint/restore migration benchmark, scripts, metrics, and plots
 - `tools/terraform/` — Multipass VM provisioning (`edge-node-1`, `edge-node-2`, `edge-host-1`)
 - `Papers/` — research context / related work
 
 
-## Quick Sanity Run (All Workloads)
+## Quick Sanity Run (Benchmark Modules)
 
-After provisioning the VMs (see `GUIDE.md`), you can run a small batch for any of the three main workloads:
+After provisioning the VMs and passing `bash tools/terraform/check_bootstrap.sh` (see `GUIDE.md`), you can run a small batch for any benchmark module:
 
 - **Counter** (memory-only baseline):
   ```bash
@@ -94,22 +96,34 @@ After provisioning the VMs (see `GUIDE.md`), you can run a small batch for any o
     --direct-runs 1 \
     --snapshot-node-metrics
   ```
+- **WebAssembly** (checkpoint/restore for an injected WASM module):
+  ```bash
+  python3 WASM-migration/scripts/orchestrators/repeat_wasm_benchmarks.py suite \
+    --strategies cold \
+    --source edge-node-1 \
+    --dest edge-node-2 \
+    --relay-node edge-host-1 \
+    --host-runs 1 \
+    --direct-runs 1 \
+    --snapshot-node-metrics \
+    --profile-name smoke
+  ```
 
 Results are appended to the corresponding `metrics/migration_metrics.csv` in each module.
 Plots and batch logs are written under each module's `metrics/plots/` and `metrics/run_logs/`.
-# (add section at end)
 
-## Supported Workloads
+## Supported Workloads and Benchmarks
 
-This repository supports three main migration workloads:
+This repository supports three CRIU workloads plus one WASM migration benchmark:
 
 - **Counter**: A minimal C program that prints incrementing numbers to stdout. Used as a memory-only baseline for CRIU migration.
 - **Game of Life**: A C implementation of Conway's Game of Life, printing an evolving grid to stdout. Used to test migration of a non-trivial, stateful application. See `Game-of-life-migration/`.
 - **TCP client/server**: An echo server/client pair for testing migration of established TCP connections (socket state preservation). See `Network-live-migration/`.
+- **WebAssembly**: An injected WASM compute workload migrated with `wasm-migrate-commands`, using the same CSV/plotting style as the CRIU experiments. See `WASM-migration/`.
 
 ## Run Everything Across Network Profiles (Optional)
 
-To sweep multiple network conditions (bandwidth/latency/loss) and run the main suites automatically:
+To sweep multiple network conditions (bandwidth/latency/loss) and run the main suites, including WASM, automatically:
 
 ```bash
 python3 run_all.py

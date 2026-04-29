@@ -55,7 +55,7 @@ python3 Container/scripts/orchestrators/criu_benchmark.py cold \
   --source edge-node-1 \
   --dest edge-node-2 \
   --transfer-mode host \
-  --run-id experimental-cold-001
+  --run-id cold-smoke-001
 ```
 
 ---

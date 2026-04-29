@@ -2,13 +2,12 @@
 
 This folder stores the “holy grail” metrics for `Network-live-migration/`.
 
-The main CSV **matches the exact schema** used by the memory-only
-benchmark in `Container/metrics/migration_metrics.csv`, so plots and analyses
-can compare both experiments directly.
+The main CSV keeps the common timing columns used by `Container/metrics/migration_metrics.csv`
+and adds TCP-specific timing columns. Plotting scripts handle these shared columns directly.
 
 ## Files
 
-- `migration_metrics.csv`: one row per migration run (schema-compatible with `Container/`)
+- `migration_metrics.csv`: one row per migration run (common timing columns plus TCP extras)
 - `node_exporter_metrics.csv`: one row per run with source/destination CPU/memory/disk deltas
 - `node_exporter/`: raw `node_exporter` snapshots per run (only when snapshots are enabled)
 - `run_logs/`: per-suite execution logs and run-id lists
@@ -33,6 +32,11 @@ can compare both experiments directly.
 - `notes`
 - `timestamp`
 - `profile_name`
+- `predump_ms`
+- `final_dump_ms`
+- `total_ms`
+- `lazy_pages_active_ms`
+- `lazy_pages_log_bytes`
 
 The `profile_name` column is filled when you run suite runners with `--profile-name` (for example via `run_all.py`).
 

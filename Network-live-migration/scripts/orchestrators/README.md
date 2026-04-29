@@ -59,9 +59,10 @@ python3 Network-live-migration/scripts/orchestrators/repeat_tcp_client_benchmark
 
 ## Notes
 
-- `--transfer-mode host|direct` changes only how the CRIU image archive is transferred; post-copy still requires VM→VM connectivity for the page-server.
-- `--relay-node edge-host-1` makes `host` mode use the third VM as the intermediate hop instead of the laptop.
-- `direct` uses VM→VM `scp` and requires SSH trust; the orchestrator sets this up automatically (see `Network-live-migration/scripts/orchestrators/ssh_utils.py`).
+- `--transfer-mode host|direct` changes only how the CRIU image archive is transferred; post-copy still requires VM-to-VM connectivity for the page-server.
+- `--transfer-mode host` without `--relay-node` uses `multipass transfer` twice: source VM -> host machine temp file -> destination VM.
+- `--transfer-mode host --relay-node edge-host-1` uses VM-to-VM `scp` twice: source VM -> relay VM -> destination VM.
+- `--transfer-mode direct` uses one VM-to-VM `scp`: source VM -> destination VM. The orchestrator sets SSH trust automatically (see `Network-live-migration/scripts/orchestrators/ssh_utils.py`).
 - After a successful restore, the TCP client orchestrators write `/home/ubuntu/tcp_client.pid` (and a legacy alias `/home/ubuntu/client.pid`) on the destination, so you can “bounce” the client back and forth without re-running the workload launcher.
 
 For the CSV schema, see `Network-live-migration/metrics/README.md`.

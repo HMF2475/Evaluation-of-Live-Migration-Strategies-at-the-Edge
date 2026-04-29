@@ -49,20 +49,23 @@ Once provisioned, use the Multipass CLI to verify the nodes are running and retr
 multipass list
 ```
 
+Then run the canonical readiness check. This is the source of truth used by the rest of the docs:
+
+```bash
+bash check_bootstrap.sh
+```
+
+It waits until all three nodes are reachable, `node-bootstrap` logged `Node fully provisioned.`, and CRIU/Podman commands are available.
+
 If you are preparing the TCP client migration workflow, confirm each VM has a single primary interface and a single default route.
+
 ### 4. Accessing the Nodes
 To open a secure shell into a specific node to run manual CRIU tests or apply tc network constraints:
 ```bash
 multipass shell edge-node-1
 ```
 
-Before running CRIU commands, verify the bootstrap service has finished:
-
-```bash
-sudo systemctl status node-bootstrap.service
-sudo tail -f /var/log/node-bootstrap.log
-criu --version
-```
+Before running CRIU commands, run `bash tools/terraform/check_bootstrap.sh` from the repo root, or `bash check_bootstrap.sh` from this directory.
 
 ### 5. Teardown
 To cleanly destroy the experimental baseline and release host resources:
@@ -84,7 +87,7 @@ multipass start edge-node-1 edge-node-2 edge-host-1
 multipass list
 ```
 
-Quick readiness check after start:
+Canonical readiness check after start:
 
 ```bash
 bash check_bootstrap.sh
@@ -138,6 +141,4 @@ sudo systemctl status node-bootstrap.service
 sudo tail -f /var/log/node-bootstrap.log
 ```
 to inspect the installation logs inside the VM. If the service completed, verify the binary is present with `criu --version` before retrying `criu check`.
-
-
 

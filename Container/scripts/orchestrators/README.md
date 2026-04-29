@@ -17,7 +17,7 @@ orchestrators/
 ├── migration_strategy.py       - Abstract base class
 ├── cold_migration.py           - Cold migration strategy
 ├── precopy_migration.py        - Precopy migration strategy 
-├── postcopy_migration.py       - Postcopy migration strategy (lazy-pages, experimental)
+├── postcopy_migration.py       - Postcopy migration strategy (lazy-pages)
 ├── multipass_command.py        - VM command execution wrapper
 ├── ssh_utils.py                - SSH/SCP utilities
 └── metrics.py                  - Unified metrics dataclass
@@ -38,7 +38,7 @@ python3 Container/scripts/orchestrators/criu_benchmark.py cold \
   --source edge-node-1 \
   --dest edge-node-2 \
   --transfer-mode host \
-  --run-id experimental-cold-0001
+  --run-id cold-smoke-0001
 
 # One run (pre-copy)
 python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
@@ -46,7 +46,7 @@ python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
   --dest edge-node-2 \
   --transfer-mode host \
   --iterations 2 \
-  --run-id experimental-precopy-0001
+  --run-id precopy-smoke-0001
 
 # Repeat runs and generate plots (default); disable plots with --no-plots
 python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
@@ -71,9 +71,10 @@ bash Container/scripts/orchestrators/collect_podman_metrics.sh \
 
 ## Notes
 
-- `--transfer-mode host|direct` changes only how the CRIU image archive is transferred; post-copy still requires VM→VM connectivity for the page-server.
-- `--relay-node edge-host-1` makes `host` mode use the third VM as the intermediate hop instead of the laptop.
-- `direct` uses VM→VM `scp` and requires SSH trust; the orchestrator sets this up automatically (see `Container/scripts/orchestrators/ssh_utils.py`).
+- `--transfer-mode host|direct` changes only how the CRIU image archive is transferred; post-copy still requires VM-to-VM connectivity for the page-server.
+- `--transfer-mode host` without `--relay-node` uses `multipass transfer` twice: source VM -> host machine temp file -> destination VM.
+- `--transfer-mode host --relay-node edge-host-1` uses VM-to-VM `scp` twice: source VM -> relay VM -> destination VM.
+- `--transfer-mode direct` uses one VM-to-VM `scp`: source VM -> destination VM. The orchestrator sets SSH trust automatically (see `Container/scripts/orchestrators/ssh_utils.py`).
 - After a successful restore, the orchestrators write `/home/ubuntu/counter.pid` and `/home/ubuntu/app.pid` on the destination, so you can “bounce” the workload back and forth without re-running the workload launcher.
 
 For the full CSV schema and plot outputs, see `Container/metrics/README.md`.

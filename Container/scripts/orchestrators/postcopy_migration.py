@@ -1,8 +1,8 @@
 """
 Postcopy (Lazy) Migration Strategy: CRIU lazy-pages.
 
-Implements experimental post-copy live migration for the native
-workloads by using CRIU's --lazy-pages mechanism:
+Implements post-copy live migration for the native workloads by using
+CRIU's --lazy-pages mechanism:
 - Freeze quickly on source with a minimal dump (no full memory transfer)
 - Transfer small image set to destination
 - Start a page-server on source
@@ -11,7 +11,8 @@ workloads by using CRIU's --lazy-pages mechanism:
 
 WARNING:
 - Requires direct IP connectivity between destination and source on a TCP port.
-- Still experimental; failures are expected depending on kernel/CRIU build.
+- The strategy is implemented, but it is more sensitive to kernel, CRIU,
+  and network behavior than cold or pre-copy migration.
 """
 
 from __future__ import annotations

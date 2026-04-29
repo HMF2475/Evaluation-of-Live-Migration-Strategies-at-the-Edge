@@ -2,7 +2,7 @@
 
 
 This directory contains a **Game of Life workload** (C implementation) and a CRIU migration/benchmark pipeline modeled after the "holy grail" experiment:
-- Native (non-container) CRIU migrations: **cold**, **pre-copy**, **post-copy (lazy-pages, experimental)**
+- Native (non-container) CRIU migrations: **cold**, **pre-copy**, **post-copy (lazy-pages)**
 - Repeatable benchmarking + metrics collection + plotting
 - Optional node_exporter snapshots per run (CPU/memory/disk IO)
 
@@ -21,10 +21,10 @@ This directory contains a **Game of Life workload** (C implementation) and a CRI
 
 ## Quick Start (repeatable benchmark batch)
 
-For exhaustive end-to-end setup (Terraform/MultiPass, node_exporter, plots, all options), use:
+For shared setup, smoke runs, metrics, and plot locations, use:
 - `GUIDE.md`
 
-Once nodes exist and are ready, run a batch (example: 10 runs each strategy/mode):
+After `bash tools/terraform/check_bootstrap.sh` passes, run a batch (example: 10 runs each strategy/mode):
 
 ```bash
 python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite \

@@ -1,4 +1,4 @@
-# TCP Live Migration (CRIU) — Three Nodes
+# TCP Live Migration (CRIU)
 
 This guide documents the full TCP client migration workflow used in this repository.
 
@@ -21,7 +21,15 @@ Supported transfer modes:
 - `host`: source -> relay -> destination
 - `direct`: source -> destination via SCP/SSH
 
-Metrics are appended to `Network-live-migration/metrics/migration_metrics.csv` using the same schema as `Container/metrics/migration_metrics.csv`.
+Archive transfer mechanics:
+
+- With `--transfer-mode direct`, the source VM sends the CRIU archive directly to the destination VM with `scp`.
+- With `--transfer-mode host --relay-node edge-host-1`, the archive is staged through `edge-host-1` using `scp` twice: source -> relay, then relay -> destination.
+- With `--transfer-mode host` and no relay node, the archive goes through the host machine with two `multipass transfer` calls.
+
+For `postcopy`, that transfer mode applies only to the initial CRIU image archive. Lazy memory pages are fetched after restore over a direct source -> destination CRIU page-server connection. The relay/server node does not relay those lazy page faults.
+
+Metrics are appended to `Network-live-migration/metrics/migration_metrics.csv`. The CSV keeps the common CRIU timing columns used by `Container/metrics/migration_metrics.csv` and adds TCP-specific timing columns.
 
 ## Prerequisites
 
@@ -35,18 +43,13 @@ Metrics are appended to `Network-live-migration/metrics/migration_metrics.csv` u
 - Optional but recommended:
   - node_exporter installed on all three nodes for CPU/memory/disk plots.
 
-Quick readiness check:
+Readiness source of truth, from repo root:
 
 ```bash
-for n in edge-node-1 edge-node-2 edge-host-1; do
-  echo "=== $n ==="
-  multipass exec "$n" -- bash -lc '
-    systemctl is-active node-bootstrap || true
-    criu --version 2>/dev/null | head -1 || true
-    podman --version 2>/dev/null | head -1 || true
-  '
-done
+bash tools/terraform/check_bootstrap.sh
 ```
+
+Do not replace this with per-guide ad hoc checks; this script is the canonical bootstrap readiness check for all three nodes.
 
 ## Networking Requirement
 
@@ -206,13 +209,14 @@ PY
 ### node-bootstrap still running or failed
 
 ```bash
-for n in edge-node-1 edge-node-2 edge-host-1; do
-  echo "=== $n ==="
-  multipass exec "$n" -- bash -lc '
-    systemctl status node-bootstrap --no-pager -n 40 || true
-    sudo tail -n 80 /var/log/node-bootstrap.log || true
-  '
-done
+bash tools/terraform/check_bootstrap.sh
+```
+
+If it never reaches `Bootstrap finished on all nodes.`, inspect the failing node:
+
+```bash
+multipass exec edge-node-1 -- sudo systemctl status node-bootstrap --no-pager -n 40
+multipass exec edge-node-1 -- sudo tail -n 80 /var/log/node-bootstrap.log
 ```
 
 ### Client cannot connect during startup

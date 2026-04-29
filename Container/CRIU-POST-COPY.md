@@ -1,11 +1,11 @@
-# Native CRIU Post-Copy Live Migration Guide (Lazy-Pages, Experimental)
+# Native CRIU Post-Copy Live Migration Guide (Lazy-Pages)
 
 ## Overview
 
 This guide implements **post-copy (lazy) live migration** using CRIU’s `--lazy-pages` feature.
 
 Status in this repo:
-- Implemented as an **experimental** strategy in `Container/scripts/orchestrators/postcopy_migration.py`.
+- Implemented as a runnable strategy in `Container/scripts/orchestrators/postcopy_migration.py`.
 - Usable via `python3 Container/scripts/orchestrators/criu_benchmark.py postcopy ...`.
 
 **What it demonstrates:**
@@ -16,7 +16,7 @@ Status in this repo:
 **Trade-offs:**
 - ✅ Minimal freeze time on source
 - ✅ Fast start on destination
-- ❌ Requires stable VM→VM connectivity during the initial run on the destination
+- ❌ Requires stable VM-to-VM connectivity during the initial run on the destination
 - ❌ If the source page-server dies early, the destination can page-fault and crash
 
 ---
@@ -39,7 +39,21 @@ multipass exec edge-node-1 -- bash -c 'criu --help | grep -i lazy'
 ## Quick Start (Automated)
 
 `--transfer-mode` controls **only** how the CRIU image archive is transferred (`host` vs `direct`).  
-Post-copy itself still requires direct VM→VM connectivity for the page-server.
+Post-copy itself still requires direct VM-to-VM connectivity for the page-server.
+
+Archive transfer and lazy-page traffic are different paths:
+
+```text
+Initial image archive:
+  direct mode:                 source VM -> destination VM                 (scp)
+  host mode, no relay:         source VM -> host machine -> destination VM (multipass transfer)
+  host mode, with relay node:  source VM -> relay VM -> destination VM     (scp twice)
+
+Lazy memory pages after restore:
+  source page-server -> destination lazy-pages daemon -> restored process
+```
+
+So `--relay-node edge-host-1` can relay or cache the archive, but it does not relay post-copy page faults. The destination still needs TCP reachability to the source page-server.
 
 ```bash
 python3 Container/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
@@ -50,7 +64,7 @@ python3 Container/scripts/orchestrators/criu_benchmark.py postcopy \
   --dest edge-node-2 \
   --transfer-mode direct \
   --page-server-port 9999 \
-  --run-id experimental-postcopy-001
+  --run-id postcopy-smoke-001
 ```
 
 ---
@@ -112,6 +126,8 @@ echo "Frozen last value: ${FROZEN_LAST}"
 echo "Expected first value after restore: ${EXPECTED_AFTER}"
 ```
 
+This source-side CRIU dump process stays alive after the initial lazy dump. It listens on `${SOURCE_IP}:${PAGE_SERVER_PORT}` and serves memory pages that were not written into the initial image archive.
+
 ## Step 4: Archive the images on the source
 ```bash
 multipass exec edge-node-1 -- bash -lc '
@@ -128,6 +144,9 @@ ls -lh /home/ubuntu/CRIU-counter.tar.gz
 This transfers only the small image archive; **memory pages are fetched later** from the source page-server.
 
 #### Method A: Host-mediated transfer
+
+Manual host-mediated transfer below uses your host machine and `multipass transfer` twice. The automated orchestrator has an extra form: if you pass `--transfer-mode host --relay-node edge-host-1`, it stages the archive through `edge-host-1` using `scp` from source -> relay and relay -> destination.
+
 ```bash
 HOST_ARCHIVE="$PWD/CRIU-counter.tar.gz"
 rm -f "$HOST_ARCHIVE"
@@ -141,7 +160,7 @@ TRANSFER_MS=$(( (T_TRANSFER_DONE - T_TRANSFER_START) / 1000000 ))
 echo "Transfer time (host): ${TRANSFER_MS} ms"
 ```
 
-#### Method B: Direct transfer (VM→VM SCP)
+#### Method B: Direct transfer (VM-to-VM SCP)
 
 Direct transfer requires SSH trust `edge-node-1 → edge-node-2`. The orchestrator sets this up automatically for `--transfer-mode direct`; for the manual steps, follow the “First-time only: set up SSH trust” snippet in `Container/CRIU-COLD-MIGRATION.md`.
 
@@ -182,6 +201,9 @@ chmod 664 /home/ubuntu/counter.out
 ```
 
 ## Step 8: Start the lazy-pages daemon on the destination
+
+This command runs on the destination. The `--page-server` flag name is confusing here: the destination-side `criu lazy-pages` process connects to the source page-server at `${SOURCE_IP}:${PAGE_SERVER_PORT}` and serves local page faults to the restored process.
+
 ```bash
 multipass exec edge-node-2 -- bash -lc "
   set -e
@@ -251,6 +273,7 @@ multipass exec edge-node-2 -- bash -lc '
 - `Observed` is usually **higher** than `Expected` because you typically wait a few seconds before reading the destination output.
 - If you see `Can't bind page server: Address already in use`, pick a new `--port` and/or kill old CRIU listeners (`sudo ss -lntp | grep :PORT`).
 - Post-copy uses `userfaultfd` internally (CRIU registers “lazy” VMAs at restore time; the `criu lazy-pages` daemon resolves page faults).
+- A relay/mainframe can store and forward checkpoint archives, especially cold and pre-copy archives. For post-copy, the initial lazy archive is not enough by itself while pages are still lazy; another destination would still need access to the live source page-server or to a later complete checkpoint.
 
 ## References
 

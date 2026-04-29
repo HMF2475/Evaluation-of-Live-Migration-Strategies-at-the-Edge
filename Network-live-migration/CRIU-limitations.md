@@ -1,54 +1,61 @@
-tstamp -- whether timestamps on packets are supported
+# CRIU, TCP Migration, and the Need for a VIP
 
-# CRIU, TCP Migration, and the Need for a Virtual IP (VIP)
+This repository migrates a **TCP client process** from `edge-node-1` to `edge-node-2` while it keeps an established connection to a fixed server on `edge-host-1`.
 
-## Why Can't We Just Change the IP?
+## TCP Constraint
 
-When live-migrating a process with established TCP connections to a new host, a major challenge arises: **the destination host has a different IP address**. This is not just a CRIU limitation—it's fundamental to how TCP works.
+An established TCP connection is identified by a 4-tuple:
 
-**TCP connections are defined by a 4-tuple:**
+> client IP, client port, server IP, server port
 
-> Source IP, Source Port, Destination IP, Destination Port
+If the client process is restored on another host with a different local IP, the server sees packets from a different peer. The restored socket state no longer matches the connection the server knows, so continuity fails.
 
-If you migrate a server to a new host with a different IP, the client will not recognize packets from the new IP. The connection will hang or time out, because the TCP protocol expects the same 4-tuple for the lifetime of the connection.
+CRIU can dump/restore established TCP sockets with TCP repair mode, but it cannot make the peer accept a changed 4-tuple.
 
-## How CRIU Handles Sockets
+## Repo Solution: Client VIP
 
-| Socket State           | Description                                 | CRIU Handling & Solutions                                                                 |
-|----------------------- |---------------------------------------------|------------------------------------------------------------------------------------------|
-| **Listening Sockets**  | Waiting for connections                     | If bound to `0.0.0.0` (INADDR_ANY), migration works. If bound to a specific IP, must edit image files. |
-| **In-Flight Connections** | `connect()`-ed but not yet `accept()`-ed | Can be ignored during dump with `--skip-in-flight`.                                      |
-| **Established Sockets**| Active connections with wired-in IPs        | Technically possible to restore with a new IP (by editing images), but the peer will reject packets. |
+This workflow preserves the client-side IP with a virtual IP:
 
-## Why a Virtual IP (VIP) is Needed
+- Client starts on `edge-node-1` and binds to VIP `10.22.132.250`.
+- Server remains on its normal `edge-host-1` IP.
+- During migration, orchestrator moves VIP from source client node to destination client node.
+- Destination emits gratuitous ARP so the server relearns VIP -> destination MAC.
+- Restored client keeps the same local IP and socket tuple.
 
-To achieve **seamless migration of established TCP connections**, you must ensure the client always sees the same server IP—even after migration. This is where a **Virtual IP (VIP)** comes in:
+So, in this repo, VIP belongs to the **migrated TCP client**, not the server.
 
-- The VIP is assigned to the server before migration.
-- After migration, the VIP is moved (or re-routed) to the new host.
-- The client continues to communicate with the same VIP, unaware of the backend migration.
+## Why Not Just Edit CRIU Images?
 
-**Without a VIP or similar proxy/relay, true transparent TCP migration is impossible.**
+CRIT can edit dumped image files such as `inetsk.img`, but changing socket IPs changes the TCP tuple. The peer still expects the old tuple. Editing images alone also does not update routing/ARP state in the network.
 
-## What About Editing CRIU Images?
+For transparent established-socket migration, preserve the address the peer already knows or put a stable proxy/NAT layer in front.
 
-You can use [CRIT](https://criu.org/CRIT) to edit dumped image files (`inetsk.img`, `files.img`) and change the IP addresses. However, even if you restore the process with a new IP, the client will not accept packets from the new address. The connection will break or hang until TCP times out.
+## General Cases
 
-## Modern Solutions: Proxy, NAT, and VIP
+| Migrated process | Address that must stay stable | Typical solution |
+|------------------|-------------------------------|------------------|
+| TCP client | Client local IP | Move client VIP source -> destination |
+| TCP server | Server service IP | Move server VIP, use proxy/LB, or NAT |
+| Listening socket bound to `0.0.0.0` | No specific bind IP | Usually easier |
+| Listening socket bound to specific IP | Bound IP | Preserve/move that IP or edit images carefully |
+| In-flight, not-yet-accepted connection | Pending state | `--skip-in-flight` may be usable |
 
-The only robust solutions for live TCP migration are at the network layer:
+## Repo Checks
 
-- **Proxy/Relay (Recommended):** Place a proxy or load balancer in front of the service. The client connects to the proxy (VIP), which forwards traffic to the backend. After migration, the proxy updates its routing to point to the new backend.
-- **NAT/IP Rewriting:** Use NAT to rewrite outgoing packets so they appear to come from the old IP. This is complex and fragile compared to a VIP/proxy.
+Before migration:
 
-## Summary Table: Socket Migration with CRIU
+```bash
+multipass exec edge-node-1 -- ip -4 addr | grep 10.22.132.250
+multipass exec edge-node-1 -- ss -tn state established
+```
 
-| Socket State           | Migration Feasible? | Notes                                                                 |
-|----------------------- |--------------------|-----------------------------------------------------------------------|
-| Listening (INADDR_ANY) | Yes                | No IP mismatch; works automatically                                   |
-| Listening (specific IP)| Yes (with edit)    | Must edit image files to update IP                                    |
-| In-Flight Connections  | Yes (skip)         | Use `--skip-in-flight`                                                |
-| Established            | No (w/o VIP/proxy) | Peer will reject packets from new IP; use VIP/proxy for transparency  |
+After migration:
+
+```bash
+multipass exec edge-node-2 -- ip -4 addr | grep 10.22.132.250
+multipass exec edge-node-1 -- ip -4 addr | grep 10.22.132.250 || true
+multipass exec edge-host-1 -- ip neigh | grep 10.22.132.250 || true
+```
 
 ## Further Reading
 

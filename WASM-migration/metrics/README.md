@@ -1,6 +1,7 @@
 # WASM metrics
 
-`migration_metrics.csv` uses the same schema as the CRIU experiments.
+`migration_metrics.csv` keeps the common timing columns used by the CRIU experiments
+and adds WASM/checkpoint precision columns where available.
 
 Primary phase metrics come from:
 

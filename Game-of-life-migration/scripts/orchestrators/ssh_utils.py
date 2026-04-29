@@ -3,7 +3,7 @@ SSH and file transfer utilities for migration experiments.
 
 Supports:
 - direct VM-to-VM SCP
-- classic host-mediated transfers through the laptop
+- classic host-mediated transfers through the host machine
 - relay-node transfers through a third Multipass VM
 """
 
@@ -149,11 +149,14 @@ def transfer_archive_via_host(
     dest_path: str,
     relay_node: Optional[str] = None,
 ) -> bool:
-    """Transfer file source→host→destination using multipass transfer.
+    """Transfer file through either the host machine or a relay VM.
 
-    If relay_node is provided, the file is staged through that VM instead
-    of the local laptop. This keeps "host mode" comparable to a true
-    intermediate hop when running experiments.
+    Without relay_node, this uses `multipass transfer` twice:
+    source VM -> host temp file -> destination VM.
+
+    With relay_node, this uses VM-to-VM `scp` twice:
+    source VM -> relay VM -> destination VM. This keeps "host mode"
+    comparable to a real intermediate hop when running experiments.
 
     Args:
         source_node: Source VM name

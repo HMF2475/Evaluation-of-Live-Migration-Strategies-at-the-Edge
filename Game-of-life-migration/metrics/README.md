@@ -81,7 +81,7 @@ The critical metric is **downtime_ms** (checkpoint_ms + transfer_ms + restore_ms
   - Pre-dumps occur while service is still running (not counted as downtime)
   
 - **Post-Copy:** Minimal offline window (restore is quick, pages fetched on demand)
-  - Implemented as **experimental** CRIU `lazy-pages` (post-copy). Downtime covers dump-init + transfer + restore, while page fetching continues in the background.
+  - Implemented with CRIU `lazy-pages` (post-copy). Downtime covers dump-init + transfer + restore, while page fetching continues in the background.
 
 
 ### Transfer Overhead

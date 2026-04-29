@@ -7,7 +7,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  bash Container/scripts/collect_podman_metrics.sh \
+  bash Container/scripts/orchestrators/collect_podman_metrics.sh \
     --source edge-node-1 \
     --dest edge-node-2 \
     [--container counter] \
@@ -17,10 +17,10 @@ Usage:
     [--csv Container/metrics/migration_metrics.csv]
 
 What it does:
-- Part 4: checkpoint on source
-- Part 5: transfer source -> host -> destination
-- Part 6: restore on destination
-- Part 8: append one metrics row to CSV
+- Checkpoint on source
+- Transfer source -> host -> destination, or source -> destination directly
+- Restore on destination
+- Append one metrics row to CSV
 EOF
 }
 
@@ -155,13 +155,28 @@ fi
 log "Verifying source container exists: ${CONTAINER}"
 if ! multipass exec "$SOURCE" -- sudo podman container exists "$CONTAINER"; then
   echo "Source container not found on ${SOURCE}: ${CONTAINER}" >&2
+  echo "Start it first, for example:" >&2
+  echo "  multipass exec ${SOURCE} -- sudo podman run -d --name ${CONTAINER} --network=none --security-opt apparmor=unconfined busybox:latest sh -c 'i=0; while true; do echo \$i; i=\$((i+1)); sleep 1; done'" >&2
   exit 1
 fi
+
+for node in "$SOURCE" "$DEST"; do
+  if ! multipass exec "$node" -- sudo podman --version >/dev/null 2>&1; then
+    echo "Podman unavailable on ${node}. Run tools/terraform/check_bootstrap.sh first." >&2
+    exit 1
+  fi
+  if ! multipass exec "$node" -- criu --version >/dev/null 2>&1; then
+    echo "CRIU unavailable on ${node}. Run tools/terraform/check_bootstrap.sh first." >&2
+    exit 1
+  fi
+done
 
 LAST_BEFORE="$(last_numeric_from_logs "$SOURCE" "$CONTAINER" 200 || true)"
 EXPECTED_NEXT="NA"
 if [[ "$LAST_BEFORE" =~ ^[0-9]+$ ]]; then
   EXPECTED_NEXT=$(( LAST_BEFORE + 1 ))
+else
+  log "WARNING: could not read a numeric counter before checkpoint; success will remain false unless restored continuity can be proven manually"
 fi
 
 ARCHIVE_NAME="$(basename "$ARCHIVE_PATH")"
@@ -278,8 +293,10 @@ done
 ensure_csv_schema
 TIMESTAMP="$(date --iso-8601=seconds)"
 SUCCESS="false"
-if [[ "$OBSERVED_AFTER" =~ ^[0-9]+$ ]]; then
-  SUCCESS="true"
+if [[ "$EXPECTED_NEXT" =~ ^[0-9]+$ && "$OBSERVED_AFTER" =~ ^[0-9]+$ ]]; then
+  if (( OBSERVED_AFTER >= EXPECTED_NEXT )); then
+    SUCCESS="true"
+  fi
 fi
 NOTES="container=${CONTAINER};transfer_mode=${TRANSFER_MODE};scenario=${LEGACY_SCENARIO:-none};last_before=${LAST_BEFORE};expected_next=${EXPECTED_NEXT};observed_after=${OBSERVED_AFTER}"
 PROFILE_NAME="${PROFILE_NAME:-}"

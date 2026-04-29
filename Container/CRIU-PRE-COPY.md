@@ -45,7 +45,7 @@ python3 Container/scripts/orchestrators/criu_benchmark.py precopy \
   --dest edge-node-2 \
   --transfer-mode host \
   --iterations 2 \
-  --run-id experimental-precopy-001
+  --run-id precopy-smoke-001
 ```
 
 ---

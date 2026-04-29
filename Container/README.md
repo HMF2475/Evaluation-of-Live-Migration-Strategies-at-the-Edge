@@ -1,7 +1,7 @@
-# Container / CRIU Migration Experiments
+# CRIU Migration Experiments
 
 This directory contains the **CRIU-based migration** implementation used in this project:
-- Native (non-container) CRIU migrations: cold, pre-copy, post-copy (lazy-pages, experimental)
+- Native (non-container) CRIU migrations: cold, pre-copy, post-copy (lazy-pages)
 - Podman+CRIU container migration baseline
 - Repeatable benchmarking + metrics collection + plotting
 
@@ -20,14 +20,14 @@ This directory contains the **CRIU-based migration** implementation used in this
   - `Container/CRIU-PRE-COPY.md`
   - `Container/CRIU-POST-COPY.md`
 - `Container/CRIU/` — short reference notes pointing to upstream CRIU docs
-- `Container/PODMAN-MIGRATION.md` — copy/paste Podman+CRIU container migration demo
+- `Container/PODMAN-MIGRATION.md` — Podman+CRIU cold container migration baseline
 
 ## Quick Start (repeatable benchmark batch)
 
-For the exhaustive end-to-end setup (Terraform/MultiPass, node_exporter, plots, all options), use:
+For shared setup, smoke runs, metrics, and plot locations, use:
 - `GUIDE.md`
 
-Once nodes exist and are ready, run a batch (example: 10 runs each strategy/mode, memory-only counter):
+After `bash tools/terraform/check_bootstrap.sh` passes, run a batch (example: 10 runs each strategy/mode, memory-only counter):
 
 ```bash
 python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
@@ -40,4 +40,3 @@ python3 Container/scripts/orchestrators/repeat_benchmarks.py suite \
   --iterations 2 \
   --snapshot-node-metrics
 ```
-
