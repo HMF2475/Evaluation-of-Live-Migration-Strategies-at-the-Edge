@@ -9,9 +9,11 @@ TCP_VIP="${TCP_VIP:-10.22.132.250}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../../.. && pwd)"
 SRC_C="${ROOT_DIR}/Network-live-migration/scripts/workloads/tcp-howto.c"
+SRC_SHA="$(sha256sum "${SRC_C}" | awk '{print $1}')"
 
 REMOTE_SRC="/home/ubuntu/tcp-howto.c"
 REMOTE_BIN="/tmp/tcp-howto"
+REMOTE_SHA="/tmp/tcp-howto.source.sha256"
 
 OUT_PATH="/home/ubuntu/tcp_client.out"
 PID_PATH="/home/ubuntu/tcp_client.pid"
@@ -28,19 +30,26 @@ fi
 echo "[tcp-client] Server endpoint: ${SERVER_IP}:${PORT}"
 echo "[tcp-client] Client VIP: ${TCP_VIP}"
 
-echo "[tcp-client] Transferring tcp-howto.c to ${CLIENT_NODE}..."
-multipass transfer "${SRC_C}" "${CLIENT_NODE}:${REMOTE_SRC}"
+echo "[tcp-client] Ensuring tcp-howto binary on ${CLIENT_NODE}..."
 
-echo "[tcp-client] Compiling on ${CLIENT_NODE}..."
-multipass exec "${CLIENT_NODE}" -- bash -lc "
-  set -euo pipefail
-  if ! command -v gcc >/dev/null 2>&1; then
-    sudo apt-get update -qq
-    sudo apt-get install -y build-essential >/dev/null
-  fi
-  gcc -O2 -Wall -o ${REMOTE_BIN} ${REMOTE_SRC}
-  chmod +x ${REMOTE_BIN}
-"
+if ! multipass exec "${CLIENT_NODE}" -- bash -lc "test -x ${REMOTE_BIN} && test -f ${REMOTE_SHA} && grep -qx '${SRC_SHA}' ${REMOTE_SHA}" >/dev/null 2>&1; then
+  echo "[tcp-client] Transferring tcp-howto.c to ${CLIENT_NODE}..."
+  multipass transfer "${SRC_C}" "${CLIENT_NODE}:${REMOTE_SRC}"
+
+  echo "[tcp-client] Compiling on ${CLIENT_NODE}..."
+  multipass exec "${CLIENT_NODE}" -- bash -lc "
+    set -euo pipefail
+    if ! command -v gcc >/dev/null 2>&1; then
+      sudo apt-get update -qq
+      sudo apt-get install -y build-essential >/dev/null
+    fi
+    gcc -O2 -Wall -o ${REMOTE_BIN} ${REMOTE_SRC}
+    chmod +x ${REMOTE_BIN}
+    echo '${SRC_SHA}' > ${REMOTE_SHA}
+  "
+else
+  echo "[tcp-client] Reusing existing ${REMOTE_BIN} on ${CLIENT_NODE}"
+fi
 
 echo "[tcp-client] Ensuring VIP ${TCP_VIP} is present on ${CLIENT_NODE}..."
 multipass exec "${CLIENT_NODE}" -- bash -lc "

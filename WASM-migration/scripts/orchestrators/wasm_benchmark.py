@@ -13,6 +13,7 @@ Flow:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import platform
 import re
 import shlex
@@ -157,18 +158,50 @@ def validate_local_payload(commands_dir: Path, module_path: Path) -> None:
         raise FileNotFoundError(module_path)
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def remote_payload_matches(
+    node: str, remote_path: Path, sha_path: Path, sha: str
+) -> bool:
+    result = mp_exec(
+        node,
+        f"test -f {q(remote_path)} && test -f {q(sha_path)} && grep -qx {q(sha)} {q(sha_path)}",
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def deploy_payload(node: str, commands_dir: Path, module_path: Path) -> Path:
     remote_bin = REMOTE_BASE / "bin"
     remote_modules = REMOTE_BASE / "modules"
     mp_exec(node, f"mkdir -p {q(remote_bin)} {q(remote_modules)}")
     for binary in ("create_command", "start_command", "migrate_command"):
-        mp_transfer(commands_dir / binary, f"{node}:{remote_bin / binary}")
-    mp_transfer(module_path, f"{node}:{remote_modules / module_path.name}")
+        local_path = commands_dir / binary
+        remote_path = remote_bin / binary
+        sha_path = remote_bin / f"{binary}.sha256"
+        sha = file_sha256(local_path)
+        if not remote_payload_matches(node, remote_path, sha_path, sha):
+            mp_transfer(local_path, f"{node}:{remote_path}")
+            mp_exec(node, f"printf '%s\\n' {q(sha)} > {q(sha_path)}")
+
+    remote_module = remote_modules / module_path.name
+    module_sha_path = remote_modules / f"{module_path.name}.sha256"
+    module_sha = file_sha256(module_path)
+    if not remote_payload_matches(node, remote_module, module_sha_path, module_sha):
+        mp_transfer(module_path, f"{node}:{remote_module}")
+        mp_exec(node, f"printf '%s\\n' {q(module_sha)} > {q(module_sha_path)}")
+
     mp_exec(
         node,
         f"chmod +x {q(remote_bin / 'create_command')} {q(remote_bin / 'start_command')} {q(remote_bin / 'migrate_command')}",
     )
-    return remote_modules / module_path.name
+    return remote_module
 
 
 def cleanup_run(node: str, run_dir: Path) -> None:

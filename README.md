@@ -129,9 +129,23 @@ To sweep multiple network conditions (bandwidth/latency/loss) and run the main s
 python3 run_all.py
 ```
 
+Override the number of host-mode and direct-mode runs without editing `benchmarks.json`:
+
+```bash
+python3 run_all.py --runs 10
+```
+
 This uses:
 - `network_profiles.json` (profiles)
 - `benchmarks.json` (suite registry)
+
+To avoid plotting during each suite and generate profile-specific plots at the end:
+
+```bash
+python3 run_all.py --defer-suite-plots
+```
+
+Deferred plots use each suite's generated `.run_ids.txt` file and `--profile-name`, so plots match the corresponding network profile even when CSV files contain previous runs.
 
 See `GUIDE.md` for details and options.
 

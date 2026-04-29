@@ -5,7 +5,9 @@ This is the top-level experiment driver:
 2. apply tc/netem shaping between Multipass VMs;
 3. run each command from `benchmarks.json`;
 4. keep one run_all session log plus one log per benchmark command;
-5. always remove traffic-control rules at the end.
+5. optionally override host/direct repeat counts for all suites;
+6. optionally defer plot generation until all suites finish;
+7. always remove traffic-control rules at the end.
 """
 
 import json
@@ -15,17 +17,38 @@ import sys
 import argparse
 import csv
 import datetime as _dt
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 import re
 import shlex
 
 # Configuration
 CONFIG_FILE = "network_profiles.json"
+REPO_ROOT = Path(__file__).resolve().parent
 NODES = ["edge-node-1", "edge-node-2", "edge-host-1"]
 COOLDOWN_SECONDS = 60  # Time to let the system rest and flush buffers between runs
 BENCHMARKS_FILE = "benchmarks.json"
 
 _LOG_FILE = None
+
+
+@dataclass
+class PlotConfig:
+    csv_path: Path
+    run_logs_dir: Path
+    plots_dir: Path
+    node_metrics_dir: Path
+    script_path: Path
+
+
+@dataclass
+class DeferredPlotJob:
+    profile_name: str
+    benchmark_name: str
+    run_ids_file: Path
+    out_dir: Path
+    config: PlotConfig
 
 
 def log(msg=""):
@@ -42,6 +65,7 @@ def _slugify(value: str) -> str:
     return value or "unnamed"
 
 
+@lru_cache(maxsize=None)
 def _cmd_supports_flag(cmd: str, flag: str) -> bool:
     """
     Best-effort detection for whether a `python3 some_script.py ...` command supports a flag.
@@ -115,6 +139,144 @@ def _maybe_inject_continue_on_failure(cmd: str, enabled: bool) -> str:
     if not _cmd_supports_flag(cmd, "--continue-on-failure"):
         return cmd
     return f"{cmd} --continue-on-failure"
+
+
+def _inject_no_plots_for_deferred_generation(cmd: str, enabled: bool) -> str:
+    if not enabled:
+        return cmd
+    if "--no-plots" in cmd:
+        return cmd
+    if not _cmd_supports_flag(cmd, "--no-plots"):
+        return cmd
+    return f"{cmd} --no-plots"
+
+
+def _replace_or_append_flag(tokens: list[str], flag: str, value: str) -> bool:
+    for i, token in enumerate(tokens):
+        if token == flag:
+            if i + 1 < len(tokens):
+                tokens[i + 1] = value
+            else:
+                tokens.append(value)
+            return True
+        if token.startswith(f"{flag}="):
+            tokens[i] = f"{flag}={value}"
+            return True
+    return False
+
+
+def _override_suite_run_counts(cmd: str, runs: int | None) -> str:
+    if runs is None:
+        return cmd
+    try:
+        tokens = shlex.split(cmd)
+    except ValueError:
+        return cmd
+
+    runs_value = str(runs)
+    for flag in ("--host-runs", "--direct-runs"):
+        if not _cmd_supports_flag(cmd, flag):
+            continue
+        if not _replace_or_append_flag(tokens, flag, runs_value):
+            tokens.extend([flag, runs_value])
+    return shlex.join(tokens)
+
+
+def _plot_config_for_command(cmd: str) -> PlotConfig | None:
+    """Return plot paths for known benchmark suite commands."""
+    try:
+        tokens = shlex.split(cmd)
+    except ValueError:
+        return None
+    joined = " ".join(tokens)
+
+    if "Container/scripts/orchestrators/repeat_benchmarks.py" in joined:
+        base = REPO_ROOT / "Container"
+    elif "Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py" in joined:
+        base = REPO_ROOT / "Game-of-life-migration"
+    elif (
+        "Network-live-migration/scripts/orchestrators/repeat_tcp_client_benchmarks.py"
+        in joined
+    ):
+        base = REPO_ROOT / "Network-live-migration"
+    elif "WASM-migration/scripts/orchestrators/repeat_wasm_benchmarks.py" in joined:
+        base = REPO_ROOT / "WASM-migration"
+    else:
+        return None
+
+    return PlotConfig(
+        csv_path=base / "metrics" / "migration_metrics.csv",
+        run_logs_dir=base / "metrics" / "run_logs",
+        plots_dir=base / "metrics" / "plots",
+        node_metrics_dir=base / "metrics" / "node_exporter",
+        script_path=base / "scripts" / "visualization" / "generate_all_plots.py",
+    )
+
+
+def _list_run_id_files(config: PlotConfig | None) -> set[Path]:
+    if config is None or not config.run_logs_dir.exists():
+        return set()
+    return set(config.run_logs_dir.glob("*.run_ids.txt"))
+
+
+def _new_run_id_file(before: set[Path], config: PlotConfig | None) -> Path | None:
+    if config is None:
+        return None
+    after = _list_run_id_files(config)
+    new_files = [path for path in after - before if path.exists()]
+    if not new_files:
+        return None
+    new_files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    return new_files[0]
+
+
+def _run_ids_file_has_content(path: Path | None) -> bool:
+    if path is None or not path.exists():
+        return False
+    try:
+        return bool(path.read_text(encoding="utf-8").strip())
+    except Exception:
+        return False
+
+
+def run_deferred_plot_jobs(jobs: list[DeferredPlotJob]) -> int:
+    """Generate plots after all benchmark suites finish."""
+    if not jobs:
+        return 0
+
+    rc = 0
+    log(f"\n[PLOTS] Generating {len(jobs)} deferred plot set(s)...")
+    for job in jobs:
+        job.out_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            "python3",
+            str(job.config.script_path),
+            "--csv",
+            str(job.config.csv_path),
+            "--run-ids-file",
+            str(job.run_ids_file),
+            "--out-dir",
+            str(job.out_dir),
+            "--node-metrics-dir",
+            str(job.config.node_metrics_dir),
+            "--profile-name",
+            job.profile_name,
+        ]
+        log(
+            f"[PLOTS] {job.benchmark_name} | Profile={job.profile_name}\n"
+            f"        run_ids={job.run_ids_file}\n"
+            f"        out_dir={job.out_dir}"
+        )
+        result = subprocess.run(cmd, text=True, capture_output=True)
+        if result.stdout:
+            log(result.stdout.rstrip())
+        if result.returncode != 0:
+            rc = result.returncode if rc == 0 else rc
+            log(
+                f"[PLOTS] ERROR: plot generation failed for {job.benchmark_name} "
+                f"({job.profile_name}) with code {result.returncode}\n{result.stderr}"
+            )
+    return rc
 
 
 def run_cmd(cmd, check=True):
@@ -222,18 +384,18 @@ def execute_benchmarks_with_artifacts(
     *,
     profile_name: str,
     profile_cfg: dict,
+    benchmarks: list[dict],
+    runs: int | None,
     cooldown_seconds: int,
     continue_on_failure: bool,
+    defer_suite_plots: bool,
+    deferred_plot_jobs: list[DeferredPlotJob],
     session_id: str,
     logs_dir: Path,
     timings_writer: csv.DictWriter,
     timings_csv,
 ):
     """Run benchmarks for one profile, writing per-benchmark logs + timing CSV rows."""
-    benchmarks = load_benchmarks()
-    if not benchmarks:
-        return 1
-
     bw = profile_cfg.get("bandwidth_mbps")
     lat = profile_cfg.get("latency_ms")
     loss = profile_cfg.get("packet_loss_percent")
@@ -245,7 +407,11 @@ def execute_benchmarks_with_artifacts(
         # Each benchmark command owns its internal repeats. run_all only injects
         # profile name, captures stdout/stderr, and records total wall time.
         cmd = raw_cmd.format(profile_name=profile_name)
+        cmd = _override_suite_run_counts(cmd, runs)
         cmd = _maybe_inject_continue_on_failure(cmd, continue_on_failure)
+        cmd = _inject_no_plots_for_deferred_generation(cmd, defer_suite_plots)
+        plot_config = _plot_config_for_command(cmd)
+        run_id_files_before = _list_run_id_files(plot_config)
 
         bench_log_path = logs_dir / (
             f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}.log"
@@ -319,6 +485,27 @@ def execute_benchmarks_with_artifacts(
             f"[TIMING] {bench_name} | Profile={profile_name} | {duration_seconds}s | exit={exit_code}"
         )
 
+        if defer_suite_plots and plot_config is not None:
+            run_ids_file = _new_run_id_file(run_id_files_before, plot_config)
+            if _run_ids_file_has_content(run_ids_file):
+                out_dir = plot_config.plots_dir / (
+                    f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}"
+                )
+                deferred_plot_jobs.append(
+                    DeferredPlotJob(
+                        profile_name=profile_name,
+                        benchmark_name=bench_name,
+                        run_ids_file=run_ids_file,
+                        out_dir=out_dir,
+                        config=plot_config,
+                    )
+                )
+            else:
+                log(
+                    f"[PLOTS] WARNING: no run_ids file discovered for deferred plots: "
+                    f"{bench_name} | Profile={profile_name}"
+                )
+
         if exit_code != 0:
             if rc == 0:
                 rc = exit_code
@@ -349,6 +536,12 @@ def main():
         help="Cooldown between suites/profiles (default: 60).",
     )
     parser.add_argument(
+        "--runs",
+        type=int,
+        default=None,
+        help="Override both --host-runs and --direct-runs for every suite command.",
+    )
+    parser.add_argument(
         "--continue-on-failure",
         action="store_true",
         help="Continue to the next benchmark/profile even if one fails.",
@@ -358,7 +551,14 @@ def main():
         default="run_all_artifacts",
         help="Directory to write run_all logs + CSV timing summary (default: run_all_artifacts).",
     )
+    parser.add_argument(
+        "--defer-suite-plots",
+        action="store_true",
+        help="Run suites with --no-plots, then generate profile-specific plots at the end from each suite's run_ids file.",
+    )
     args = parser.parse_args()
+    if args.runs is not None and args.runs < 1:
+        parser.error("--runs must be >= 1")
     cooldown_seconds = int(args.cooldown_seconds)
 
     out_dir = Path(args.out_dir)
@@ -404,6 +604,12 @@ def main():
     log(f"[ARTIFACTS] Bench logs : {logs_dir}/")
 
     try:
+        benchmarks = load_benchmarks()
+        if not benchmarks:
+            return 1
+
+        deferred_plot_jobs: list[DeferredPlotJob] = []
+
         with open(CONFIG_FILE, "r") as f:
             profiles = json.load(f)
 
@@ -441,8 +647,12 @@ def main():
                 rc = execute_benchmarks_with_artifacts(
                     profile_name=p_name,
                     profile_cfg=profile,
+                    benchmarks=benchmarks,
+                    runs=args.runs,
                     cooldown_seconds=cooldown_seconds,
                     continue_on_failure=args.continue_on_failure,
+                    defer_suite_plots=args.defer_suite_plots,
+                    deferred_plot_jobs=deferred_plot_jobs,
                     session_id=session_id,
                     logs_dir=logs_dir,
                     timings_writer=timings_writer,
@@ -464,6 +674,11 @@ def main():
             for node in NODES:
                 clear_all_tc_rules(node)
             log("Done.")
+
+        if args.defer_suite_plots:
+            plot_rc = run_deferred_plot_jobs(deferred_plot_jobs)
+            if plot_rc != 0 and not args.continue_on_failure:
+                sys.exit(plot_rc)
     finally:
         try:
             timings_csv.close()

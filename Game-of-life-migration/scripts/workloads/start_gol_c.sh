@@ -12,18 +12,26 @@ NODE="${1:-edge-node-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Correct path to gol.c in simplest-example
 COUNTER_C="$SCRIPT_DIR/../../simplest-example/gol.c"
+GOL_SHA="$(sha256sum "$COUNTER_C" | awk '{print $1}')"
 
-echo "[$(date +'%H:%M:%S')] Transferring gol.c to $NODE..."
+echo "[$(date +'%H:%M:%S')] Ensuring gol binary on $NODE..."
 
-multipass transfer "$COUNTER_C" "$NODE:/home/ubuntu/gol.c"
+if ! multipass exec "$NODE" -- bash -lc "test -x /tmp/gol && test -f /tmp/gol.source.sha256 && grep -qx '$GOL_SHA' /tmp/gol.source.sha256" >/dev/null 2>&1; then
+  echo "[$(date +'%H:%M:%S')] Transferring gol.c to $NODE..."
 
-echo "[$(date +'%H:%M:%S')] Compiling gol.c on $NODE..."
+  multipass transfer "$COUNTER_C" "$NODE:/home/ubuntu/gol.c"
 
-multipass exec "$NODE" -- bash -lc "
-set -e
-gcc -o /tmp/gol /home/ubuntu/gol.c
-chmod +x /tmp/gol
-"
+  echo "[$(date +'%H:%M:%S')] Compiling gol.c on $NODE..."
+
+  multipass exec "$NODE" -- bash -lc "
+  set -e
+  gcc -o /tmp/gol /home/ubuntu/gol.c
+  chmod +x /tmp/gol
+  echo '$GOL_SHA' > /tmp/gol.source.sha256
+  "
+else
+  echo "[$(date +'%H:%M:%S')] Reusing existing /tmp/gol on $NODE"
+fi
 
 echo "[$(date +'%H:%M:%S')] Starting gol on $NODE..."
 

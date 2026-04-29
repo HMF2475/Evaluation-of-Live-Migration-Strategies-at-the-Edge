@@ -16,6 +16,7 @@ import time
 import json
 import csv
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
@@ -96,6 +97,31 @@ def snapshot_node_exporter(
             )
         )
     return True
+
+
+def snapshot_node_exporter_batch(
+    requests: list[tuple[str, Path, Path, str]],
+) -> list[tuple[str, str, bool]]:
+    """Capture node_exporter snapshots concurrently."""
+    if not requests:
+        return []
+    results: list[tuple[str, str, bool]] = []
+    with ThreadPoolExecutor(max_workers=len(requests)) as pool:
+        futures = {
+            pool.submit(snapshot_node_exporter, node, out_path, meta_path): (
+                node,
+                phase,
+            )
+            for node, out_path, meta_path, phase in requests
+        }
+        for future in as_completed(futures):
+            node, phase = futures[future]
+            try:
+                ok = bool(future.result())
+            except Exception:
+                ok = False
+            results.append((node, phase, ok))
+    return results
 
 
 def iter_runs(host_runs: int, direct_runs: int) -> Iterable[tuple[str, int]]:
@@ -233,29 +259,28 @@ def run_strategy(
             time.sleep(warmup_seconds)
 
         if snapshot_node_metrics:
-            ok = snapshot_node_exporter(
-                source,
-                metrics_dir / run_id / f"{source}-before.prom",
-                metrics_dir / run_id / f"{source}-before.json",
-            )
-            if not ok:
-                print(f"WARNING: node_exporter snapshot failed: {source} (before)")
-                log_file.write(
-                    f"[repeat] WARNING: node_exporter snapshot failed: {source} (before)\n"
-                )
-                log_file.flush()
-
-            ok = snapshot_node_exporter(
-                dest,
-                metrics_dir / run_id / f"{dest}-before.prom",
-                metrics_dir / run_id / f"{dest}-before.json",
-            )
-            if not ok:
-                print(f"WARNING: node_exporter snapshot failed: {dest} (before)")
-                log_file.write(
-                    f"[repeat] WARNING: node_exporter snapshot failed: {dest} (before)\n"
-                )
-                log_file.flush()
+            for node, phase, ok in snapshot_node_exporter_batch(
+                [
+                    (
+                        source,
+                        metrics_dir / run_id / f"{source}-before.prom",
+                        metrics_dir / run_id / f"{source}-before.json",
+                        "before",
+                    ),
+                    (
+                        dest,
+                        metrics_dir / run_id / f"{dest}-before.prom",
+                        metrics_dir / run_id / f"{dest}-before.json",
+                        "before",
+                    ),
+                ]
+            ):
+                if not ok:
+                    print(f"WARNING: node_exporter snapshot failed: {node} ({phase})")
+                    log_file.write(
+                        f"[repeat] WARNING: node_exporter snapshot failed: {node} ({phase})\n"
+                    )
+                    log_file.flush()
 
         cmd = [
             "python3",
@@ -292,29 +317,28 @@ def run_strategy(
             continue
 
         if snapshot_node_metrics:
-            ok = snapshot_node_exporter(
-                source,
-                metrics_dir / run_id / f"{source}-after.prom",
-                metrics_dir / run_id / f"{source}-after.json",
-            )
-            if not ok:
-                print(f"WARNING: node_exporter snapshot failed: {source} (after)")
-                log_file.write(
-                    f"[repeat] WARNING: node_exporter snapshot failed: {source} (after)\n"
-                )
-                log_file.flush()
-
-            ok = snapshot_node_exporter(
-                dest,
-                metrics_dir / run_id / f"{dest}-after.prom",
-                metrics_dir / run_id / f"{dest}-after.json",
-            )
-            if not ok:
-                print(f"WARNING: node_exporter snapshot failed: {dest} (after)")
-                log_file.write(
-                    f"[repeat] WARNING: node_exporter snapshot failed: {dest} (after)\n"
-                )
-                log_file.flush()
+            for node, phase, ok in snapshot_node_exporter_batch(
+                [
+                    (
+                        source,
+                        metrics_dir / run_id / f"{source}-after.prom",
+                        metrics_dir / run_id / f"{source}-after.json",
+                        "after",
+                    ),
+                    (
+                        dest,
+                        metrics_dir / run_id / f"{dest}-after.prom",
+                        metrics_dir / run_id / f"{dest}-after.json",
+                        "after",
+                    ),
+                ]
+            ):
+                if not ok:
+                    print(f"WARNING: node_exporter snapshot failed: {node} ({phase})")
+                    log_file.write(
+                        f"[repeat] WARNING: node_exporter snapshot failed: {node} ({phase})\n"
+                    )
+                    log_file.flush()
 
             saved = append_node_exporter_row(
                 node_csv,

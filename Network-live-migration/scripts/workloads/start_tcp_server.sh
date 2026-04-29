@@ -6,25 +6,34 @@ PORT="${2:-5000}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../../.. && pwd)"
 SRC_C="${ROOT_DIR}/Network-live-migration/scripts/workloads/tcp-howto.c"
+SRC_SHA="$(sha256sum "${SRC_C}" | awk '{print $1}')"
 
 REMOTE_SRC="/home/ubuntu/tcp-howto.c"
 REMOTE_BIN="/tmp/tcp-howto"
+REMOTE_SHA="/tmp/tcp-howto.source.sha256"
 OUT_PATH="/home/ubuntu/tcp_server.out"
 PID_PATH="/home/ubuntu/tcp_server.pid"
 
-echo "[tcp-server] Transferring tcp-howto.c to ${SERVER_NODE}..."
-multipass transfer "${SRC_C}" "${SERVER_NODE}:${REMOTE_SRC}"
+echo "[tcp-server] Ensuring tcp-howto binary on ${SERVER_NODE}..."
 
-echo "[tcp-server] Compiling on ${SERVER_NODE}..."
-multipass exec "${SERVER_NODE}" -- bash -lc "
-  set -euo pipefail
-  if ! command -v gcc >/dev/null 2>&1; then
-    sudo apt-get update -qq
-    sudo apt-get install -y build-essential >/dev/null
-  fi
-  gcc -O2 -Wall -o ${REMOTE_BIN} ${REMOTE_SRC}
-  chmod +x ${REMOTE_BIN}
-"
+if ! multipass exec "${SERVER_NODE}" -- bash -lc "test -x ${REMOTE_BIN} && test -f ${REMOTE_SHA} && grep -qx '${SRC_SHA}' ${REMOTE_SHA}" >/dev/null 2>&1; then
+  echo "[tcp-server] Transferring tcp-howto.c to ${SERVER_NODE}..."
+  multipass transfer "${SRC_C}" "${SERVER_NODE}:${REMOTE_SRC}"
+
+  echo "[tcp-server] Compiling on ${SERVER_NODE}..."
+  multipass exec "${SERVER_NODE}" -- bash -lc "
+    set -euo pipefail
+    if ! command -v gcc >/dev/null 2>&1; then
+      sudo apt-get update -qq
+      sudo apt-get install -y build-essential >/dev/null
+    fi
+    gcc -O2 -Wall -o ${REMOTE_BIN} ${REMOTE_SRC}
+    chmod +x ${REMOTE_BIN}
+    echo '${SRC_SHA}' > ${REMOTE_SHA}
+  "
+else
+  echo "[tcp-server] Reusing existing ${REMOTE_BIN} on ${SERVER_NODE}"
+fi
 
 echo "[tcp-server] Starting on ${SERVER_NODE} (port ${PORT})..."
 multipass exec "${SERVER_NODE}" -- bash -lc "

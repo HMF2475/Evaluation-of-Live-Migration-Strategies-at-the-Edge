@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
@@ -102,6 +103,31 @@ def snapshot_node_exporter(
             encoding="utf-8",
         )
     return True
+
+
+def snapshot_node_exporter_batch(
+    requests: list[tuple[str, Path, Path, str]],
+) -> list[tuple[str, str, bool]]:
+    """Capture node_exporter snapshots concurrently."""
+    if not requests:
+        return []
+    results: list[tuple[str, str, bool]] = []
+    with ThreadPoolExecutor(max_workers=len(requests)) as pool:
+        futures = {
+            pool.submit(snapshot_node_exporter, node, out_path, meta_path): (
+                node,
+                phase,
+            )
+            for node, out_path, meta_path, phase in requests
+        }
+        for future in as_completed(futures):
+            node, phase = futures[future]
+            try:
+                ok = bool(future.result())
+            except Exception:
+                ok = False
+            results.append((node, phase, ok))
+    return results
 
 
 def iter_runs(host_runs: int, direct_runs: int) -> Iterable[tuple[str, int]]:
@@ -192,12 +218,16 @@ def run_repeats(
         if snapshot_node_metrics:
             # Before/after snapshots let visualization summarize CPU, memory,
             # and disk IO around the whole migration window.
-            for node, suffix in ((source, "before"), (dest, "before")):
-                ok = snapshot_node_exporter(
+            before_requests = [
+                (
                     node,
-                    metrics_dir / run_id / f"{node}-{suffix}.prom",
-                    metrics_dir / run_id / f"{node}-{suffix}.json",
+                    metrics_dir / run_id / f"{node}-before.prom",
+                    metrics_dir / run_id / f"{node}-before.json",
+                    "before",
                 )
+                for node in (source, dest)
+            ]
+            for node, suffix, ok in snapshot_node_exporter_batch(before_requests):
                 if not ok:
                     print(f"WARNING: node_exporter snapshot failed: {node} ({suffix})")
 
@@ -239,12 +269,16 @@ def run_repeats(
                 return rc
 
         if snapshot_node_metrics:
-            for node, suffix in ((source, "after"), (dest, "after")):
-                ok = snapshot_node_exporter(
+            after_requests = [
+                (
                     node,
-                    metrics_dir / run_id / f"{node}-{suffix}.prom",
-                    metrics_dir / run_id / f"{node}-{suffix}.json",
+                    metrics_dir / run_id / f"{node}-after.prom",
+                    metrics_dir / run_id / f"{node}-after.json",
+                    "after",
                 )
+                for node in (source, dest)
+            ]
+            for node, suffix, ok in snapshot_node_exporter_batch(after_requests):
                 if not ok:
                     print(f"WARNING: node_exporter snapshot failed: {node} ({suffix})")
 

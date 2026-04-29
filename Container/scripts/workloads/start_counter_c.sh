@@ -11,18 +11,26 @@ set -euo pipefail
 NODE="${1:-edge-node-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COUNTER_C="$SCRIPT_DIR/../counter.c"
+COUNTER_SHA="$(sha256sum "$COUNTER_C" | awk '{print $1}')"
 
-echo "[$(date +'%H:%M:%S')] Transferring counter.c to $NODE..."
+echo "[$(date +'%H:%M:%S')] Ensuring counter binary on $NODE..."
 
-multipass transfer "$COUNTER_C" "$NODE:/home/ubuntu/counter.c"
+if ! multipass exec "$NODE" -- bash -lc "test -x /tmp/counter && test -f /tmp/counter.source.sha256 && grep -qx '$COUNTER_SHA' /tmp/counter.source.sha256" >/dev/null 2>&1; then
+  echo "[$(date +'%H:%M:%S')] Transferring counter.c to $NODE..."
 
-echo "[$(date +'%H:%M:%S')] Compiling counter.c on $NODE..."
+  multipass transfer "$COUNTER_C" "$NODE:/home/ubuntu/counter.c"
 
-multipass exec "$NODE" -- bash -lc "
-set -e
-gcc -o /tmp/counter /home/ubuntu/counter.c
-chmod +x /tmp/counter
-"
+  echo "[$(date +'%H:%M:%S')] Compiling counter.c on $NODE..."
+
+  multipass exec "$NODE" -- bash -lc "
+  set -e
+  gcc -o /tmp/counter /home/ubuntu/counter.c
+  chmod +x /tmp/counter
+  echo '$COUNTER_SHA' > /tmp/counter.source.sha256
+  "
+else
+  echo "[$(date +'%H:%M:%S')] Reusing existing /tmp/counter on $NODE"
+fi
 
 echo "[$(date +'%H:%M:%S')] Starting counter on $NODE..."
 

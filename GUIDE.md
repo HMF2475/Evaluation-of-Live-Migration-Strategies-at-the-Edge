@@ -372,15 +372,21 @@ python3 run_all.py
 Useful options:
 
 ```bash
-python3 run_all.py --profiles 1_TEE_Best,2_TEE_Avg
+python3 run_all.py --profiles 5_TEE_Best,6_TEE_Avg
+python3 run_all.py --runs 10
 python3 run_all.py --continue-on-failure
 python3 run_all.py --cooldown-seconds 20
+python3 run_all.py --defer-suite-plots
 ```
 
 Notes:
 - `run_all.py` applies `tc` rules on default VM interfaces.
 - Rules target VM-to-VM traffic, so host-to-VM control traffic stays responsive.
 - Suite commands receive `--profile-name`, saved in CSV.
+- `--runs N` overrides both `--host-runs` and `--direct-runs` for every suite, so `benchmarks.json` does not need edits when changing repeat count.
+- By default, each suite generates its own plots before returning to `run_all.py`.
+- With `--defer-suite-plots`, `run_all.py` adds `--no-plots` to suite commands, records the `.run_ids.txt` file created by each suite/profile, and generates plots after all benchmarks finish.
+- Deferred plots are still profile-correct: each plot command uses the exact run-id list plus `--profile-name`, even when module CSV files contain older runs from other profiles.
 
 ## 8) Troubleshooting Map
 

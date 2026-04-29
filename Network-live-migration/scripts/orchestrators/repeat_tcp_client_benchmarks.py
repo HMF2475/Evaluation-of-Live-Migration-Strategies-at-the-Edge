@@ -21,6 +21,7 @@ import sys
 import time
 import csv
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
@@ -99,6 +100,31 @@ def snapshot_node_exporter(node: str, out_path: Path, meta_path: Path) -> bool:
         encoding="utf-8",
     )
     return True
+
+
+def snapshot_node_exporter_batch(
+    requests: list[tuple[str, Path, Path, str]],
+) -> list[tuple[str, str, bool]]:
+    """Capture node_exporter snapshots concurrently."""
+    if not requests:
+        return []
+    results: list[tuple[str, str, bool]] = []
+    with ThreadPoolExecutor(max_workers=len(requests)) as pool:
+        futures = {
+            pool.submit(snapshot_node_exporter, node, out_path, meta_path): (
+                node,
+                phase,
+            )
+            for node, out_path, meta_path, phase in requests
+        }
+        for future in as_completed(futures):
+            node, phase = futures[future]
+            try:
+                ok = bool(future.result())
+            except Exception:
+                ok = False
+            results.append((node, phase, ok))
+    return results
 
 
 def iter_runs(host_runs: int, direct_runs: int) -> Iterable[tuple[str, int]]:
@@ -338,15 +364,21 @@ def main() -> int:
 
                 # node_exporter snapshots (source/dest/server)
                 if args.snapshot_node_metrics:
-                    for node in (args.source, args.dest, args.server):
-                        ok = snapshot_node_exporter(
+                    before_requests = [
+                        (
                             node,
                             node_snap_dir / run_id / f"{node}-before.prom",
                             node_snap_dir / run_id / f"{node}-before.json",
+                            "before",
                         )
+                        for node in (args.source, args.dest, args.server)
+                    ]
+                    for node, phase, ok in snapshot_node_exporter_batch(
+                        before_requests
+                    ):
                         if not ok:
                             print(
-                                f"WARNING: node_exporter snapshot failed: {node} (before)"
+                                f"WARNING: node_exporter snapshot failed: {node} ({phase})"
                             )
 
                 cmd = [
@@ -383,15 +415,19 @@ def main() -> int:
                     continue
 
                 if args.snapshot_node_metrics:
-                    for node in (args.source, args.dest, args.server):
-                        ok = snapshot_node_exporter(
+                    after_requests = [
+                        (
                             node,
                             node_snap_dir / run_id / f"{node}-after.prom",
                             node_snap_dir / run_id / f"{node}-after.json",
+                            "after",
                         )
+                        for node in (args.source, args.dest, args.server)
+                    ]
+                    for node, phase, ok in snapshot_node_exporter_batch(after_requests):
                         if not ok:
                             print(
-                                f"WARNING: node_exporter snapshot failed: {node} (after)"
+                                f"WARNING: node_exporter snapshot failed: {node} ({phase})"
                             )
 
                     # Append CSV row (only source/dest for compatibility with existing node_exporter_metrics)
