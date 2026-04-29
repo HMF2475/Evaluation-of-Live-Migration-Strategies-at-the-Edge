@@ -26,6 +26,8 @@ try:
 except ImportError:
     from node_exporter_metrics import append_node_exporter_row
 
+NODE_EXPORTER_SNAPSHOT_TIMEOUT_SECONDS = 10
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
@@ -67,10 +69,11 @@ def snapshot_node_exporter(
             "--",
             "bash",
             "-lc",
-            "curl -fsS http://127.0.0.1:9100/metrics",
+            "curl --max-time 5 -fsS http://127.0.0.1:9100/metrics",
         ],
         capture_output=True,
         text=True,
+        timeout=NODE_EXPORTER_SNAPSHOT_TIMEOUT_SECONDS,
     )
     if result.returncode != 0:
         return False
