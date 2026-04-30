@@ -22,6 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 import re
 import shlex
+from typing import Callable
 
 # Configuration
 CONFIG_FILE = "network_profiles.json"
@@ -46,7 +47,7 @@ class PlotConfig:
 class DeferredPlotJob:
     profile_name: str
     benchmark_name: str
-    run_ids_file: Path
+    run_ids_files: list[Path]
     out_dir: Path
     config: PlotConfig
 
@@ -239,6 +240,77 @@ def _run_ids_file_has_content(path: Path | None) -> bool:
         return False
 
 
+def _run_chunks(
+    runs: int | None, chunk_size: int | None
+) -> list[tuple[int, int, int | None]]:
+    if runs is None or chunk_size is None or chunk_size >= runs:
+        return [(1, 1, runs)]
+
+    chunks: list[tuple[int, int, int | None]] = []
+    remaining = runs
+    while remaining > 0:
+        chunks.append((len(chunks) + 1, 0, min(chunk_size, remaining)))
+        remaining -= chunk_size
+
+    total = len(chunks)
+    return [(idx, total, chunk_runs) for idx, _, chunk_runs in chunks]
+
+
+def _add_deferred_plot_job(
+    jobs: list[DeferredPlotJob],
+    *,
+    profile_name: str,
+    benchmark_name: str,
+    run_ids_file: Path,
+    out_dir: Path,
+    config: PlotConfig,
+) -> None:
+    for job in jobs:
+        if (
+            job.profile_name == profile_name
+            and job.benchmark_name == benchmark_name
+            and job.out_dir == out_dir
+            and job.config == config
+        ):
+            if run_ids_file not in job.run_ids_files:
+                job.run_ids_files.append(run_ids_file)
+            return
+
+    jobs.append(
+        DeferredPlotJob(
+            profile_name=profile_name,
+            benchmark_name=benchmark_name,
+            run_ids_files=[run_ids_file],
+            out_dir=out_dir,
+            config=config,
+        )
+    )
+
+
+def _combined_run_ids_file(job: DeferredPlotJob) -> Path:
+    if len(job.run_ids_files) == 1:
+        return job.run_ids_files[0]
+
+    combined = job.out_dir / "combined.run_ids.txt"
+    seen: set[str] = set()
+    run_ids: list[str] = []
+    for path in job.run_ids_files:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            continue
+        for line in lines:
+            run_id = line.strip()
+            if run_id and run_id not in seen:
+                seen.add(run_id)
+                run_ids.append(run_id)
+
+    combined.write_text(
+        "\n".join(run_ids) + ("\n" if run_ids else ""), encoding="utf-8"
+    )
+    return combined
+
+
 def run_deferred_plot_jobs(jobs: list[DeferredPlotJob]) -> int:
     """Generate plots after all benchmark suites finish."""
     if not jobs:
@@ -248,13 +320,14 @@ def run_deferred_plot_jobs(jobs: list[DeferredPlotJob]) -> int:
     log(f"\n[PLOTS] Generating {len(jobs)} deferred plot set(s)...")
     for job in jobs:
         job.out_dir.mkdir(parents=True, exist_ok=True)
+        run_ids_file = _combined_run_ids_file(job)
         cmd = [
             "python3",
             str(job.config.script_path),
             "--csv",
             str(job.config.csv_path),
             "--run-ids-file",
-            str(job.run_ids_file),
+            str(run_ids_file),
             "--out-dir",
             str(job.out_dir),
             "--node-metrics-dir",
@@ -264,7 +337,7 @@ def run_deferred_plot_jobs(jobs: list[DeferredPlotJob]) -> int:
         ]
         log(
             f"[PLOTS] {job.benchmark_name} | Profile={job.profile_name}\n"
-            f"        run_ids={job.run_ids_file}\n"
+            f"        run_ids={run_ids_file}\n"
             f"        out_dir={job.out_dir}"
         )
         result = subprocess.run(cmd, text=True, capture_output=True)
@@ -335,6 +408,44 @@ def clear_all_tc_rules(node_name):
     )
 
 
+def restart_multipass_nodes(nodes: list[str]) -> int:
+    """Restart benchmark VMs to release leaked/cached memory between chunks."""
+    log(f"\n[MULTIPASS] Restarting nodes: {', '.join(nodes)}")
+    result = subprocess.run(
+        ["multipass", "restart", *nodes],
+        text=True,
+        capture_output=True,
+    )
+    if result.stdout:
+        log(result.stdout.rstrip())
+    if result.stderr:
+        log(result.stderr.rstrip())
+    if result.returncode != 0:
+        log(f"[ERROR] multipass restart failed with code {result.returncode}")
+        return result.returncode
+    return 0
+
+
+def discover_nodes() -> tuple[dict[str, str], dict[str, str]]:
+    interfaces = {node: get_primary_interface(node) for node in NODES}
+    ips = {node: get_node_ip(node) for node in NODES}
+    log("\n[INFO] Nodes:")
+    for node in NODES:
+        log(f"  - {node}: ip={ips[node]} iface={interfaces[node]}")
+    return interfaces, ips
+
+
+def apply_profile_rules(
+    profile: dict, interfaces: dict[str, str], ips: dict[str, str]
+) -> None:
+    bw = profile["bandwidth_mbps"]
+    lat = profile["latency_ms"]
+    loss = profile["packet_loss_percent"]
+    for node in NODES:
+        peer_ips = [ips[n] for n in NODES if n != node]
+        apply_tc_rules(node, interfaces[node], bw, lat, loss, peer_ips)
+
+
 def apply_tc_rules(node_name, interface, bw_mbps, latency_ms, loss_pct, peer_ips):
     """
     Applies bandwidth/latency/loss constraints **only to VM-to-VM traffic**.
@@ -386,9 +497,12 @@ def execute_benchmarks_with_artifacts(
     profile_cfg: dict,
     benchmarks: list[dict],
     runs: int | None,
+    run_chunk_size: int | None,
     cooldown_seconds: int,
     continue_on_failure: bool,
     defer_suite_plots: bool,
+    restart_between_run_chunks: bool,
+    restart_and_reapply_profile: Callable[[], int] | None,
     deferred_plot_jobs: list[DeferredPlotJob],
     session_id: str,
     logs_dir: Path,
@@ -401,121 +515,151 @@ def execute_benchmarks_with_artifacts(
     loss = profile_cfg.get("packet_loss_percent")
 
     rc = 0
+    work_units = sum(len(_run_chunks(runs, run_chunk_size)) for _ in benchmarks)
+    completed_work_units = 0
     for i, bench in enumerate(benchmarks):
         bench_name = bench.get("name", f"Suite {i+1}")
         raw_cmd = bench.get("command", "")
-        # Each benchmark command owns its internal repeats. run_all only injects
-        # profile name, captures stdout/stderr, and records total wall time.
-        cmd = raw_cmd.format(profile_name=profile_name)
-        cmd = _override_suite_run_counts(cmd, runs)
-        cmd = _maybe_inject_continue_on_failure(cmd, continue_on_failure)
-        cmd = _inject_no_plots_for_deferred_generation(cmd, defer_suite_plots)
-        plot_config = _plot_config_for_command(cmd)
-        run_id_files_before = _list_run_id_files(plot_config)
+        chunks = _run_chunks(runs, run_chunk_size)
+        for chunk_i, chunk_total, chunk_runs in chunks:
+            # Each benchmark command owns its internal repeats. run_all injects
+            # profile name, captures stdout/stderr, and records total wall time.
+            cmd = raw_cmd.format(profile_name=profile_name)
+            cmd = _override_suite_run_counts(cmd, chunk_runs)
+            cmd = _maybe_inject_continue_on_failure(cmd, continue_on_failure)
+            cmd = _inject_no_plots_for_deferred_generation(cmd, defer_suite_plots)
+            plot_config = _plot_config_for_command(cmd)
+            run_id_files_before = _list_run_id_files(plot_config)
 
-        bench_log_path = logs_dir / (
-            f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}.log"
-        )
+            chunk_suffix = (
+                ""
+                if chunk_total == 1
+                else f"__chunk-{chunk_i:02d}-of-{chunk_total:02d}"
+            )
+            bench_log_path = logs_dir / (
+                f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__"
+                f"{_slugify(bench_name)}{chunk_suffix}.log"
+            )
 
-        log(
-            f"\n{'='*60}\n[BENCHMARK] Running: {bench_name} | Profile: {profile_name}\n"
-            f"[LOG] {bench_log_path}\n{'='*60}"
-        )
+            log(
+                f"\n{'='*60}\n[BENCHMARK] Running: {bench_name} | Profile: {profile_name}\n"
+                f"[CHUNK] {chunk_i}/{chunk_total} | host/direct runs per suite command: {chunk_runs}\n"
+                f"[LOG] {bench_log_path}\n{'='*60}"
+            )
 
-        start_wall = _dt.datetime.now().isoformat(timespec="seconds")
-        start = time.monotonic()
-        exit_code = None
-        proc = None
-        try:
-            with bench_log_path.open("w", encoding="utf-8") as bench_log:
-                bench_log.write(f"[CMD] {cmd}\n\n")
-                bench_log.flush()
-
-                proc = subprocess.Popen(
-                    cmd,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                )
-                assert proc.stdout is not None
-                for line in proc.stdout:
-                    sys.stdout.write(line)
-                    sys.stdout.flush()
-                    bench_log.write(line)
-                    bench_log.flush()
-                    if _LOG_FILE is not None:
-                        _LOG_FILE.write(line)
-                        _LOG_FILE.flush()
-                exit_code = proc.wait()
-        except KeyboardInterrupt:
-            log("\n[WARN] Interrupted during benchmark; terminating subprocess...")
+            start_wall = _dt.datetime.now().isoformat(timespec="seconds")
+            start = time.monotonic()
+            exit_code = None
+            proc = None
             try:
-                if proc is not None:
-                    proc.terminate()
-            except Exception:
-                pass
-            raise
+                with bench_log_path.open("w", encoding="utf-8") as bench_log:
+                    bench_log.write(f"[CMD] {cmd}\n\n")
+                    bench_log.flush()
 
-        end = time.monotonic()
-        end_wall = _dt.datetime.now().isoformat(timespec="seconds")
-        duration_seconds = round(end - start, 6)
+                    proc = subprocess.Popen(
+                        cmd,
+                        shell=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                    )
+                    assert proc.stdout is not None
+                    for line in proc.stdout:
+                        sys.stdout.write(line)
+                        sys.stdout.flush()
+                        bench_log.write(line)
+                        bench_log.flush()
+                        if _LOG_FILE is not None:
+                            _LOG_FILE.write(line)
+                            _LOG_FILE.flush()
+                    exit_code = proc.wait()
+            except KeyboardInterrupt:
+                log("\n[WARN] Interrupted during benchmark; terminating subprocess...")
+                try:
+                    if proc is not None:
+                        proc.terminate()
+                except Exception:
+                    pass
+                raise
 
-        timings_writer.writerow(
-            {
-                "session_id": session_id,
-                "profile_name": profile_name,
-                "bandwidth_mbps": bw,
-                "latency_ms": lat,
-                "packet_loss_percent": loss,
-                "benchmark_index": i + 1,
-                "benchmark_name": bench_name,
-                "command": cmd,
-                "start_time": start_wall,
-                "end_time": end_wall,
-                "duration_seconds": duration_seconds,
-                "exit_code": exit_code,
-                "log_file": str(bench_log_path),
-            }
-        )
-        timings_csv.flush()
+            end = time.monotonic()
+            end_wall = _dt.datetime.now().isoformat(timespec="seconds")
+            duration_seconds = round(end - start, 6)
 
-        log(
-            f"[TIMING] {bench_name} | Profile={profile_name} | {duration_seconds}s | exit={exit_code}"
-        )
+            timings_writer.writerow(
+                {
+                    "session_id": session_id,
+                    "profile_name": profile_name,
+                    "bandwidth_mbps": bw,
+                    "latency_ms": lat,
+                    "packet_loss_percent": loss,
+                    "benchmark_index": i + 1,
+                    "benchmark_name": (
+                        bench_name
+                        if chunk_total == 1
+                        else f"{bench_name} chunk {chunk_i}/{chunk_total}"
+                    ),
+                    "command": cmd,
+                    "start_time": start_wall,
+                    "end_time": end_wall,
+                    "duration_seconds": duration_seconds,
+                    "exit_code": exit_code,
+                    "log_file": str(bench_log_path),
+                }
+            )
+            timings_csv.flush()
 
-        if defer_suite_plots and plot_config is not None:
-            run_ids_file = _new_run_id_file(run_id_files_before, plot_config)
-            if _run_ids_file_has_content(run_ids_file):
-                out_dir = plot_config.plots_dir / (
-                    f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}"
-                )
-                deferred_plot_jobs.append(
-                    DeferredPlotJob(
+            log(
+                f"[TIMING] {bench_name} | Profile={profile_name} | "
+                f"chunk={chunk_i}/{chunk_total} | {duration_seconds}s | exit={exit_code}"
+            )
+
+            if defer_suite_plots and plot_config is not None:
+                run_ids_file = _new_run_id_file(run_id_files_before, plot_config)
+                if _run_ids_file_has_content(run_ids_file):
+                    out_dir = plot_config.plots_dir / (
+                        f"{session_id}__{_slugify(profile_name)}__{i+1:02d}__{_slugify(bench_name)}"
+                    )
+                    _add_deferred_plot_job(
+                        deferred_plot_jobs,
                         profile_name=profile_name,
                         benchmark_name=bench_name,
                         run_ids_file=run_ids_file,
                         out_dir=out_dir,
                         config=plot_config,
                     )
-                )
-            else:
+                else:
+                    log(
+                        f"[PLOTS] WARNING: no run_ids file discovered for deferred plots: "
+                        f"{bench_name} | Profile={profile_name} | chunk={chunk_i}/{chunk_total}"
+                    )
+
+            if exit_code != 0:
+                if rc == 0:
+                    rc = exit_code
                 log(
-                    f"[PLOTS] WARNING: no run_ids file discovered for deferred plots: "
-                    f"{bench_name} | Profile={profile_name}"
+                    f"[ERROR] Benchmark failed (exit={exit_code}): "
+                    f"{bench_name} chunk={chunk_i}/{chunk_total}"
                 )
+                if not continue_on_failure:
+                    return rc
 
-        if exit_code != 0:
-            if rc == 0:
-                rc = exit_code
-            log(f"[ERROR] Benchmark failed (exit={exit_code}): {bench_name}")
-            if not continue_on_failure:
-                break
+            completed_work_units += 1
+            has_more_work = completed_work_units < work_units
+            if restart_between_run_chunks and has_more_work:
+                if restart_and_reapply_profile is None:
+                    log("[ERROR] Cannot restart/reapply profile: callback missing")
+                    return rc or 1
+                restart_rc = restart_and_reapply_profile()
+                if restart_rc != 0:
+                    return rc or restart_rc
 
-        if i < len(benchmarks) - 1:
-            log(f"\n[COOLDOWN] Waiting {cooldown_seconds}s before next suite...")
-            time.sleep(cooldown_seconds)
+            if has_more_work:
+                log(
+                    f"\n[COOLDOWN] Waiting {cooldown_seconds}s before next suite/chunk..."
+                )
+                time.sleep(cooldown_seconds)
 
     return rc
 
@@ -542,6 +686,20 @@ def main():
         help="Override both --host-runs and --direct-runs for every suite command.",
     )
     parser.add_argument(
+        "--run-chunk-size",
+        type=int,
+        default=None,
+        help=(
+            "Split --runs into multiple suite invocations of this size. "
+            "Example: --runs 40 --run-chunk-size 10 runs four h10/d10 chunks."
+        ),
+    )
+    parser.add_argument(
+        "--restart-between-run-chunks",
+        action="store_true",
+        help="Restart Multipass nodes and reapply the active profile between run chunks.",
+    )
+    parser.add_argument(
         "--continue-on-failure",
         action="store_true",
         help="Continue to the next benchmark/profile even if one fails.",
@@ -559,6 +717,12 @@ def main():
     args = parser.parse_args()
     if args.runs is not None and args.runs < 1:
         parser.error("--runs must be >= 1")
+    if args.run_chunk_size is not None and args.run_chunk_size < 1:
+        parser.error("--run-chunk-size must be >= 1")
+    if args.run_chunk_size is not None and args.runs is None:
+        parser.error("--run-chunk-size requires --runs")
+    if args.restart_between_run_chunks and args.run_chunk_size is None:
+        parser.error("--restart-between-run-chunks requires --run-chunk-size")
     cooldown_seconds = int(args.cooldown_seconds)
 
     out_dir = Path(args.out_dir)
@@ -617,12 +781,8 @@ def main():
         if args.profiles.strip():
             selected = {p.strip() for p in args.profiles.split(",") if p.strip()}
 
-        # Determine interfaces for each node dynamically
-        interfaces = {node: get_primary_interface(node) for node in NODES}
-        ips = {node: get_node_ip(node) for node in NODES}
-        log("\n[INFO] Nodes:")
-        for node in NODES:
-            log(f"  - {node}: ip={ips[node]} iface={interfaces[node]}")
+        # Determine interfaces for each node dynamically.
+        interfaces, ips = discover_nodes()
 
         try:
             for profile in profiles:
@@ -635,10 +795,17 @@ def main():
 
                 log(f"\n\n>>>>>>>> INITIALIZING PROFILE: {p_name} <<<<<<<<")
 
-                # Apply network constraints across all nodes
-                for node in NODES:
-                    peer_ips = [ips[n] for n in NODES if n != node]
-                    apply_tc_rules(node, interfaces[node], bw, lat, loss, peer_ips)
+                # Apply network constraints across all nodes.
+                apply_profile_rules(profile, interfaces, ips)
+
+                def restart_and_reapply_current_profile() -> int:
+                    nonlocal interfaces, ips
+                    restart_rc = restart_multipass_nodes(NODES)
+                    if restart_rc != 0:
+                        return restart_rc
+                    interfaces, ips = discover_nodes()
+                    apply_profile_rules(profile, interfaces, ips)
+                    return 0
 
                 # Optional: Run a pre-hook script here if necessary
                 # subprocess.run("bash pre_hook_script.sh", shell=True)
@@ -649,9 +816,12 @@ def main():
                     profile_cfg=profile,
                     benchmarks=benchmarks,
                     runs=args.runs,
+                    run_chunk_size=args.run_chunk_size,
                     cooldown_seconds=cooldown_seconds,
                     continue_on_failure=args.continue_on_failure,
                     defer_suite_plots=args.defer_suite_plots,
+                    restart_between_run_chunks=args.restart_between_run_chunks,
+                    restart_and_reapply_profile=restart_and_reapply_current_profile,
                     deferred_plot_jobs=deferred_plot_jobs,
                     session_id=session_id,
                     logs_dir=logs_dir,
