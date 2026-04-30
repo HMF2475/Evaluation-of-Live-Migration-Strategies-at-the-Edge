@@ -216,11 +216,15 @@ class PostcopyMigration(MigrationStrategy):
 
             # Step 4: Archive images
             self.log("Step 4: Creating archive...")
+            t_archive_start = time.time_ns()
             rc, _, _ = self.source.exec(
                 "sudo tar -C /tmp -czf /tmp/CRIU-gol.tar.gz CRIU-gol && "
                 "sudo cp /tmp/CRIU-gol.tar.gz /home/ubuntu/CRIU-gol.tar.gz && "
                 "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-gol.tar.gz",
                 check=False,
+            )
+            self.metrics.archive_create_ms = int(
+                (time.time_ns() - t_archive_start) // 1_000_000
             )
             if rc != 0:
                 self.log("ERROR: Archive creation failed")
@@ -245,6 +249,7 @@ class PostcopyMigration(MigrationStrategy):
                     return False
 
             t_transfer_start = time.time_ns()
+            transfer_timings: dict[str, int] = {}
             transfer_ok = (
                 transfer_archive_via_host(
                     self.source.node,
@@ -252,6 +257,7 @@ class PostcopyMigration(MigrationStrategy):
                     "/home/ubuntu/CRIU-gol.tar.gz",
                     "/home/ubuntu/CRIU-gol.tar.gz",
                     relay_node=self.relay_node,
+                    timings=transfer_timings,
                 )
                 if self.transfer_mode == "host"
                 else transfer_archive_direct(
@@ -259,6 +265,7 @@ class PostcopyMigration(MigrationStrategy):
                     self.dest.node,
                     "/home/ubuntu/CRIU-gol.tar.gz",
                     "/home/ubuntu/CRIU-gol.tar.gz",
+                    timings=transfer_timings,
                 )
             )
             if not transfer_ok:
@@ -270,15 +277,18 @@ class PostcopyMigration(MigrationStrategy):
             self.metrics.transfer_ms = int(
                 (t_transfer_done - t_transfer_start) // 1_000_000
             )
+            self.record_transfer_timings(transfer_timings)
             self.log(f"  Transfer time: {self.metrics.transfer_ms} ms")
 
             # Step 6: Unpack
             self.log("Step 6: Unpacking on destination...")
+            t_unpack_start = time.time_ns()
             rc, _, _ = self.dest.exec(
                 "sudo rm -rf /tmp/CRIU-gol && sudo mkdir -p /tmp/CRIU-gol && "
                 "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-gol.tar.gz",
                 check=False,
             )
+            self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
             if rc != 0:
                 self.log("ERROR: Unpack failed")
                 self.metrics.notes += "; unpack_failed"

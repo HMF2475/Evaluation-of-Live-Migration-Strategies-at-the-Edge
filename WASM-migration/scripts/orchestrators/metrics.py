@@ -33,6 +33,12 @@ class MigrationMetrics:
     total_ms: int = 0
     lazy_pages_active_ms: int = 0
     lazy_pages_log_bytes: int = 0
+    archive_create_ms: int = 0
+    transfer_setup_ms: int = 0
+    transfer_send_ms: int = 0
+    transfer_receive_ms: int = 0
+    transfer_cleanup_ms: int = 0
+    unpack_ms: int = 0
 
 
 FIELDNAMES = [
@@ -60,6 +66,12 @@ FIELDNAMES = [
     "total_ms",
     "lazy_pages_active_ms",
     "lazy_pages_log_bytes",
+    "archive_create_ms",
+    "transfer_setup_ms",
+    "transfer_send_ms",
+    "transfer_receive_ms",
+    "transfer_cleanup_ms",
+    "unpack_ms",
 ]
 
 

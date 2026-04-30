@@ -74,6 +74,12 @@ _FIELDNAMES: list[str] = [
     "total_ms",
     "lazy_pages_active_ms",
     "lazy_pages_log_bytes",
+    "archive_create_ms",
+    "transfer_setup_ms",
+    "transfer_send_ms",
+    "transfer_receive_ms",
+    "transfer_cleanup_ms",
+    "unpack_ms",
 ]
 
 
@@ -146,6 +152,12 @@ def write_metrics_to_csv(metrics: MigrationMetrics, csv_path: Path):
                 "total_ms": getattr(metrics, "total_ms", 0),
                 "lazy_pages_active_ms": getattr(metrics, "lazy_pages_active_ms", 0),
                 "lazy_pages_log_bytes": getattr(metrics, "lazy_pages_log_bytes", 0),
+                "archive_create_ms": getattr(metrics, "archive_create_ms", 0),
+                "transfer_setup_ms": getattr(metrics, "transfer_setup_ms", 0),
+                "transfer_send_ms": getattr(metrics, "transfer_send_ms", 0),
+                "transfer_receive_ms": getattr(metrics, "transfer_receive_ms", 0),
+                "transfer_cleanup_ms": getattr(metrics, "transfer_cleanup_ms", 0),
+                "unpack_ms": getattr(metrics, "unpack_ms", 0),
             }
         )
 

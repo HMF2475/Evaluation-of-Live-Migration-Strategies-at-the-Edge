@@ -18,7 +18,7 @@ Additional optional artifacts:
 ## CSV Schema
 
 ```csv
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes,archive_create_ms,transfer_setup_ms,transfer_send_ms,transfer_receive_ms,transfer_cleanup_ms,unpack_ms
 ```
 
 Columns:
@@ -37,6 +37,18 @@ Columns:
 - `same_arch` - true if source and destination have matching architecture
 - `success` - true/false indicating if migration completed successfully
 - `notes` - Anomalies, errors, observations, or transfer mode (e.g., `transfer_mode=direct`)
+- `profile_name` - Network profile label supplied by `run_all.py` or the repeat runner
+- `predump_ms` - Total pre-dump time for pre-copy runs; not counted as downtime
+- `final_dump_ms` - Final freeze dump time for pre-copy/post-copy analysis
+- `total_ms` - Best-effort end-to-end wall-clock run duration
+- `lazy_pages_active_ms` - Post-copy lazy-pages active time
+- `lazy_pages_log_bytes` - Size of the lazy-pages log
+- `archive_create_ms` - Time to compress/create the transferred archive
+- `transfer_setup_ms` - SSH/multipass setup, trust checks, IP lookup, and source-file validation
+- `transfer_send_ms` - First copy leg: source to destination, relay, or host
+- `transfer_receive_ms` - Second copy leg: relay or host to destination
+- `transfer_cleanup_ms` - Cleanup of temporary or staged transfer files
+- `unpack_ms` - Time to extract the archive on the destination
 
 ## Collection Tools
 
@@ -63,6 +75,9 @@ python3 Container/scripts/visualization/plot_transfer_analysis.py
 
 # See phase breakdown (checkpoint, transfer, restore)
 python3 Container/scripts/visualization/plot_phase_breakdown.py
+
+# See detailed archive/copy/unpack breakdown around transfer_ms
+python3 Container/scripts/visualization/plot_transfer_phase_breakdown.py
 ```
 
 
@@ -88,6 +103,14 @@ Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Smaller archives = less bandwidth
 - Pre-copy may transfer data multiple times (pre-dumps + final dump)
 - Post-copy transfers minimal images first, then pages on-demand (lazy-pages)
+
+For new runs, `transfer_phase_breakdown.png` decomposes the transfer-side work:
+- archive creation/compression before copy;
+- setup cost for SSH/multipass and trust checks;
+- first and second copy legs, separating relay/host mode from direct mode;
+- cleanup and destination unpack.
+
+This helps distinguish actual copy time from compression, control-plane overhead, and destination extraction. It is especially useful for tiny archives where `transfer_ms` can look large because fixed SSH/multipass overhead dominates the real data movement.
 
 ### Architecture Compatibility
 - `same_arch=true` - No architecture mismatch overhead

@@ -298,16 +298,20 @@ def transfer_state(
     dest_archive: Path,
     transfer_mode: str,
     relay_node: str | None,
+    timings: dict[str, int] | None = None,
 ) -> bool:
     """Move checkpoint archive using same host/direct helpers as CRIU benchmarks."""
     if transfer_mode == "direct":
-        return transfer_archive_direct(source, dest, str(archive), str(dest_archive))
+        return transfer_archive_direct(
+            source, dest, str(archive), str(dest_archive), timings=timings
+        )
     return transfer_archive_via_host(
         source,
         dest,
         str(archive),
         str(dest_archive),
         relay_node=relay_node,
+        timings=timings,
     )
 
 
@@ -458,11 +462,14 @@ def main() -> int:
         metrics.final_dump_ms = metrics.checkpoint_ms
 
         # TRANSFER PHASE: package both WASM memory files and move archive.
+        archive_start = time.monotonic_ns()
         source_archive, metrics.archive_bytes = archive_source_state(
             args.source, remote_run_dir, source_main, source_checkpoint
         )
+        metrics.archive_create_ms = monotonic_elapsed_ms(archive_start)
         dest_archive = remote_run_dir / "wasm-state.tar.gz"
         transfer_start = time.monotonic_ns()
+        transfer_timings: dict[str, int] = {}
         if not transfer_state(
             source=args.source,
             dest=args.dest,
@@ -470,11 +477,19 @@ def main() -> int:
             dest_archive=dest_archive,
             transfer_mode=args.transfer_mode,
             relay_node=args.relay_node,
+            timings=transfer_timings,
         ):
             metrics.notes += ";transfer_failed"
             write_metrics(metrics, args.csv)
             return 1
         metrics.transfer_ms = monotonic_elapsed_ms(transfer_start)
+        for key in (
+            "transfer_setup_ms",
+            "transfer_send_ms",
+            "transfer_receive_ms",
+            "transfer_cleanup_ms",
+        ):
+            setattr(metrics, key, int(transfer_timings.get(key, 0)))
 
         # DESTINATION PHASE: seed files before activation; start_command then restores.
         restore_start = time.monotonic_ns()
@@ -485,9 +500,11 @@ def main() -> int:
             label="dest",
             timeout_s=args.timeout_seconds,
         )
+        unpack_start = time.monotonic_ns()
         seed_destination(
             args.dest, remote_run_dir, dest_archive, dest_main, dest_checkpoint
         )
+        metrics.unpack_ms = monotonic_elapsed_ms(unpack_start)
         snapshots.append(snapshot_remote(args.dest, dest_pid, "dest-ready"))
         mp_exec(
             args.dest,
