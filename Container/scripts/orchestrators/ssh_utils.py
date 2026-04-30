@@ -9,6 +9,7 @@ Supports:
 
 import subprocess
 import os
+import time
 from typing import Optional
 from pathlib import Path
 import tempfile
@@ -100,8 +101,21 @@ def ensure_direct_ssh_trust(source_node: str, dest_node: str) -> bool:
         return False
 
 
+def _elapsed_ms(start_ns: int) -> int:
+    return max(0, int((time.time_ns() - start_ns) // 1_000_000))
+
+
+def _add_timing(timings: Optional[dict[str, int]], key: str, value: int) -> None:
+    if timings is not None:
+        timings[key] = timings.get(key, 0) + int(value)
+
+
 def transfer_archive_direct(
-    source_node: str, dest_node: str, source_path: str, dest_path: str
+    source_node: str,
+    dest_node: str,
+    source_path: str,
+    dest_path: str,
+    timings: Optional[dict[str, int]] = None,
 ) -> bool:
     """Transfer file source→destination directly via SCP.
 
@@ -118,26 +132,32 @@ def transfer_archive_direct(
         True if transfer succeeded, False otherwise
     """
     source = MultipassCommand(source_node)
+    setup_start = time.time_ns()
     dest_ip = get_node_ip(dest_node)
 
     if not dest_ip:
+        _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
         print(f"ERROR: Could not get IP for {dest_node}")
         return False
 
     # Ensure SSH trust is established before attempting direct SCP
     if not ensure_direct_ssh_trust(source_node, dest_node):
+        _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
         print(
             f"ERROR: Failed to establish SSH trust between {source_node} and {dest_node}"
         )
         return False
+    _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
 
     print(f"  Transferring {source_path} via SCP...")
+    send_start = time.time_ns()
     rc, _, _ = source.exec(
         f"scp -o BatchMode=yes -o ConnectTimeout=10 "
         f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
         f"{source_path} ubuntu@{dest_ip}:{dest_path}",
         check=False,
     )
+    _add_timing(timings, "transfer_send_ms", _elapsed_ms(send_start))
 
     return rc == 0
 
@@ -148,6 +168,7 @@ def transfer_archive_via_host(
     source_path: str,
     dest_path: str,
     relay_node: Optional[str] = None,
+    timings: Optional[dict[str, int]] = None,
 ) -> bool:
     """Transfer file through either the host machine or a relay VM.
 
@@ -171,6 +192,7 @@ def transfer_archive_via_host(
     dest = MultipassCommand(dest_node)
 
     if relay_node:
+        setup_start = time.time_ns()
         relay = MultipassCommand(relay_node)
         relay_ip = get_node_ip(relay_node)
         dest_ip = get_node_ip(dest_node)
@@ -178,6 +200,7 @@ def transfer_archive_via_host(
         relay_stage = f"/tmp/{stage_name}.{source_node}.stage"
 
         if not relay_ip or not dest_ip:
+            _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
             print(f"ERROR: Could not get IP for relay={relay_node} or dest={dest_node}")
             return False
 
@@ -185,37 +208,47 @@ def transfer_archive_via_host(
 
         rc, _, _ = source.exec(f"test -f {source_path}", check=False)
         if rc != 0:
+            _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
             print(f"ERROR: Source file not found: {source_path}")
             return False
 
         if not ensure_direct_ssh_trust(source_node, relay_node):
+            _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
             print(
                 f"ERROR: Failed to establish SSH trust between {source_node} and {relay_node}"
             )
             return False
         if not ensure_direct_ssh_trust(relay_node, dest_node):
+            _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
             print(
                 f"ERROR: Failed to establish SSH trust between {relay_node} and {dest_node}"
             )
             return False
+        _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
 
+        send_start = time.time_ns()
         rc, _, _ = source.exec(
             f"scp -o BatchMode=yes -o ConnectTimeout=10 "
             f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
             f"{source_path} ubuntu@{relay_ip}:{relay_stage}",
             check=False,
         )
+        _add_timing(timings, "transfer_send_ms", _elapsed_ms(send_start))
         if rc != 0:
             print("ERROR: Transfer from source to relay failed")
             return False
 
+        receive_start = time.time_ns()
         rc, _, _ = relay.exec(
             f"scp -o BatchMode=yes -o ConnectTimeout=10 "
             f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
             f"{relay_stage} ubuntu@{dest_ip}:{dest_path}",
             check=False,
         )
+        _add_timing(timings, "transfer_receive_ms", _elapsed_ms(receive_start))
+        cleanup_start = time.time_ns()
         relay.exec(f"rm -f {relay_stage}", check=False)
+        _add_timing(timings, "transfer_cleanup_ms", _elapsed_ms(cleanup_start))
         if rc != 0:
             print("ERROR: Transfer from relay to destination failed")
             return False
@@ -225,37 +258,48 @@ def transfer_archive_via_host(
     print(f"  Transferring {source_path} via host...")
 
     # Transfer from source to host
+    setup_start = time.time_ns()
     rc, _, _ = source.exec(f"test -f {source_path}", check=False)
     if rc != 0:
+        _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
         print(f"ERROR: Source file not found: {source_path}")
         return False
 
     # Use a unique temp file to avoid collisions across concurrent runs
     fd, temp_file = tempfile.mkstemp(suffix=f"_{source_path.split('/')[-1]}")
     os.close(fd)
+    _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
+    send_start = time.time_ns()
     rc = subprocess.run(
         ["multipass", "transfer", f"{source_node}:{source_path}", temp_file],
         capture_output=True,
     ).returncode
+    _add_timing(timings, "transfer_send_ms", _elapsed_ms(send_start))
 
     if rc != 0:
         print("ERROR: Transfer from source failed")
+        cleanup_start = time.time_ns()
         try:
             os.remove(temp_file)
         except FileNotFoundError:
             pass
+        _add_timing(timings, "transfer_cleanup_ms", _elapsed_ms(cleanup_start))
         return False
 
     # Transfer from host to destination
+    receive_start = time.time_ns()
     rc = subprocess.run(
         ["multipass", "transfer", temp_file, f"{dest_node}:{dest_path}"],
         capture_output=True,
     ).returncode
+    _add_timing(timings, "transfer_receive_ms", _elapsed_ms(receive_start))
 
     # Cleanup
+    cleanup_start = time.time_ns()
     try:
         os.remove(temp_file)
     except FileNotFoundError:
         pass
+    _add_timing(timings, "transfer_cleanup_ms", _elapsed_ms(cleanup_start))
 
     return rc == 0

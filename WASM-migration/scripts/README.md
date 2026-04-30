@@ -14,7 +14,8 @@
 - `orchestrators/process_metrics.py` reads `/proc/<pid>` for process snapshots.
 - `orchestrators/node_exporter_metrics.py` summarizes before/after node snapshots.
 - `visualization/` reads the CSV plus optional node_exporter snapshots and writes
-  `downtime_comparison.png`, `phase_breakdown.png`, and `transfer_analysis.png`.
+  `downtime_comparison.png`, `phase_breakdown.png`, `transfer_analysis.png`,
+  `transfer_phase_breakdown.png`, and optional node_exporter plots.
 
 ## Entry points
 

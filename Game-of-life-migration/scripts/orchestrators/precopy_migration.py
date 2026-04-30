@@ -201,9 +201,13 @@ class PrecopyMigration(MigrationStrategy):
 
         # Step 5: Create and transfer archive
         self.log("Step 5: Creating archive...")
+        t_archive_start = time.time_ns()
         self.source.exec(
             "cd /tmp && tar czf CRIU-gol.tar.gz CRIU-gol/",
             check=False,
+        )
+        self.metrics.archive_create_ms = int(
+            (time.time_ns() - t_archive_start) // 1_000_000
         )
 
         # Get archive size
@@ -229,6 +233,7 @@ class PrecopyMigration(MigrationStrategy):
                 return False
 
         t_transfer_start = time.time_ns()
+        transfer_timings: dict[str, int] = {}
 
         if self.transfer_mode == "host":
             transfer_ok = transfer_archive_via_host(
@@ -237,6 +242,7 @@ class PrecopyMigration(MigrationStrategy):
                 "/tmp/CRIU-gol.tar.gz",
                 "/home/ubuntu/CRIU-gol.tar.gz",
                 relay_node=self.relay_node,
+                timings=transfer_timings,
             )
         else:
             transfer_ok = transfer_archive_direct(
@@ -244,6 +250,7 @@ class PrecopyMigration(MigrationStrategy):
                 self.dest.node,
                 "/tmp/CRIU-gol.tar.gz",
                 "/home/ubuntu/CRIU-gol.tar.gz",
+                timings=transfer_timings,
             )
 
         if not transfer_ok:
@@ -253,15 +260,18 @@ class PrecopyMigration(MigrationStrategy):
         t_transfer_done = time.time_ns()
         transfer_ms = (t_transfer_done - t_transfer_start) // 1_000_000
         self.metrics.transfer_ms = int(transfer_ms)
+        self.record_transfer_timings(transfer_timings)
         self.log(f"  Transfer time: {transfer_ms} ms")
 
         # Step 7: Unpack on destination
         self.log("Step 7: Unpacking on destination...")
+        t_unpack_start = time.time_ns()
         self.dest.exec(
             "sudo rm -rf /tmp/CRIU-gol && sudo mkdir -p /tmp/CRIU-gol && "
             "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-gol.tar.gz",
             check=False,
         )
+        self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
 
         # Step 7.5: Ensure gol stdout target exists (avoid transferring file contents)
         self.log("Step 7.5: Ensuring gol output file exists on destination...")

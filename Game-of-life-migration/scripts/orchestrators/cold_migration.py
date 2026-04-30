@@ -145,10 +145,14 @@ class ColdMigration(MigrationStrategy):
 
         # Step 3: Archive
         self.log("Step 3: Creating archive...")
+        t_archive_start = time.time_ns()
         rc, _, _ = self.source.exec(
             "sudo tar -C /tmp -czf /tmp/CRIU-gol.tar.gz CRIU-gol && "
             "sudo cp /tmp/CRIU-gol.tar.gz /home/ubuntu/CRIU-gol.tar.gz && "
             "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-gol.tar.gz",
+        )
+        self.metrics.archive_create_ms = int(
+            (time.time_ns() - t_archive_start) // 1_000_000
         )
 
         if rc != 0:
@@ -174,6 +178,7 @@ class ColdMigration(MigrationStrategy):
                 return False
 
         t_transfer_start = time.time_ns()
+        transfer_timings: dict[str, int] = {}
 
         transfer_ok = (
             transfer_archive_via_host(
@@ -182,6 +187,7 @@ class ColdMigration(MigrationStrategy):
                 "/home/ubuntu/CRIU-gol.tar.gz",
                 "/home/ubuntu/CRIU-gol.tar.gz",
                 relay_node=self.relay_node,
+                timings=transfer_timings,
             )
             if self.transfer_mode == "host"
             else transfer_archive_direct(
@@ -189,6 +195,7 @@ class ColdMigration(MigrationStrategy):
                 self.dest.node,
                 "/home/ubuntu/CRIU-gol.tar.gz",
                 "/home/ubuntu/CRIU-gol.tar.gz",
+                timings=transfer_timings,
             )
         )
 
@@ -199,15 +206,18 @@ class ColdMigration(MigrationStrategy):
         t_transfer_done = time.time_ns()
         transfer_ms = (t_transfer_done - t_transfer_start) // 1_000_000
         self.metrics.transfer_ms = int(transfer_ms)
+        self.record_transfer_timings(transfer_timings)
         self.log(f"  Transfer time: {transfer_ms} ms")
 
         # Step 5: Unpack on destination
         self.log("Step 5: Unpacking on destination...")
+        t_unpack_start = time.time_ns()
         rc, _, _ = self.dest.exec(
             "sudo rm -rf /tmp/CRIU-gol && "
             "sudo mkdir -p /tmp/CRIU-gol && "
             "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-gol.tar.gz",
         )
+        self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
 
         if rc != 0:
             self.log("ERROR: Unpack failed")

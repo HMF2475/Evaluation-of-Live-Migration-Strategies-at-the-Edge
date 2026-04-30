@@ -38,6 +38,14 @@ class MigrationMetrics:
     total_ms: int = 0  # End-to-end wall time for the run (best-effort)
     lazy_pages_active_ms: int = 0  # Postcopy: time lazy-pages was active (best-effort)
     lazy_pages_log_bytes: int = 0  # Postcopy: size of lazy-pages log (best-effort)
+    archive_create_ms: int = 0  # Time spent compressing/creating the transfer archive
+    transfer_setup_ms: int = (
+        0  # SSH/multipass setup, trust checks, and source validation
+    )
+    transfer_send_ms: int = 0  # First copy leg: source -> dest/relay/host
+    transfer_receive_ms: int = 0  # Second copy leg: relay/host -> destination, if any
+    transfer_cleanup_ms: int = 0  # Temp/staged-file cleanup after transfer
+    unpack_ms: int = 0  # Time spent extracting the transferred archive on destination
 
 
 def metrics_to_dict(metrics: MigrationMetrics) -> dict:
@@ -70,4 +78,10 @@ def get_csv_header() -> list:
         "total_ms",
         "lazy_pages_active_ms",
         "lazy_pages_log_bytes",
+        "archive_create_ms",
+        "transfer_setup_ms",
+        "transfer_send_ms",
+        "transfer_receive_ms",
+        "transfer_cleanup_ms",
+        "unpack_ms",
     ]

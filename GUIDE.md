@@ -377,6 +377,7 @@ python3 run_all.py --runs 10
 python3 run_all.py --continue-on-failure
 python3 run_all.py --cooldown-seconds 20
 python3 run_all.py --defer-suite-plots
+python3 run_all.py --runs 40 --run-chunk-size 10 --restart-between-run-chunks --continue-on-failure --defer-suite-plots
 ```
 
 Notes:
@@ -384,9 +385,12 @@ Notes:
 - Rules target VM-to-VM traffic, so host-to-VM control traffic stays responsive.
 - Suite commands receive `--profile-name`, saved in CSV.
 - `--runs N` overrides both `--host-runs` and `--direct-runs` for every suite, so `benchmarks.json` does not need edits when changing repeat count.
+- `--run-chunk-size N` splits a large run count into several smaller suite invocations. For example, `--runs 40 --run-chunk-size 10` runs four chunks of 10 host-mode and 10 direct-mode repeats.
+- `--restart-between-run-chunks` restarts the Multipass benchmark VMs and reapplies the active profile between chunks. This is useful for long batches because CRIU processes, runtime state, cached files, node_exporter snapshots, and plotting work can create memory pressure over many hours.
 - By default, each suite generates its own plots before returning to `run_all.py`.
 - With `--defer-suite-plots`, `run_all.py` adds `--no-plots` to suite commands, records the `.run_ids.txt` file created by each suite/profile, and generates plots after all benchmarks finish.
-- Deferred plots are still profile-correct: each plot command uses the exact run-id list plus `--profile-name`, even when module CSV files contain older runs from other profiles.
+- Deferred plots are still profile-correct: each plot command uses the exact run-id list plus `--profile-name`, even when module CSV files contain older runs from other profiles. When chunking is enabled, `run_all.py` combines the chunk run-id files before generating the final profile-level plots.
+- Large unattended runs should normally use `tmux` plus deferred plots and chunks, so the SSH terminal can disconnect without killing the experiment and plotting happens once per profile instead of after every chunk.
 
 ## 8) Troubleshooting Map
 

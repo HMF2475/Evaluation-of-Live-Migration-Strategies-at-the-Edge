@@ -22,6 +22,7 @@ os.environ["MPLCONFIGDIR"] = str(_mpl_dir)
 from plot_downtime import plot_downtime
 from plot_transfer_analysis import plot_transfer_analysis
 from plot_phase_breakdown import plot_phase_breakdown
+from plot_transfer_phase_breakdown import plot_transfer_phase_breakdown
 from node_exporter_summary import plot_node_exporter_summary
 
 
@@ -101,6 +102,11 @@ def main() -> int:
     plot_transfer_analysis(
         str(filtered_csv),
         str(out_dir / "transfer_analysis.png"),
+        title_suffix=args.profile_name,
+    )
+    plot_transfer_phase_breakdown(
+        str(filtered_csv),
+        str(out_dir / "transfer_phase_breakdown.png"),
         title_suffix=args.profile_name,
     )
     plot_node_exporter_summary(

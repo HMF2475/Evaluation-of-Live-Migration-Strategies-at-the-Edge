@@ -92,6 +92,16 @@ class MigrationStrategy(ABC):
             return pid
         return None
 
+    def record_transfer_timings(self, timings: dict[str, int]) -> None:
+        """Copy detailed transfer timing fields into the metrics object."""
+        for key in (
+            "transfer_setup_ms",
+            "transfer_send_ms",
+            "transfer_receive_ms",
+            "transfer_cleanup_ms",
+        ):
+            setattr(self.metrics, key, int(timings.get(key, 0)))
+
     def log(self, msg: str):
         """Print timestamped log message."""
         from datetime import datetime

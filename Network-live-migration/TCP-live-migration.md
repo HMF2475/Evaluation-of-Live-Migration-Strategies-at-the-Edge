@@ -179,6 +179,7 @@ Expected output files:
 - `downtime_comparison.png`
 - `phase_breakdown.png`
 - `transfer_analysis.png`
+- `transfer_phase_breakdown.png` (new runs with detailed transfer timing columns)
 - `node_exporter_summary.png` (when snapshots exist)
 
 ## Validation Checklist (Per Run)

@@ -147,6 +147,14 @@ python3 run_all.py --defer-suite-plots
 
 Deferred plots use each suite's generated `.run_ids.txt` file and `--profile-name`, so plots match the corresponding network profile even when CSV files contain previous runs.
 
+For large batches, split each benchmark into smaller chunks and restart the VMs between chunks:
+
+```bash
+python3 run_all.py --runs 40 --run-chunk-size 10 --restart-between-run-chunks --continue-on-failure --defer-suite-plots
+```
+
+This still produces one profile-level plot directory per suite. The chunking reduces long-run memory pressure from CRIU, runtime processes, node_exporter snapshots, plotting, and Multipass VM state that can accumulate over many repeated migrations. After each chunk, `run_all.py` restarts the benchmark VMs and reapplies the active network profile before continuing.
+
 See `GUIDE.md` for details and options.
 
 ## Development & Linting

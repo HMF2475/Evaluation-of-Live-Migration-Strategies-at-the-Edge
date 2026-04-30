@@ -18,7 +18,7 @@ Additional optional artifacts:
 ## CSV Schema
 
 ```csv
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name
+run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes,archive_create_ms,transfer_setup_ms,transfer_send_ms,transfer_receive_ms,transfer_cleanup_ms,unpack_ms
 ```
 
 Columns:
@@ -38,6 +38,17 @@ Columns:
 - `success` - true/false indicating if migration completed successfully
 - `notes` - Anomalies, errors, observations, or transfer mode (e.g., `transfer_mode=direct`)
 - `profile_name` - Optional network profile/label (used to group/compare runs in plots)
+- `predump_ms` - Total pre-dump time for pre-copy runs; not counted as downtime
+- `final_dump_ms` - Final freeze dump time for pre-copy/post-copy analysis
+- `total_ms` - Best-effort end-to-end wall-clock run duration
+- `lazy_pages_active_ms` - Post-copy lazy-pages active time
+- `lazy_pages_log_bytes` - Size of the lazy-pages log
+- `archive_create_ms` - Time to compress/create the transferred archive
+- `transfer_setup_ms` - SSH/multipass setup, trust checks, IP lookup, and source-file validation
+- `transfer_send_ms` - First copy leg: source to destination, relay, or host
+- `transfer_receive_ms` - Second copy leg: relay or host to destination
+- `transfer_cleanup_ms` - Cleanup of temporary or staged transfer files
+- `unpack_ms` - Time to extract the archive on the destination
 
 ## Collection Tools
 
@@ -64,6 +75,9 @@ python3 Game-of-life-migration/scripts/visualization/plot_transfer_analysis.py G
 
 # See phase breakdown (checkpoint, transfer, restore)
 python3 Game-of-life-migration/scripts/visualization/plot_phase_breakdown.py Game-of-life-migration/metrics/migration_metrics.csv
+
+# See detailed archive/copy/unpack breakdown around transfer_ms
+python3 Game-of-life-migration/scripts/visualization/plot_transfer_phase_breakdown.py Game-of-life-migration/metrics/migration_metrics.csv
 ```
 
 
@@ -89,6 +103,8 @@ Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Smaller archives = less bandwidth
 - Pre-copy may transfer data multiple times (pre-dumps + final dump)
 - Post-copy transfers minimal images first, then pages on-demand (lazy-pages)
+
+For new runs, `transfer_phase_breakdown.png` decomposes archive creation/compression, transfer setup, first and second copy legs, cleanup, and destination unpack. This helps explain whether a high `transfer_ms` is actual data movement or fixed SSH/multipass and archive overhead.
 
 ### Architecture Compatibility
 - `same_arch=true` - No architecture mismatch overhead

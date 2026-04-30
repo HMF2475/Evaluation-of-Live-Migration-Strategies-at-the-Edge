@@ -323,11 +323,15 @@ class TcpClientColdMigration(TcpClientMigrationBase):
 
         # Step 3: Create archive
         self.log("Step 3: Creating archive...")
+        t_archive_start = time.time_ns()
         self.source.exec(
             "sudo tar -C /tmp -czf /tmp/CRIU-tcp-client.tar.gz CRIU-tcp-client && "
             "sudo cp /tmp/CRIU-tcp-client.tar.gz /home/ubuntu/CRIU-tcp-client.tar.gz && "
             "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-tcp-client.tar.gz",
             check=False,
+        )
+        self.metrics.archive_create_ms = int(
+            (time.time_ns() - t_archive_start) // 1_000_000
         )
         _, size_str, _ = self.source.exec(
             "sudo stat -c %s /tmp/CRIU-tcp-client.tar.gz", check=False
@@ -346,6 +350,7 @@ class TcpClientColdMigration(TcpClientMigrationBase):
                 return False
 
         t_transfer_start = time.time_ns()
+        transfer_timings: dict[str, int] = {}
         transfer_ok = (
             transfer_archive_via_host(
                 self.source.node,
@@ -353,6 +358,7 @@ class TcpClientColdMigration(TcpClientMigrationBase):
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 relay_node=self.relay_node,
+                timings=transfer_timings,
             )
             if self.transfer_mode == "host"
             else transfer_archive_direct(
@@ -360,12 +366,14 @@ class TcpClientColdMigration(TcpClientMigrationBase):
                 self.dest.node,
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
+                timings=transfer_timings,
             )
         )
         t_transfer_done = time.time_ns()
         self.metrics.transfer_ms = int(
             (t_transfer_done - t_transfer_start) // 1_000_000
         )
+        self.record_transfer_timings(transfer_timings)
         if not transfer_ok:
             self.log("ERROR: Transfer failed")
             self.metrics.notes += "; transfer_failed"
@@ -373,11 +381,13 @@ class TcpClientColdMigration(TcpClientMigrationBase):
 
         # Step 5: Unpack
         self.log("Step 5: Unpacking on destination...")
+        t_unpack_start = time.time_ns()
         rc, _, _ = self.dest.exec(
             "sudo rm -rf /tmp/CRIU-tcp-client && sudo mkdir -p /tmp/CRIU-tcp-client && "
             "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-tcp-client.tar.gz",
             check=False,
         )
+        self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
         if rc != 0:
             self.log("ERROR: Unpack failed")
             self.metrics.notes += "; unpack_failed"
@@ -596,11 +606,15 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
 
         # Step 5: Archive
         self.log("Step 5: Creating archive...")
+        t_archive_start = time.time_ns()
         self.source.exec(
             "sudo tar -C /tmp -czf /tmp/CRIU-tcp-client.tar.gz CRIU-tcp-client && "
             "sudo cp /tmp/CRIU-tcp-client.tar.gz /home/ubuntu/CRIU-tcp-client.tar.gz && "
             "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-tcp-client.tar.gz",
             check=False,
+        )
+        self.metrics.archive_create_ms = int(
+            (time.time_ns() - t_archive_start) // 1_000_000
         )
         _, size_str, _ = self.source.exec(
             "sudo stat -c %s /tmp/CRIU-tcp-client.tar.gz", check=False
@@ -618,6 +632,7 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
                 self.metrics.notes += "; ssh_trust_failed"
                 return False
         t_transfer_start = time.time_ns()
+        transfer_timings: dict[str, int] = {}
         transfer_ok = (
             transfer_archive_via_host(
                 self.source.node,
@@ -625,6 +640,7 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 relay_node=self.relay_node,
+                timings=transfer_timings,
             )
             if self.transfer_mode == "host"
             else transfer_archive_direct(
@@ -632,12 +648,14 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
                 self.dest.node,
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
                 "/home/ubuntu/CRIU-tcp-client.tar.gz",
+                timings=transfer_timings,
             )
         )
         t_transfer_done = time.time_ns()
         self.metrics.transfer_ms = int(
             (t_transfer_done - t_transfer_start) // 1_000_000
         )
+        self.record_transfer_timings(transfer_timings)
         if not transfer_ok:
             self.log("ERROR: Transfer failed")
             self.metrics.notes += "; transfer_failed"
@@ -645,11 +663,13 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
 
         # Step 7: Unpack on destination
         self.log("Step 7: Unpacking on destination...")
+        t_unpack_start = time.time_ns()
         rc, _, _ = self.dest.exec(
             "sudo rm -rf /tmp/CRIU-tcp-client && sudo mkdir -p /tmp/CRIU-tcp-client && "
             "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-tcp-client.tar.gz",
             check=False,
         )
+        self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
         if rc != 0:
             self.log("ERROR: Unpack failed")
             self.metrics.notes += "; unpack_failed"
@@ -864,11 +884,15 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
 
             # Step 3: Archive
             self.log("Step 3: Creating archive...")
+            t_archive_start = time.time_ns()
             rc, _, _ = self.source.exec(
                 "sudo tar -C /tmp -czf /tmp/CRIU-tcp-client.tar.gz CRIU-tcp-client && "
                 "sudo cp /tmp/CRIU-tcp-client.tar.gz /home/ubuntu/CRIU-tcp-client.tar.gz && "
                 "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-tcp-client.tar.gz",
                 check=False,
+            )
+            self.metrics.archive_create_ms = int(
+                (time.time_ns() - t_archive_start) // 1_000_000
             )
             if rc != 0:
                 self.log("ERROR: Archive creation failed")
@@ -891,6 +915,7 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
                     return False
 
             t_transfer_start = time.time_ns()
+            transfer_timings: dict[str, int] = {}
             transfer_ok = (
                 transfer_archive_via_host(
                     self.source.node,
@@ -898,6 +923,7 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
                     "/home/ubuntu/CRIU-tcp-client.tar.gz",
                     "/home/ubuntu/CRIU-tcp-client.tar.gz",
                     relay_node=self.relay_node,
+                    timings=transfer_timings,
                 )
                 if self.transfer_mode == "host"
                 else transfer_archive_direct(
@@ -905,12 +931,14 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
                     self.dest.node,
                     "/home/ubuntu/CRIU-tcp-client.tar.gz",
                     "/home/ubuntu/CRIU-tcp-client.tar.gz",
+                    timings=transfer_timings,
                 )
             )
             t_transfer_done = time.time_ns()
             self.metrics.transfer_ms = int(
                 (t_transfer_done - t_transfer_start) // 1_000_000
             )
+            self.record_transfer_timings(transfer_timings)
             if not transfer_ok:
                 self.log("ERROR: Transfer failed")
                 self.metrics.notes += "; transfer_failed"
@@ -918,11 +946,13 @@ class TcpClientPostcopyMigration(TcpClientMigrationBase):
 
             # Step 5: Unpack
             self.log("Step 5: Unpacking on destination...")
+            t_unpack_start = time.time_ns()
             rc, _, _ = self.dest.exec(
                 "sudo rm -rf /tmp/CRIU-tcp-client && sudo mkdir -p /tmp/CRIU-tcp-client && "
                 "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-tcp-client.tar.gz",
                 check=False,
             )
+            self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
             if rc != 0:
                 self.log("ERROR: Unpack failed")
                 self.metrics.notes += "; unpack_failed"

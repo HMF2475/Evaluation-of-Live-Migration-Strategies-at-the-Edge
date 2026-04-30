@@ -37,8 +37,16 @@ and adds TCP-specific timing columns. Plotting scripts handle these shared colum
 - `total_ms`
 - `lazy_pages_active_ms`
 - `lazy_pages_log_bytes`
+- `archive_create_ms`
+- `transfer_setup_ms`
+- `transfer_send_ms`
+- `transfer_receive_ms`
+- `transfer_cleanup_ms`
+- `unpack_ms`
 
 The `profile_name` column is filled when you run suite runners with `--profile-name` (for example via `run_all.py`).
+
+The detailed transfer columns split archive creation, SSH/multipass setup, first/second copy legs, cleanup, and destination unpack. They feed `transfer_phase_breakdown.png`, which is useful for TCP runs because `transfer_ms` can otherwise mix network copy time with fixed control-plane and archive overhead.
 
 ## `node_exporter_metrics.csv` schema
 
