@@ -136,3 +136,7 @@ host-wasm-20260428-015428,WASM,WASM-migration,no,1,,,2156,1,263,265,17.25,x86_64
 28-04-2026-direct-cold-0057,WASM,cold,no,1,137,136879,2014,2436,1962,4399,0.01,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-28T15:46:23.818941,,0,1,10175,0,0
 28-04-2026-direct-cold-0058,WASM,cold,no,1,153,152678,2018,2490,2239,4730,0.01,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-28T15:46:40.939924,,0,1,10806,0,0
 28-04-2026-direct-cold-0059,WASM,cold,no,1,147,146586,2019,2486,1978,4465,0.01,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-28T15:46:57.629992,,0,1,10287,0,0
+30-04-2026-host-cold-0000,WASM,cold,no,1,947,946843,2014,6995,2005,9001,0.00,x86_64,x86_64,True,True,transfer_mode=host;module=3mm_with_cr.wasm;relay_node=edge-host-1,2026-04-30T00:09:34.140246,1_WiFi_6,0,1,14964,0,0
+30-04-2026-direct-cold-0000,WASM,cold,no,1,158,157252,2017,3138,1967,5106,0.01,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-30T00:09:50.722522,1_WiFi_6,0,1,10998,0,0
+30-04-2026-host-cold-0001,WASM,cold,no,1,121,120507,2017,7773,1996,9770,0.00,x86_64,x86_64,True,True,transfer_mode=host;module=3mm_with_cr.wasm;relay_node=edge-host-1,2026-04-30T00:25:07.622135,2_5G,0,1,15880,0,0
+30-04-2026-direct-cold-0001,WASM,cold,no,1,124,123301,2018,3368,2057,5426,0.00,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-30T00:25:24.563358,2_5G,0,1,11262,0,0
