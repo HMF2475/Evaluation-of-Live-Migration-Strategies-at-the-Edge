@@ -117,7 +117,7 @@ Plots and batch logs are written under each module's `metrics/plots/` and `metri
 This repository supports three CRIU workloads plus one WASM migration benchmark:
 
 - **Counter**: A minimal C program that prints incrementing numbers to stdout. Used as a memory-only baseline for CRIU migration.
-- **Game of Life**: A C implementation of Conway's Game of Life, printing an evolving grid to stdout. Used to test migration of a non-trivial, stateful application. See `Game-of-life-migration/`.
+- **Game of Life**: A heap-backed C implementation of Conway's Game of Life, defaulting to a 2048x2048 grid with about 32 MiB of heap state. Used to test migration of a larger stateful application. See `Game-of-life-migration/`.
 - **TCP client/server**: An echo server/client pair for testing migration of established TCP connections (socket state preservation). See `Network-live-migration/`.
 - **WebAssembly**: An injected WASM compute workload migrated with `wasm-migrate-commands`, using the same CSV/plotting style as the CRIU experiments. See `WASM-migration/`.
 
@@ -133,6 +133,12 @@ Override the number of host-mode and direct-mode runs without editing `benchmark
 
 ```bash
 python3 run_all.py --runs 10
+```
+
+Run only selected suites by benchmark name/slug:
+
+```bash
+python3 run_all.py --benchmarks game-of-life-migration --runs 10
 ```
 
 This uses:

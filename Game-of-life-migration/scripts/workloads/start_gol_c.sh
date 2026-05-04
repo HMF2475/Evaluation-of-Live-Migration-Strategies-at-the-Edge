@@ -10,8 +10,12 @@ set -euo pipefail
 
 NODE="${1:-edge-node-1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Correct path to gol.c in simplest-example
-COUNTER_C="$SCRIPT_DIR/../../simplest-example/gol.c"
+GOL_WIDTH="${GOL_WIDTH:-2048}"
+GOL_HEIGHT="${GOL_HEIGHT:-2048}"
+GOL_SEED="${GOL_SEED:-0xC0FFEE}"
+GOL_OUTPUT_MODE="${GOL_OUTPUT_MODE:-summary}"
+GOL_PATTERN="${GOL_PATTERN:-random}"
+COUNTER_C="$SCRIPT_DIR/gol.c"
 GOL_SHA="$(sha256sum "$COUNTER_C" | awk '{print $1}')"
 
 echo "[$(date +'%H:%M:%S')] Ensuring gol binary on $NODE..."
@@ -34,12 +38,15 @@ else
 fi
 
 echo "[$(date +'%H:%M:%S')] Starting gol on $NODE..."
+echo "[$(date +'%H:%M:%S')] Grid: ${GOL_WIDTH}x${GOL_HEIGHT} (two uint32 grids, approx $((GOL_WIDTH * GOL_HEIGHT * 8 / 1024 / 1024)) MiB heap)"
+echo "[$(date +'%H:%M:%S')] Output mode: ${GOL_OUTPUT_MODE}"
+echo "[$(date +'%H:%M:%S')] Pattern: ${GOL_PATTERN}"
 
 multipass exec "$NODE" -- bash -lc "
 set -e
 : > /home/ubuntu/gol.out
 chmod 664 /home/ubuntu/gol.out
-nohup /tmp/gol >> /home/ubuntu/gol.out 2>&1 &
+GOL_WIDTH='$GOL_WIDTH' GOL_HEIGHT='$GOL_HEIGHT' GOL_SEED='$GOL_SEED' GOL_OUTPUT_MODE='$GOL_OUTPUT_MODE' GOL_PATTERN='$GOL_PATTERN' nohup /tmp/gol >> /home/ubuntu/gol.out 2>&1 &
 PID=\$!
 echo \$PID > /home/ubuntu/gol.pid
 cp /home/ubuntu/gol.pid /home/ubuntu/app.pid

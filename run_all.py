@@ -132,6 +132,26 @@ def load_benchmarks() -> list[dict]:
     return valid
 
 
+def _filter_benchmarks(benchmarks: list[dict], selected_raw: str) -> list[dict]:
+    """Filter benchmark commands by name or slug."""
+    if not selected_raw.strip():
+        return benchmarks
+
+    selected = {_slugify(item) for item in selected_raw.split(",") if item.strip()}
+    filtered = [
+        bench
+        for bench in benchmarks
+        if _slugify(bench["name"]) in selected or bench["name"] in selected_raw
+    ]
+    if not filtered:
+        available = ", ".join(bench["name"] for bench in benchmarks)
+        log(
+            "[ERROR] No benchmarks matched --benchmarks="
+            f"{selected_raw!r}. Available: {available}"
+        )
+    return filtered
+
+
 def _maybe_inject_continue_on_failure(cmd: str, enabled: bool) -> str:
     if not enabled:
         return cmd
@@ -674,6 +694,14 @@ def main():
         help="Comma-separated profile_name values to run (default: all).",
     )
     parser.add_argument(
+        "--benchmarks",
+        default="",
+        help=(
+            "Comma-separated benchmark names/slugs to run from benchmarks.json "
+            "(default: all). Example: --benchmarks game-of-life-migration"
+        ),
+    )
+    parser.add_argument(
         "--cooldown-seconds",
         type=int,
         default=COOLDOWN_SECONDS,
@@ -771,6 +799,14 @@ def main():
         benchmarks = load_benchmarks()
         if not benchmarks:
             return 1
+        benchmarks = _filter_benchmarks(benchmarks, args.benchmarks)
+        if not benchmarks:
+            return 1
+        if args.benchmarks.strip():
+            log(
+                "[INFO] Selected benchmarks: "
+                + ", ".join(bench["name"] for bench in benchmarks)
+            )
 
         deferred_plot_jobs: list[DeferredPlotJob] = []
 

@@ -41,7 +41,15 @@ python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite 
 
 ## About the Game of Life Workload
 
-The Game of Life workload is a C program (`gol.c`) that simulates Conway's Game of Life, printing an evolving 50x20 grid to stdout every second. It is used to test CRIU's ability to checkpoint and restore a non-trivial, stateful application.
+The benchmarked Game of Life workload is a C program (`scripts/workloads/gol.c`) that simulates Conway's Game of Life with two heap-allocated grids. By default it uses a `2048x2048` grid, which is about 32 MiB of heap state (`width * height * 2 grids * 4 bytes`). This makes the CRIU image large enough to study checkpoint/transfer/restore behavior, especially post-copy lazy-pages.
+
+By default the process prints a compact heartbeat once per generation instead of the full board:
+
+```text
+generation=12 width=2048 height=2048 alive=... checksum=...
+```
+
+That keeps `/home/ubuntu/gol.out` useful for restore validation without making stdout dominate the benchmark.
 
 To launch the workload manually:
 
@@ -50,3 +58,40 @@ bash Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
 ```
 
 Output is written to `/home/ubuntu/gol.out` on the node. PID files: `/home/ubuntu/gol.pid`, `/home/ubuntu/app.pid`.
+
+The grid can be changed without recompiling by setting environment variables before launching:
+
+```bash
+GOL_WIDTH=1024 GOL_HEIGHT=1024 bash Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+```
+
+For a presentation/demo, switch back to drawing mode and use a small grid:
+
+```bash
+GOL_WIDTH=50 GOL_HEIGHT=20 GOL_OUTPUT_MODE=grid GOL_PATTERN=cannon bash Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+```
+
+Output modes:
+
+```text
+GOL_OUTPUT_MODE=summary   compact benchmark heartbeat, default
+GOL_OUTPUT_MODE=grid      draw the board with X/- for small demo grids
+```
+
+Initial patterns:
+
+```text
+GOL_PATTERN=random   deterministic pseudo-random board, default for benchmarks
+GOL_PATTERN=cannon   centered Gosper glider gun for small visual demos
+```
+
+Grid rendering is automatically disabled for very large grids to avoid flooding stdout.
+
+Useful sizes:
+
+```text
+512x512     ≈ 2 MiB heap
+1024x1024   ≈ 8 MiB heap
+2048x2048   ≈ 32 MiB heap
+4096x4096   ≈ 128 MiB heap
+```

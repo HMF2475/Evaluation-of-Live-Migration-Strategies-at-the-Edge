@@ -373,6 +373,7 @@ Useful options:
 
 ```bash
 python3 run_all.py --profiles 5_TEE_Best,6_TEE_Avg
+python3 run_all.py --benchmarks game-of-life-migration
 python3 run_all.py --runs 10
 python3 run_all.py --continue-on-failure
 python3 run_all.py --cooldown-seconds 20
@@ -384,6 +385,7 @@ Notes:
 - `run_all.py` applies `tc` rules on default VM interfaces.
 - Rules target VM-to-VM traffic, so host-to-VM control traffic stays responsive.
 - Suite commands receive `--profile-name`, saved in CSV.
+- `--benchmarks name-or-slug` filters `benchmarks.json` so a rerun can target one suite, for example `--benchmarks game-of-life-migration`.
 - `--runs N` overrides both `--host-runs` and `--direct-runs` for every suite, so `benchmarks.json` does not need edits when changing repeat count.
 - `--run-chunk-size N` splits a large run count into several smaller suite invocations. For example, `--runs 40 --run-chunk-size 10` runs four chunks of 10 host-mode and 10 direct-mode repeats.
 - `--restart-between-run-chunks` restarts the Multipass benchmark VMs and reapplies the active profile between chunks. This is useful for long batches because CRIU processes, runtime state, cached files, node_exporter snapshots, and plotting work can create memory pressure over many hours.
