@@ -28,7 +28,9 @@ from typing import Callable
 CONFIG_FILE = "network_profiles.json"
 REPO_ROOT = Path(__file__).resolve().parent
 NODES = ["edge-node-1", "edge-node-2", "edge-host-1"]
+DEFAULT_RESTART_NODES = ["edge-node-1", "edge-node-2"]
 COOLDOWN_SECONDS = 60  # Time to let the system rest and flush buffers between runs
+MULTIPASS_RESTART_TIMEOUT_SECONDS = 600
 BENCHMARKS_FILE = "benchmarks.json"
 
 _LOG_FILE = None
@@ -428,22 +430,58 @@ def clear_all_tc_rules(node_name):
     )
 
 
-def restart_multipass_nodes(nodes: list[str]) -> int:
-    """Restart benchmark VMs to release leaked/cached memory between chunks."""
+def restart_multipass_nodes(
+    nodes: list[str],
+    timeout_seconds: int = MULTIPASS_RESTART_TIMEOUT_SECONDS,
+) -> int:
+    """Restart benchmark VMs to release leaked/cached memory between chunks.
+
+    Restart nodes one at a time with a timeout. Multipass can occasionally leave
+    a VM in "Restarting"; a bounded subprocess keeps unattended batches from
+    blocking forever and makes the offending VM visible in the session log.
+    """
     log(f"\n[MULTIPASS] Restarting nodes: {', '.join(nodes)}")
-    result = subprocess.run(
-        ["multipass", "restart", *nodes],
-        text=True,
-        capture_output=True,
-    )
-    if result.stdout:
-        log(result.stdout.rstrip())
-    if result.stderr:
-        log(result.stderr.rstrip())
-    if result.returncode != 0:
-        log(f"[ERROR] multipass restart failed with code {result.returncode}")
-        return result.returncode
+
+    for node in nodes:
+        log(f"[MULTIPASS] Restarting {node} (timeout={timeout_seconds}s)...")
+        try:
+            result = subprocess.run(
+                ["multipass", "restart", node],
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            if exc.stdout:
+                log(str(exc.stdout).rstrip())
+            if exc.stderr:
+                log(str(exc.stderr).rstrip())
+            log(f"[ERROR] multipass restart timed out after {timeout_seconds}s: {node}")
+            return 124
+
+        if result.stdout:
+            log(result.stdout.rstrip())
+        if result.stderr:
+            log(result.stderr.rstrip())
+        if result.returncode != 0:
+            log(
+                f"[ERROR] multipass restart failed for {node} "
+                f"with code {result.returncode}"
+            )
+            return result.returncode
+
     return 0
+
+
+def _parse_node_list(raw: str) -> list[str]:
+    nodes = [node.strip() for node in raw.split(",") if node.strip()]
+    invalid = [node for node in nodes if node not in NODES]
+    if invalid:
+        raise ValueError(
+            f"unknown restart node(s): {', '.join(invalid)}. "
+            f"Known nodes: {', '.join(NODES)}"
+        )
+    return nodes
 
 
 def discover_nodes() -> tuple[dict[str, str], dict[str, str]]:
@@ -728,6 +766,24 @@ def main():
         help="Restart Multipass nodes and reapply the active profile between run chunks.",
     )
     parser.add_argument(
+        "--restart-nodes",
+        default=",".join(DEFAULT_RESTART_NODES),
+        help=(
+            "Comma-separated Multipass nodes to restart between chunks "
+            f"(default: {','.join(DEFAULT_RESTART_NODES)}). "
+            "Traffic-control rules are still reapplied to all benchmark nodes."
+        ),
+    )
+    parser.add_argument(
+        "--multipass-restart-timeout",
+        type=int,
+        default=MULTIPASS_RESTART_TIMEOUT_SECONDS,
+        help=(
+            "Seconds to wait for each per-node Multipass restart before failing "
+            f"fast (default: {MULTIPASS_RESTART_TIMEOUT_SECONDS})."
+        ),
+    )
+    parser.add_argument(
         "--continue-on-failure",
         action="store_true",
         help="Continue to the next benchmark/profile even if one fails.",
@@ -751,6 +807,16 @@ def main():
         parser.error("--run-chunk-size requires --runs")
     if args.restart_between_run_chunks and args.run_chunk_size is None:
         parser.error("--restart-between-run-chunks requires --run-chunk-size")
+    if args.multipass_restart_timeout < 1:
+        parser.error("--multipass-restart-timeout must be >= 1")
+    try:
+        restart_nodes = _parse_node_list(args.restart_nodes)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if args.restart_between_run_chunks and not restart_nodes:
+        parser.error(
+            "--restart-nodes cannot be empty with --restart-between-run-chunks"
+        )
     cooldown_seconds = int(args.cooldown_seconds)
 
     out_dir = Path(args.out_dir)
@@ -807,6 +873,11 @@ def main():
                 "[INFO] Selected benchmarks: "
                 + ", ".join(bench["name"] for bench in benchmarks)
             )
+        if args.restart_between_run_chunks:
+            log(
+                "[INFO] Restart between chunks enabled for nodes: "
+                + ", ".join(restart_nodes)
+            )
 
         deferred_plot_jobs: list[DeferredPlotJob] = []
 
@@ -836,7 +907,10 @@ def main():
 
                 def restart_and_reapply_current_profile() -> int:
                     nonlocal interfaces, ips
-                    restart_rc = restart_multipass_nodes(NODES)
+                    restart_rc = restart_multipass_nodes(
+                        restart_nodes,
+                        timeout_seconds=args.multipass_restart_timeout,
+                    )
                     if restart_rc != 0:
                         return restart_rc
                     interfaces, ips = discover_nodes()
