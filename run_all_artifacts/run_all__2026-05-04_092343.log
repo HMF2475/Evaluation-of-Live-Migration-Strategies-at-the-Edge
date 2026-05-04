@@ -1,0 +1,8 @@
+[ARTIFACTS] Session log: run_all_artifacts/run_all__2026-05-04_092343.log
+[ARTIFACTS] Timing CSV : run_all_artifacts/benchmark_durations.csv
+[ARTIFACTS] Bench logs : run_all_artifacts/logs/
+[CMD] multipass exec edge-node-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[ERROR] Command failed with code 2:
+exec failed: cannot connect to the multipass socket
+exec failed: cannot connect to the multipass socket
+

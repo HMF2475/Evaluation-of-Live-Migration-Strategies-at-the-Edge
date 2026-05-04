@@ -1,0 +1,43 @@
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Network-live-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2 edge-host-1 10.138.215.250
+[00:30:44] Resetting nodes: edge-node-1 -> edge-node-2 (server: edge-host-1, vip: 10.138.215.250)
+[00:30:44] Step 1: Killing any existing processes on source...
+[00:30:44]   Killing PID 230618 (from /home/ubuntu/tcp_client.pid)
+[00:30:45]   Killing PID 230618 (from /home/ubuntu/client.pid)
+[00:30:46]   Killing any remaining background processes...
+[00:30:47] Step 2: Cleaning source node...
+[00:30:49] Step 3: Cleaning destination node...
+[00:30:49]   Killing PID 230618 on destination (from /home/ubuntu/tcp_client.pid)
+[00:30:50]   Killing PID 230618 on destination (from /home/ubuntu/client.pid)
+[00:30:50]   Killing all remaining TCP processes on destination...
+[00:30:53] Step 4: Cleaning server node (edge-host-1)...
+[00:30:54]   Killing PID 93058 on server (from /home/ubuntu/tcp_server.pid)
+[00:30:56] ✓ Reset complete, nodes are clean
+[00:30:56]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Network-live-migration/scripts/workloads/start_tcp_server.sh edge-host-1 5000
+[tcp-server] Ensuring tcp-howto binary on edge-host-1...
+[tcp-server] Reusing existing /tmp/tcp-howto on edge-host-1
+[tcp-server] Starting on edge-host-1 (port 5000)...
+[tcp-server] Waiting for listen...
+✓ TCP server listening on edge-host-1:5000
+[tcp-server] Logs: multipass exec edge-host-1 -- tail -f /home/ubuntu/tcp_server.out
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Network-live-migration/scripts/workloads/start_tcp_client.sh edge-node-1 edge-host-1 5000
+[tcp-client] Server endpoint: 10.138.215.36:5000
+[tcp-client] Client VIP: 10.138.215.250
+[tcp-client] Ensuring tcp-howto binary on edge-node-1...
+[tcp-client] Reusing existing /tmp/tcp-howto on edge-node-1
+[tcp-client] Ensuring VIP 10.138.215.250 is present on edge-node-1...
+ARPING 10.138.215.250 from 10.138.215.250 ens3
+Sent 3 probes (3 broadcast(s))
+Received 0 response(s)
+[tcp-client] Starting on edge-node-1...
+[tcp-client] Waiting for established TCP connection...
+✓ TCP client connected (PID: 256544)
+[tcp-client] Logs: multipass exec edge-node-1 -- tail -f /home/ubuntu/tcp_client.out
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Network-live-migration/scripts/orchestrators/tcp_client_benchmark.py cold --source edge-node-1 --dest edge-node-2 --server edge-host-1 --transfer-mode host --run-id 30-04-2026-host-cold-0001 --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Network-live-migration/metrics/migration_metrics.csv --profile-name 3_LTE --relay-node edge-host-1
