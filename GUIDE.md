@@ -391,6 +391,7 @@ Notes:
 - `--restart-between-run-chunks` restarts the Multipass source/destination VMs and reapplies the active profile between chunks. This is useful for long batches because CRIU processes, runtime state, cached files, node_exporter snapshots, and plotting work can create memory pressure over many hours.
 - `--restart-nodes node1,node2` controls which VMs are restarted between chunks. The default is `edge-node-1,edge-node-2`; `edge-host-1` is left running because it is usually only the relay/server node and is more likely to get wedged in Multipass `Restarting` during long batches.
 - `--multipass-restart-timeout N` bounds each per-node restart. If Multipass gets stuck, `run_all.py` fails fast instead of waiting forever.
+- `--multipass-ready-timeout N` controls how long `run_all.py` waits after a restart for `multipass exec` to work again before discovering IPs/interfaces and reapplying traffic-control rules.
 - By default, each suite generates its own plots before returning to `run_all.py`.
 - With `--defer-suite-plots`, `run_all.py` adds `--no-plots` to suite commands, records the `.run_ids.txt` file created by each suite/profile, and generates plots after all benchmarks finish.
 - Deferred plots are still profile-correct: each plot command uses the exact run-id list plus `--profile-name`, even when module CSV files contain older runs from other profiles. When chunking is enabled, `run_all.py` combines the chunk run-id files before generating the final profile-level plots.

@@ -31,6 +31,7 @@ NODES = ["edge-node-1", "edge-node-2", "edge-host-1"]
 DEFAULT_RESTART_NODES = ["edge-node-1", "edge-node-2"]
 COOLDOWN_SECONDS = 60  # Time to let the system rest and flush buffers between runs
 MULTIPASS_RESTART_TIMEOUT_SECONDS = 600
+MULTIPASS_READY_TIMEOUT_SECONDS = 300
 BENCHMARKS_FILE = "benchmarks.json"
 
 _LOG_FILE = None
@@ -433,6 +434,7 @@ def clear_all_tc_rules(node_name):
 def restart_multipass_nodes(
     nodes: list[str],
     timeout_seconds: int = MULTIPASS_RESTART_TIMEOUT_SECONDS,
+    ready_timeout_seconds: int = MULTIPASS_READY_TIMEOUT_SECONDS,
 ) -> int:
     """Restart benchmark VMs to release leaked/cached memory between chunks.
 
@@ -470,7 +472,42 @@ def restart_multipass_nodes(
             )
             return result.returncode
 
+        ready_rc = wait_for_multipass_node(node, timeout_seconds=ready_timeout_seconds)
+        if ready_rc != 0:
+            return ready_rc
+
     return 0
+
+
+def wait_for_multipass_node(
+    node: str,
+    timeout_seconds: int = MULTIPASS_READY_TIMEOUT_SECONDS,
+    poll_seconds: int = 5,
+) -> int:
+    """Wait until `multipass exec <node> -- true` works after a VM restart."""
+    deadline = time.monotonic() + timeout_seconds
+    last_error = ""
+    log(f"[MULTIPASS] Waiting for {node} SSH readiness...")
+
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["multipass", "exec", node, "--", "true"],
+            text=True,
+            capture_output=True,
+            timeout=min(30, max(1, poll_seconds + 10)),
+        )
+        if result.returncode == 0:
+            log(f"[MULTIPASS] {node} is ready")
+            return 0
+
+        last_error = (result.stderr or result.stdout or "").strip()
+        time.sleep(poll_seconds)
+
+    log(
+        f"[ERROR] {node} did not become SSH-ready within {timeout_seconds}s"
+        + (f": {last_error}" if last_error else "")
+    )
+    return 125
 
 
 def _parse_node_list(raw: str) -> list[str]:
@@ -784,6 +821,15 @@ def main():
         ),
     )
     parser.add_argument(
+        "--multipass-ready-timeout",
+        type=int,
+        default=MULTIPASS_READY_TIMEOUT_SECONDS,
+        help=(
+            "Seconds to wait after each restart until `multipass exec` works "
+            f"again (default: {MULTIPASS_READY_TIMEOUT_SECONDS})."
+        ),
+    )
+    parser.add_argument(
         "--continue-on-failure",
         action="store_true",
         help="Continue to the next benchmark/profile even if one fails.",
@@ -809,6 +855,8 @@ def main():
         parser.error("--restart-between-run-chunks requires --run-chunk-size")
     if args.multipass_restart_timeout < 1:
         parser.error("--multipass-restart-timeout must be >= 1")
+    if args.multipass_ready_timeout < 1:
+        parser.error("--multipass-ready-timeout must be >= 1")
     try:
         restart_nodes = _parse_node_list(args.restart_nodes)
     except ValueError as exc:
@@ -910,6 +958,7 @@ def main():
                     restart_rc = restart_multipass_nodes(
                         restart_nodes,
                         timeout_seconds=args.multipass_restart_timeout,
+                        ready_timeout_seconds=args.multipass_ready_timeout,
                     )
                     if restart_rc != 0:
                         return restart_rc

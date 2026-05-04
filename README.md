@@ -161,7 +161,7 @@ python3 run_all.py --runs 40 --run-chunk-size 10 --restart-between-run-chunks --
 
 This still produces one profile-level plot directory per suite. The chunking reduces long-run memory pressure from CRIU, runtime processes, node_exporter snapshots, plotting, and Multipass VM state that can accumulate over many repeated migrations. After each chunk, `run_all.py` restarts the source/destination VMs by default and reapplies the active network profile to all benchmark nodes before continuing.
 
-The relay/server VM (`edge-host-1`) is not restarted by default because it is mostly used as the relay hop and Multipass can occasionally leave it stuck in `Restarting` during long unattended batches. If you explicitly want to restart it too, pass `--restart-nodes edge-node-1,edge-node-2,edge-host-1`. Each node restart is bounded by `--multipass-restart-timeout` seconds so a stuck Multipass operation fails fast instead of blocking the whole batch indefinitely.
+The relay/server VM (`edge-host-1`) is not restarted by default because it is mostly used as the relay hop and Multipass can occasionally leave it stuck in `Restarting` during long unattended batches. If you explicitly want to restart it too, pass `--restart-nodes edge-node-1,edge-node-2,edge-host-1`. Each node restart is bounded by `--multipass-restart-timeout` seconds so a stuck Multipass operation fails fast instead of blocking the whole batch indefinitely. After each restart, `run_all.py` also waits for `multipass exec` to work again before discovering IPs/interfaces and reapplying the profile.
 
 See `GUIDE.md` for details and options.
 
