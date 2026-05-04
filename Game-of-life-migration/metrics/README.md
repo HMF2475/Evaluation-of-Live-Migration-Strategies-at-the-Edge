@@ -106,6 +106,19 @@ Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 
 For new runs, `transfer_phase_breakdown.png` decomposes archive creation/compression, transfer setup, first and second copy legs, cleanup, and destination unpack. This helps explain whether a high `transfer_ms` is actual data movement or fixed SSH/multipass and archive overhead.
 
+### Reading `transfer_phase_breakdown.png`
+
+Each stacked bar is the mean transfer-side cost for a migration method and transfer mode:
+
+- `archive create`: compress/create the archive that will be moved. For CRIU this packages the image directory, e.g. `/tmp/CRIU-gol` into `CRIU-gol.tar.gz`.
+- `transfer setup`: orchestration before copying data, such as destination IP lookup, source-file validation, SSH trust setup, SSH test connection, or host temp-file creation.
+- `copy leg 1`: first file-copy operation. In direct mode this is source VM to destination VM. In host mode this is source VM to relay VM.
+- `copy leg 2`: second file-copy operation, only for relay/host mode. In host mode this is relay VM to destination VM. Direct mode normally has zero here.
+- `cleanup`: removal of temporary host files or relay-staged files.
+- `destination unpack`: extract the transferred archive on the destination before restore.
+
+Use this plot to explain whether high `transfer_ms` comes from real data movement or from fixed overhead around the transfer. For small checkpoints, `transfer setup` can dominate even when the archive itself is tiny.
+
 ### Architecture Compatibility
 - `same_arch=true` - No architecture mismatch overhead
 - `same_arch=false` - Verify results (some operations may fail if architectures differ)

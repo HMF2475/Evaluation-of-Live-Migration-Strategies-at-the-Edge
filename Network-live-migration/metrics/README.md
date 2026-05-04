@@ -48,6 +48,19 @@ The `profile_name` column is filled when you run suite runners with `--profile-n
 
 The detailed transfer columns split archive creation, SSH/multipass setup, first/second copy legs, cleanup, and destination unpack. They feed `transfer_phase_breakdown.png`, which is useful for TCP runs because `transfer_ms` can otherwise mix network copy time with fixed control-plane and archive overhead.
 
+## Reading `transfer_phase_breakdown.png`
+
+Each stacked bar is the mean transfer-side cost for a migration method and transfer mode:
+
+- `archive create`: compress/create the archive that will be moved. For TCP/CRIU this packages `/tmp/CRIU-tcp-client` into `CRIU-tcp-client.tar.gz`.
+- `transfer setup`: orchestration before copying data, such as destination IP lookup, source-file validation, SSH trust setup, SSH test connection, or host temp-file creation.
+- `copy leg 1`: first file-copy operation. In direct mode this is source VM to destination VM. In host mode this is source VM to relay VM.
+- `copy leg 2`: second file-copy operation, only for relay/host mode. In host mode this is relay VM to destination VM. Direct mode normally has zero here.
+- `cleanup`: removal of temporary host files or relay-staged files.
+- `destination unpack`: extract the transferred archive on the destination before restore.
+
+Use this plot to explain whether high `transfer_ms` comes from real data movement or from fixed overhead around the transfer. TCP migration is especially sensitive to setup and orchestration cost because the archive can be small while the fixed SCP/SSH/VIP handling overhead remains visible.
+
 ## `node_exporter_metrics.csv` schema
 
 See the header row in `node_exporter_metrics.csv` (it matches the scripts in `scripts/orchestrators/node_exporter_metrics.py`).
