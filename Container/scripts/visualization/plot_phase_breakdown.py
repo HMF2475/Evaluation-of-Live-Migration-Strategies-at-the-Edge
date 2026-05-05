@@ -11,7 +11,14 @@ import sys
 from pathlib import Path
 import numpy as np
 
-from common import load_migration_csv, ordered_methods, resolve_output_file
+from common import (
+    annotate_segment_std,
+    apply_plot_theme,
+    load_migration_csv,
+    ordered_methods,
+    phase_colors,
+    resolve_output_file,
+)
 
 
 def plot_phase_breakdown(
@@ -39,14 +46,36 @@ def plot_phase_breakdown(
 
     # Ensure output directory exists
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+    apply_plot_theme()
 
+    checkpoint_col = (
+        "checkpoint_plot_ms" if "checkpoint_plot_ms" in df.columns else "checkpoint_ms"
+    )
+    phase_columns = [
+        (checkpoint_col, "checkpoint"),
+        ("transfer_ms", "transfer (excl. setup)"),
+        ("restore_ms", "restore"),
+    ]
+    df["phase_total_ms"] = (
+        df[checkpoint_col].astype(float)
+        + df["transfer_ms"].astype(float)
+        + df["restore_ms"].astype(float)
+    )
     phases = (
         df.groupby(["migration_method", "transfer_mode"])[
-            ["checkpoint_ms", "transfer_ms", "restore_ms"]
+            [column for column, _ in phase_columns]
         ]
         .mean()
         .reset_index()
     )
+    phase_stds = (
+        df.groupby(["migration_method", "transfer_mode"])[
+            [column for column, _ in phase_columns]
+        ]
+        .std()
+        .reset_index()
+    )
+    phase_stds = phase_stds.fillna(0.0)
 
     methods = ordered_methods(phases["migration_method"].astype(str))
     if not methods:
@@ -60,40 +89,76 @@ def plot_phase_breakdown(
         modes = sorted(phases["transfer_mode"].unique().tolist())
 
     plt.figure(figsize=(12, 6))
+    ax = plt.gca()
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
+    max_top = 0.0
+    label_records = []
+    color_labels = [f"{mode}: {label}" for mode in modes for _, label in phase_columns]
+    colors = phase_colors(color_labels)
 
     for j, mode in enumerate(modes):
         sub = phases[phases["transfer_mode"] == mode].set_index("migration_method")
-        chk = [
-            float(sub.loc[m, "checkpoint_ms"]) if m in sub.index else 0.0
-            for m in methods
-        ]
-        trn = [
-            float(sub.loc[m, "transfer_ms"]) if m in sub.index else 0.0 for m in methods
-        ]
-        rst = [
-            float(sub.loc[m, "restore_ms"]) if m in sub.index else 0.0 for m in methods
-        ]
-
-        offset = (j - (len(modes) - 1) / 2) * width
-        plt.bar(x + offset, chk, width, label=f"{mode}: checkpoint")
-        plt.bar(x + offset, trn, width, bottom=chk, label=f"{mode}: transfer")
-        plt.bar(
-            x + offset,
-            rst,
-            width,
-            bottom=np.array(chk) + np.array(trn),
-            label=f"{mode}: restore",
+        std_sub = phase_stds[phase_stds["transfer_mode"] == mode].set_index(
+            "migration_method"
         )
+        offset = (j - (len(modes) - 1) / 2) * width
+        bar_x = x + offset
+        bottom = np.zeros(len(methods))
+        for column, phase_label in phase_columns:
+            values = np.array(
+                [float(sub.loc[m, column]) if m in sub.index else 0.0 for m in methods]
+            )
+            std_values = np.array(
+                [
+                    float(std_sub.loc[m, column]) if m in std_sub.index else 0.0
+                    for m in methods
+                ]
+            )
+            legend_label = f"{mode}: {phase_label}"
+            ax.bar(
+                bar_x,
+                values,
+                width,
+                bottom=bottom,
+                label=legend_label,
+                color=colors[legend_label],
+                edgecolor="white",
+                linewidth=0.4,
+            )
+            for bx, base, height, std in zip(bar_x, bottom, values, std_values):
+                if height <= 0:
+                    continue
+                max_top = max(max_top, float(base + height))
+                label_records.append(
+                    (float(bx), float(base), float(height), float(std))
+                )
+            bottom += values
 
-    plt.xlabel("Migration Method")
-    plt.ylabel("Time (ms)")
+    if max_top > 0:
+        y_upper = max_top * 1.14
+        ax.set_ylim(top=y_upper)
+        for bx, base, height, std in label_records:
+            annotate_segment_std(ax, bx, base, height, std, y_upper)
+    ax.set_xlabel("Migration Method")
+    ax.set_ylabel("Time (ms)")
     base_title = "Migration Phase Breakdown (Mean)"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
-    plt.title(full_title)
-    plt.xticks(x, methods, rotation=0)
-    plt.legend(
+    ax.set_title(full_title)
+    ax.set_xticks(x)
+    ax.set_xticklabels(methods, rotation=0)
+    ax.text(
+        0.01,
+        0.98,
+        "Segment labels show +/-SD (ms)",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=8,
+        color="#333333",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
+    )
+    ax.legend(
         ncol=1,
         fontsize=8,
         frameon=False,

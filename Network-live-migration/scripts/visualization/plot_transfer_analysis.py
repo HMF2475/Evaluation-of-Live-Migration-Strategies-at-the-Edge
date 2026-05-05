@@ -52,7 +52,7 @@ def plot_transfer_analysis(
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     plt.title(full_title)
     plt.xlabel("Archive Size (bytes)")
-    plt.ylabel("Transfer Time (ms)")
+    plt.ylabel("Transfer Time excl. setup (ms)")
     plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)

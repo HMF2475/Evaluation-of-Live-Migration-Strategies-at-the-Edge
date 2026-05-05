@@ -144,15 +144,21 @@ class PrecopyMigration(MigrationStrategy):
         )
 
         # Step 3: Pre-dumps (service continues running)
-        self.log(f"Step 3: Running {self.iterations} pre-dumps...")
+        self.log(
+            f"Step 3: Running {self.iterations} pre-dumps and transferring them while service keeps running..."
+        )
         t_precopy_start = time.time_ns()
+        precopy_archive_ms = 0
+        precopy_transfer_ms = 0
+        precopy_unpacked_ms = 0
+        precopy_bytes = 0
 
         for i in range(self.iterations):
             self.log(f"  Pre-dump {i + 1}/{self.iterations}...")
             iter_dir = f"/tmp/CRIU-counter/iter-{i}"
             prev_opt = ""
             if i > 0:
-                prev_iter_dir = f"/tmp/CRIU-counter/iter-{i - 1}"
+                prev_iter_dir = f"../iter-{i - 1}"
                 prev_opt = f" --prev-images-dir {prev_iter_dir}"
             cmd = (
                 f"sudo mkdir -p {iter_dir} && "
@@ -164,7 +170,62 @@ class PrecopyMigration(MigrationStrategy):
                 check=False,
             )
             if rc != 0:
-                self.log(f"WARNING: Pre-dump {i + 1} failed (continuing anyway)")
+                self.log(f"ERROR: Pre-dump {i + 1} failed")
+                self.metrics.notes += f"; predump_failed_{i + 1}"
+                return False
+
+            iter_archive = f"/home/ubuntu/CRIU-counter-iter-{i}.tar.gz"
+            self.log(f"  Archiving and transferring pre-dump {i + 1}...")
+            t_iter_archive = time.time_ns()
+            rc, _, _ = self.source.exec(
+                f"sudo tar -C /tmp/CRIU-counter -czf {iter_archive} iter-{i} && "
+                f"sudo chown ubuntu:ubuntu {iter_archive}",
+                check=False,
+            )
+            precopy_archive_ms += int((time.time_ns() - t_iter_archive) // 1_000_000)
+            if rc != 0:
+                self.log(f"ERROR: Failed to archive pre-dump {i + 1}")
+                self.metrics.notes += f"; predump_archive_failed_{i + 1}"
+                return False
+            _, iter_size_str, _ = self.source.exec(
+                f"stat -c %s {iter_archive}", check=False
+            )
+            if (iter_size_str or "").strip().isdigit():
+                precopy_bytes += int(iter_size_str)
+
+            t_iter_transfer = time.time_ns()
+            if self.transfer_mode == "host":
+                iter_ok = transfer_archive_via_host(
+                    self.source.node,
+                    self.dest.node,
+                    iter_archive,
+                    iter_archive,
+                    relay_node=self.relay_node,
+                )
+            else:
+                iter_ok = transfer_archive_direct(
+                    self.source.node,
+                    self.dest.node,
+                    iter_archive,
+                    iter_archive,
+                )
+            precopy_transfer_ms += int((time.time_ns() - t_iter_transfer) // 1_000_000)
+            if not iter_ok:
+                self.log(f"ERROR: Failed to transfer pre-dump {i + 1}")
+                self.metrics.notes += f"; predump_transfer_failed_{i + 1}"
+                return False
+
+            t_iter_unpack = time.time_ns()
+            rc, _, _ = self.dest.exec(
+                "sudo mkdir -p /tmp/CRIU-counter && "
+                f"sudo tar -C /tmp/CRIU-counter -xzf {iter_archive}",
+                check=False,
+            )
+            precopy_unpacked_ms += int((time.time_ns() - t_iter_unpack) // 1_000_000)
+            if rc != 0:
+                self.log(f"ERROR: Failed to unpack pre-dump {i + 1} on destination")
+                self.metrics.notes += f"; predump_unpack_failed_{i + 1}"
+                return False
             time.sleep(1)  # Brief pause between pre-dumps
 
         # Record pre-dump time for detailed analysis
@@ -172,6 +233,18 @@ class PrecopyMigration(MigrationStrategy):
         predump_ms = (t_predumps_done - t_precopy_start) // 1_000_000
         self.metrics.predump_ms = int(predump_ms)
         self.log(f"  Total pre-dump time: {predump_ms} ms")
+        self.log(
+            "  Pre-copy transfer outside downtime: "
+            f"archive={precopy_archive_ms} ms, transfer={precopy_transfer_ms} ms, "
+            f"unpack={precopy_unpacked_ms} ms, bytes={precopy_bytes}"
+        )
+        self.metrics.notes += (
+            f";precopy_streamed_iters={self.iterations}"
+            f";precopy_stream_archive_ms={precopy_archive_ms}"
+            f";precopy_stream_transfer_ms={precopy_transfer_ms}"
+            f";precopy_stream_unpack_ms={precopy_unpacked_ms}"
+            f";precopy_stream_bytes={precopy_bytes}"
+        )
 
         # Step 4: Final dump (service FREEZES here)
         self.log("Step 4: Final dump (freezing service)...")
@@ -179,7 +252,7 @@ class PrecopyMigration(MigrationStrategy):
 
         prev_opt = ""
         if self.iterations > 0:
-            last_iter_dir = f"/tmp/CRIU-counter/iter-{self.iterations - 1}"
+            last_iter_dir = f"iter-{self.iterations - 1}"
             prev_opt = f" --prev-images-dir {last_iter_dir}"
 
         rc, _, err = self.source.exec(
@@ -213,11 +286,15 @@ class PrecopyMigration(MigrationStrategy):
         self.metrics.checkpoint_ms = int(final_dump_ms)
         self.log(f"  Final dump time (freeze duration): {final_dump_ms} ms")
 
-        # Step 5: Create and transfer archive
-        self.log("Step 5: Creating archive...")
+        # Step 5: Create and transfer only the final dump archive. Previous
+        # pre-dump images have already been copied to the destination while the
+        # service was running, so they do not count as downtime.
+        self.log("Step 5: Creating final dump archive...")
         t_archive_start = time.time_ns()
         self.source.exec(
-            "cd /tmp && tar czf CRIU-counter.tar.gz CRIU-counter/",
+            "sudo tar -C /tmp --exclude='CRIU-counter/iter-*' "
+            "-czf /home/ubuntu/CRIU-counter-final.tar.gz CRIU-counter && "
+            "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-counter-final.tar.gz",
             check=False,
         )
         self.metrics.archive_create_ms = int(
@@ -226,7 +303,7 @@ class PrecopyMigration(MigrationStrategy):
 
         # Get archive size
         rc, size_str, _ = self.source.exec(
-            "stat -c %s /tmp/CRIU-counter.tar.gz", check=False
+            "stat -c %s /home/ubuntu/CRIU-counter-final.tar.gz", check=False
         )
         try:
             archive_bytes = int(size_str)
@@ -253,8 +330,8 @@ class PrecopyMigration(MigrationStrategy):
             transfer_ok = transfer_archive_via_host(
                 self.source.node,
                 self.dest.node,
-                "/tmp/CRIU-counter.tar.gz",
-                "/home/ubuntu/CRIU-counter.tar.gz",
+                "/home/ubuntu/CRIU-counter-final.tar.gz",
+                "/home/ubuntu/CRIU-counter-final.tar.gz",
                 relay_node=self.relay_node,
                 timings=transfer_timings,
             )
@@ -262,8 +339,8 @@ class PrecopyMigration(MigrationStrategy):
             transfer_ok = transfer_archive_direct(
                 self.source.node,
                 self.dest.node,
-                "/tmp/CRIU-counter.tar.gz",
-                "/home/ubuntu/CRIU-counter.tar.gz",
+                "/home/ubuntu/CRIU-counter-final.tar.gz",
+                "/home/ubuntu/CRIU-counter-final.tar.gz",
                 timings=transfer_timings,
             )
 
@@ -281,8 +358,8 @@ class PrecopyMigration(MigrationStrategy):
         self.log("Step 7: Unpacking on destination...")
         t_unpack_start = time.time_ns()
         self.dest.exec(
-            "sudo rm -rf /tmp/CRIU-counter && sudo mkdir -p /tmp/CRIU-counter && "
-            "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-counter.tar.gz",
+            "sudo mkdir -p /tmp/CRIU-counter && "
+            "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-counter-final.tar.gz",
             check=False,
         )
         self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)

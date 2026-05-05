@@ -491,7 +491,11 @@ def main() -> int:
         ):
             setattr(metrics, key, int(transfer_timings.get(key, 0)))
 
-        # DESTINATION PHASE: seed files before activation; start_command then restores.
+        # DESTINATION PHASE: restore_ms intentionally covers the whole
+        # destination-side activation window: launch destination server, seed
+        # memory files, send start_command, and wait until the injected runtime
+        # log reports restore completion. `unpack_ms` is also recorded as a
+        # sub-timer of this broad restore window.
         restore_start = time.monotonic_ns()
         dest_pid, dest_ipc, dest_log, dest_main, dest_checkpoint = launch_server(
             node=args.dest,

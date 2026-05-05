@@ -48,18 +48,28 @@ The `profile_name` column is filled when you run suite runners with `--profile-n
 
 The detailed transfer columns split archive creation, SSH/multipass setup, first/second copy legs, cleanup, and destination unpack. They feed `transfer_phase_breakdown.png`, which is useful for TCP runs because `transfer_ms` can otherwise mix network copy time with fixed control-plane and archive overhead.
 
+For TCP pre-copy, pre-dump image directories are archived, transferred, and unpacked while the TCP client is still running. The final dump references the last pre-dump directory, and restore needs the complete image chain already present on the destination. Therefore `archive_bytes`, `archive_create_ms`, `transfer_ms`, transfer detail columns, and `unpack_ms` describe only the final dump delta transferred during downtime. Earlier pre-dump archive/copy/unpack totals are recorded in `notes` as `precopy_stream_*` fields and are intentionally excluded from downtime plots.
+
+## Plot Timing Convention
+
+Generated plots subtract `transfer_setup_ms` from plotted `transfer_ms` and `downtime_ms`. The raw CSV remains unchanged. This treats SSH trust, IP lookup, source-file validation, and similar setup as pre-established deployment overhead rather than part of the migration window.
+
 ## Reading `transfer_phase_breakdown.png`
 
-Each stacked bar is the mean transfer-side cost for a migration method and transfer mode:
+Each stacked bar is the mean setup-adjusted transfer phase for a migration method and transfer mode:
 
 - `archive create`: compress/create the archive that will be moved. For TCP/CRIU this packages `/tmp/CRIU-tcp-client` into `CRIU-tcp-client.tar.gz`.
-- `transfer setup`: orchestration before copying data, such as destination IP lookup, source-file validation, SSH trust setup, SSH test connection, or host temp-file creation.
-- `copy leg 1`: first file-copy operation. In direct mode this is source VM to destination VM. In host mode this is source VM to relay VM.
-- `copy leg 2`: second file-copy operation, only for relay/host mode. In host mode this is relay VM to destination VM. Direct mode normally has zero here.
-- `cleanup`: removal of temporary host files or relay-staged files.
+- `transfer setup`: stored in the CSV but omitted from generated transfer/downtime plots because setup is treated as pre-established deployment overhead.
+- `copy` / `copy leg 1`: the file-copy operation. Direct mode shows a single `copy`; host mode shows `copy leg 1` from source VM to relay VM.
+- `copy leg 2`: second file-copy operation, only for relay/host mode. It is omitted from the direct-mode legend when it is zero.
+- `cleanup`: removal of temporary host files or relay-staged files. It is omitted from a mode legend when it is zero.
 - `destination unpack`: extract the transferred archive on the destination before restore.
 
-Use this plot to explain whether high `transfer_ms` comes from real data movement or from fixed overhead around the transfer. TCP migration is especially sensitive to setup and orchestration cost because the archive can be small while the fixed SCP/SSH/VIP handling overhead remains visible.
+The small `+/-SD` labels inside or immediately above each segment show the standard deviation of that specific transfer sub-phase.
+
+## Reading `phase_breakdown.png`
+
+Each stacked bar is the mean checkpoint/final-dump, setup-adjusted transfer, and restore time for a method and transfer mode. The small `+/-SD` labels inside or immediately above each segment show the standard deviation of that specific phase.
 
 ## `node_exporter_metrics.csv` schema
 
