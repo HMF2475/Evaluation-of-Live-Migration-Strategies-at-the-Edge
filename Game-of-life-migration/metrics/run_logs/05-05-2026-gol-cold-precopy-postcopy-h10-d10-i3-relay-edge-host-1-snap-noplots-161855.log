@@ -1,0 +1,32 @@
+=== repeat_benchmarks.py 2026-05-05T16:18:55.629235 ===
+base_run_id=05-05-2026-gol-cold-precopy-postcopy-h10-d10-i3-relay-edge-host-1-snap-noplots-161855
+strategies=cold,precopy,postcopy workload=gol source=edge-node-1 dest=edge-node-2 host_runs=10 direct_runs=10 iterations=3 relay_node=edge-host-1 profile_name=4_Starlink snapshot_node_metrics=True no_plots=True
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[16:18:55] Resetting nodes: edge-node-1 -> edge-node-2
+[16:18:55] Step 1: Killing any existing processes on source...
+[16:18:56]   Killing PID 107189 (from /home/ubuntu/app.pid)
+[16:18:57]   Killing PID 107189 (from /home/ubuntu/gol.pid)
+[16:18:57]   Killing any remaining background processes...
+[16:18:58] Step 2: Cleaning source node...
+[16:18:59] Step 3: Cleaning destination node...
+[16:19:00]   Killing PID 107189 on destination (from /home/ubuntu/app.pid)
+[16:19:01]   Killing PID 107189 on destination (from /home/ubuntu/gol.pid)
+[16:19:01]   Killing all remaining gol processes on destination...
+[16:19:05] ✓ Reset complete, nodes are clean
+[16:19:05]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[16:19:05] Ensuring gol binary on edge-node-1...
+[16:19:05] Transferring gol.c to edge-node-1...
+[16:19:06] Compiling gol.c on edge-node-1...
+[16:19:06] Starting gol on edge-node-1...
+[16:19:06] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[16:19:06] Output mode: summary
+[16:19:06] Pattern: random
+[16:19:07] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py cold --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 05-05-2026-host-cold-0050 --relay-node edge-host-1 --profile-name 4_Starlink

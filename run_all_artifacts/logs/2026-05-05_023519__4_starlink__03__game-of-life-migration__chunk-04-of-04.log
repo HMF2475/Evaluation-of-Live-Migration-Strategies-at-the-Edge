@@ -1,0 +1,2 @@
+[CMD] python3 Game-of-life-migration/scripts/orchestrators/repeat_benchmarks.py suite --strategies cold,precopy,postcopy --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 10 --direct-runs 10 --iterations 3 --snapshot-node-metrics --profile-name 4_Starlink --continue-on-failure --no-plots
+
