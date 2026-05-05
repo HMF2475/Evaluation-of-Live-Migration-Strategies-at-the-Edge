@@ -77,7 +77,7 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
     base_title = "Migration Downtime by Strategy (Host vs Direct)"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     plt.title(full_title)
-    plt.ylabel("Downtime (ms)")
+    plt.ylabel("Downtime excl. transfer setup (ms)")
     plt.xlabel("Migration Method")
     plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig(output_file, dpi=300)

@@ -27,8 +27,8 @@ Columns:
 - `migration_method` - cold, precopy, postcopy
 - `network_migration` - compatibility field kept in the schema for merged plotting workflows
 - `checkpoint_ms` - Time to dump process (milliseconds). For precopy, this is the **final dump only** (when service freezes), not including pre-dumps
-- `archive_bytes` - Size of the checkpoint archive transferred
-- `transfer_ms` - Time to transfer archive between nodes (milliseconds)
+- `archive_bytes` - Size of the checkpoint archive transferred during the measured downtime window. For precopy, this is the final dump archive only; earlier pre-dump archives are summarized in `notes`
+- `transfer_ms` - Time to transfer the downtime archive between nodes (milliseconds)
 - `restore_ms` - Time to restore process on destination (milliseconds)
 - `downtime_ms` - Total service downtime (checkpoint_ms + transfer_ms + restore_ms). For precopy, this excludes pre-dump time since the service was still running during pre-dumps
 - `bandwidth_mbps` - Effective bandwidth utilization during transfer (archive_bytes × 8 / (transfer_ms × 1000))
@@ -36,14 +36,14 @@ Columns:
 - `dst_arch` - Destination node architecture
 - `same_arch` - true if source and destination have matching architecture
 - `success` - true/false indicating if migration completed successfully
-- `notes` - Anomalies, errors, observations, or transfer mode (e.g., `transfer_mode=direct`)
+- `notes` - Anomalies, errors, observations, transfer mode, and precopy stream fields such as `precopy_stream_transfer_ms`
 - `profile_name` - Network profile label supplied by `run_all.py` or the repeat runner
-- `predump_ms` - Total pre-dump time for pre-copy runs; not counted as downtime
+- `predump_ms` - Total pre-copy preparation time for pre-copy runs, including pre-dumps and pre-dump archive/transfer/unpack work; not counted as downtime
 - `final_dump_ms` - Final freeze dump time for pre-copy/post-copy analysis
 - `total_ms` - Best-effort end-to-end wall-clock run duration
 - `lazy_pages_active_ms` - Post-copy lazy-pages active time
 - `lazy_pages_log_bytes` - Size of the lazy-pages log
-- `archive_create_ms` - Time to compress/create the transferred archive
+- `archive_create_ms` - Time to compress/create the downtime archive. For precopy, this is the final dump archive only
 - `transfer_setup_ms` - SSH/multipass setup, trust checks, IP lookup, and source-file validation
 - `transfer_send_ms` - First copy leg: source to destination, relay, or host
 - `transfer_receive_ms` - Second copy leg: relay or host to destination
@@ -90,9 +90,10 @@ The critical metric is **downtime_ms** (checkpoint_ms + transfer_ms + restore_ms
 - **Cold:** Full offline window (freeze → transfer → restore)
   - downtime_ms = checkpoint_ms + transfer_ms + restore_ms
   
-- **Pre-Copy:** Reduced offline window (only final freeze + restore)
+- **Pre-Copy:** Reduced offline window (final freeze + final-delta transfer + restore)
   - downtime_ms = **final_dump_ms** + transfer_ms + restore_ms
-  - Pre-dumps occur while service is still running (not counted as downtime)
+  - Pre-dumps and their image transfers occur while the service is still running (not counted as downtime)
+  - The final dump references the last pre-dump directory, and restore needs the complete image chain. The benchmark therefore copies each pre-dump directory to the destination before the final freeze, then transfers only the final dump delta during downtime.
   
 - **Post-Copy:** Minimal offline window (restore is quick, pages fetched on demand)
   - Implemented with CRIU `lazy-pages` (post-copy). Downtime covers dump-init + transfer + restore, while page fetching continues in the background.
@@ -101,25 +102,35 @@ The critical metric is **downtime_ms** (checkpoint_ms + transfer_ms + restore_ms
 ### Transfer Overhead
 Compare `archive_bytes` and `transfer_ms` to understand network efficiency:
 - Smaller archives = less bandwidth
-- Pre-copy may transfer data multiple times (pre-dumps + final dump)
+- Pre-copy may transfer data multiple times: pre-dump images before downtime, then the final dump delta during downtime
 - Post-copy transfers minimal images first, then pages on-demand (lazy-pages)
 
 For new runs, `transfer_phase_breakdown.png` decomposes the transfer-side work:
 
 This helps distinguish actual copy time from compression, control-plane overhead, and destination extraction. It is especially useful for tiny archives where `transfer_ms` can look large because fixed SSH/multipass overhead dominates the real data movement.
 
-### Reading `transfer_phase_breakdown.png`
+### Plot Timing Convention
 
-Each stacked bar is the mean transfer-side cost for a migration method and transfer mode:
+Generated plots subtract `transfer_setup_ms` from plotted `transfer_ms` and `downtime_ms`. The raw CSV remains unchanged. This treats SSH trust, IP lookup, source-file validation, and similar setup as pre-established deployment overhead rather than part of the migration window.
 
-- `archive create`: compress/create the archive that will be moved. For CRIU this packages the image directory, e.g. `/tmp/CRIU-counter` into `CRIU-counter.tar.gz`.
-- `transfer setup`: orchestration before copying data, such as destination IP lookup, source-file validation, SSH trust setup, SSH test connection, or host temp-file creation.
-- `copy leg 1`: first file-copy operation. In direct mode this is source VM to destination VM. In host mode this is source VM to relay VM. 
-- `copy leg 2`: second file-copy operation, only for relay/host mode. In host mode this is relay VM to destination VM. Direct mode normally has zero here.
-- `cleanup`: removal of temporary host files or relay-staged files.
+## Reading `transfer_phase_breakdown.png`
+
+Each stacked bar is the mean setup-adjusted transfer phase for a migration method and transfer mode:
+
+- `archive create`: compress/create the archive that will be moved.
+- `transfer setup`: stored in the CSV but omitted from generated transfer/downtime plots because setup is treated as pre-established deployment overhead.
+- `copy` / `copy leg 1`: the file-copy operation. Direct mode shows a single `copy`; host mode shows `copy leg 1` from source VM to relay VM. 
+- `copy leg 2`: second file-copy operation, only for relay/host mode. It is omitted from the direct-mode legend when it is zero.
+- `cleanup`: removal of temporary host files or relay-staged files. It is omitted from a mode legend when it is zero.
 - `destination unpack`: extract the transferred archive on the destination before restore.
 
-Use this plot to explain whether high `transfer_ms` comes from real data movement or from fixed overhead around the transfer. For small checkpoints, `transfer setup` can dominate even when the archive itself is tiny.
+The small `+/-SD` labels inside or immediately above each segment show the standard deviation of that specific transfer sub-phase.
+
+For pre-copy rows, the stacked transfer breakdown refers to the final dump delta transferred during downtime. Earlier pre-dump archive, copy, and unpack timings are stored in the `precopy_stream_*` fields inside `notes` and are intentionally excluded from downtime plots.
+
+## Reading `phase_breakdown.png`
+
+Each stacked bar is the mean checkpoint/final-dump, setup-adjusted transfer, and restore time for a method and transfer mode. The small `+/-SD` labels inside or immediately above each segment show the standard deviation of that specific phase.
 
 ### Architecture Compatibility
 - `same_arch=true` - No architecture mismatch overhead

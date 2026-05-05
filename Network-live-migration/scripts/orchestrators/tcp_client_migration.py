@@ -548,14 +548,18 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
 
         # Step 3: Pre-dumps while running
         self.log(
-            f"Step 3: Running {self.iterations} pre-dumps (client keeps running)..."
+            f"Step 3: Running {self.iterations} pre-dumps and transferring them while client keeps running..."
         )
         t_predump_start = time.time_ns()
+        precopy_archive_ms = 0
+        precopy_transfer_ms = 0
+        precopy_unpacked_ms = 0
+        precopy_bytes = 0
         for i in range(self.iterations):
             iter_dir = f"/tmp/CRIU-tcp-client/iter-{i}"
             prev_opt = ""
             if i > 0:
-                prev_opt = f" --prev-images-dir /tmp/CRIU-tcp-client/iter-{i-1}"
+                prev_opt = f" --prev-images-dir ../iter-{i-1}"
             cmd = (
                 f"sudo mkdir -p {iter_dir} && "
                 f"sudo criu pre-dump -t {pid} -D {iter_dir}{prev_opt} "
@@ -563,21 +567,85 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
             )
             rc, _, _ = self.source.exec(cmd, check=False)
             if rc != 0:
-                self.log(f"  WARNING: pre-dump {i+1}/{self.iterations} failed")
+                self.log(f"ERROR: pre-dump {i+1}/{self.iterations} failed")
                 self.metrics.notes += f"; predump_failed_{i+1}"
-            else:
-                self.log(f"  Pre-dump {i+1}/{self.iterations} complete")
+                return False
+
+            self.log(f"  Pre-dump {i+1}/{self.iterations} complete")
+            iter_archive = f"/home/ubuntu/CRIU-tcp-client-iter-{i}.tar.gz"
+            self.log(f"  Archiving and transferring pre-dump {i+1}...")
+            t_iter_archive = time.time_ns()
+            rc, _, _ = self.source.exec(
+                f"sudo tar -C /tmp/CRIU-tcp-client -czf {iter_archive} iter-{i} && "
+                f"sudo chown ubuntu:ubuntu {iter_archive}",
+                check=False,
+            )
+            precopy_archive_ms += int((time.time_ns() - t_iter_archive) // 1_000_000)
+            if rc != 0:
+                self.log(f"ERROR: Failed to archive pre-dump {i+1}")
+                self.metrics.notes += f"; predump_archive_failed_{i+1}"
+                return False
+            _, iter_size_str, _ = self.source.exec(
+                f"stat -c %s {iter_archive}", check=False
+            )
+            if (iter_size_str or "").strip().isdigit():
+                precopy_bytes += int(iter_size_str)
+
+            t_iter_transfer = time.time_ns()
+            iter_ok = (
+                transfer_archive_via_host(
+                    self.source.node,
+                    self.dest.node,
+                    iter_archive,
+                    iter_archive,
+                    relay_node=self.relay_node,
+                )
+                if self.transfer_mode == "host"
+                else transfer_archive_direct(
+                    self.source.node,
+                    self.dest.node,
+                    iter_archive,
+                    iter_archive,
+                )
+            )
+            precopy_transfer_ms += int((time.time_ns() - t_iter_transfer) // 1_000_000)
+            if not iter_ok:
+                self.log(f"ERROR: Failed to transfer pre-dump {i+1}")
+                self.metrics.notes += f"; predump_transfer_failed_{i+1}"
+                return False
+
+            t_iter_unpack = time.time_ns()
+            rc, _, _ = self.dest.exec(
+                "sudo mkdir -p /tmp/CRIU-tcp-client && "
+                f"sudo tar -C /tmp/CRIU-tcp-client -xzf {iter_archive}",
+                check=False,
+            )
+            precopy_unpacked_ms += int((time.time_ns() - t_iter_unpack) // 1_000_000)
+            if rc != 0:
+                self.log(f"ERROR: Failed to unpack pre-dump {i+1} on destination")
+                self.metrics.notes += f"; predump_unpack_failed_{i+1}"
+                return False
             time.sleep(1)
         t_predump_done = time.time_ns()
         self.metrics.predump_ms = int((t_predump_done - t_predump_start) // 1_000_000)
+        self.log(
+            "  Pre-copy transfer outside downtime: "
+            f"archive={precopy_archive_ms} ms, transfer={precopy_transfer_ms} ms, "
+            f"unpack={precopy_unpacked_ms} ms, bytes={precopy_bytes}"
+        )
+        self.metrics.notes += (
+            f";precopy_streamed_iters={self.iterations}"
+            f";precopy_stream_archive_ms={precopy_archive_ms}"
+            f";precopy_stream_transfer_ms={precopy_transfer_ms}"
+            f";precopy_stream_unpack_ms={precopy_unpacked_ms}"
+            f";precopy_stream_bytes={precopy_bytes}"
+        )
 
         # Step 4: Final dump (freeze)
         self.log("Step 4: Final dump (freezing client)...")
         prev_opt = ""
         if self.iterations > 0:
-            prev_opt = (
-                f" --prev-images-dir /tmp/CRIU-tcp-client/iter-{self.iterations - 1}"
-            )
+            prev_opt = f" --prev-images-dir iter-{self.iterations - 1}"
         t_final_dump_start = time.time_ns()
         rc, _, _ = self.source.exec(
             f"sudo criu dump -t {pid} -D /tmp/CRIU-tcp-client -v4 -o dump.log{prev_opt} "
@@ -604,20 +672,21 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
         if not self._move_vip(vip=vip, server_ip=endpoint.ip):
             return False
 
-        # Step 5: Archive
-        self.log("Step 5: Creating archive...")
+        # Step 5: Archive only the final dump delta. Previous pre-dump images
+        # were copied to the destination while the client was still running.
+        self.log("Step 5: Creating final dump archive...")
         t_archive_start = time.time_ns()
         self.source.exec(
-            "sudo tar -C /tmp -czf /tmp/CRIU-tcp-client.tar.gz CRIU-tcp-client && "
-            "sudo cp /tmp/CRIU-tcp-client.tar.gz /home/ubuntu/CRIU-tcp-client.tar.gz && "
-            "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-tcp-client.tar.gz",
+            "sudo tar -C /tmp --exclude='CRIU-tcp-client/iter-*' "
+            "-czf /home/ubuntu/CRIU-tcp-client-final.tar.gz CRIU-tcp-client && "
+            "sudo chown ubuntu:ubuntu /home/ubuntu/CRIU-tcp-client-final.tar.gz",
             check=False,
         )
         self.metrics.archive_create_ms = int(
             (time.time_ns() - t_archive_start) // 1_000_000
         )
         _, size_str, _ = self.source.exec(
-            "sudo stat -c %s /tmp/CRIU-tcp-client.tar.gz", check=False
+            "stat -c %s /home/ubuntu/CRIU-tcp-client-final.tar.gz", check=False
         )
         self.metrics.archive_bytes = (
             int(size_str) if (size_str or "").strip().isdigit() else 0
@@ -637,8 +706,8 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
             transfer_archive_via_host(
                 self.source.node,
                 self.dest.node,
-                "/home/ubuntu/CRIU-tcp-client.tar.gz",
-                "/home/ubuntu/CRIU-tcp-client.tar.gz",
+                "/home/ubuntu/CRIU-tcp-client-final.tar.gz",
+                "/home/ubuntu/CRIU-tcp-client-final.tar.gz",
                 relay_node=self.relay_node,
                 timings=transfer_timings,
             )
@@ -646,8 +715,8 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
             else transfer_archive_direct(
                 self.source.node,
                 self.dest.node,
-                "/home/ubuntu/CRIU-tcp-client.tar.gz",
-                "/home/ubuntu/CRIU-tcp-client.tar.gz",
+                "/home/ubuntu/CRIU-tcp-client-final.tar.gz",
+                "/home/ubuntu/CRIU-tcp-client-final.tar.gz",
                 timings=transfer_timings,
             )
         )
@@ -665,8 +734,8 @@ class TcpClientPrecopyMigration(TcpClientMigrationBase):
         self.log("Step 7: Unpacking on destination...")
         t_unpack_start = time.time_ns()
         rc, _, _ = self.dest.exec(
-            "sudo rm -rf /tmp/CRIU-tcp-client && sudo mkdir -p /tmp/CRIU-tcp-client && "
-            "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-tcp-client.tar.gz",
+            "sudo mkdir -p /tmp/CRIU-tcp-client && "
+            "sudo tar -C /tmp -xzf /home/ubuntu/CRIU-tcp-client-final.tar.gz",
             check=False,
         )
         self.metrics.unpack_ms = int((time.time_ns() - t_unpack_start) // 1_000_000)
