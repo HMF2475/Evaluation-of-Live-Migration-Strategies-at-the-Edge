@@ -60,14 +60,21 @@ def ensure_direct_ssh_trust(source_node: str, dest_node: str) -> bool:
 
     print(f"Setting up SSH trust: {source_node} → ubuntu@{dest_ip}")
 
-    # Generate Ed25519 key pair on source if not exists
-    rc, _, _ = source.exec("test -f ~/.ssh/id_ed25519", check=False)
+    # Ensure an Ed25519 key pair exists without triggering ssh-keygen's
+    # interactive overwrite prompt when the key was created by an earlier run.
+    rc, _, _ = source.exec(
+        "mkdir -p ~/.ssh && chmod 700 ~/.ssh && "
+        "if [ ! -s ~/.ssh/id_ed25519 ]; then "
+        "rm -f ~/.ssh/id_ed25519.pub && "
+        'ssh-keygen -q -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "CRIU-migration"; '
+        "elif [ ! -s ~/.ssh/id_ed25519.pub ]; then "
+        "ssh-keygen -y -f ~/.ssh/id_ed25519 > ~/.ssh/id_ed25519.pub; "
+        "fi",
+        check=False,
+    )
     if rc != 0:
-        print("  Generating Ed25519 key pair on source...")
-        source.exec(
-            'ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "CRIU-migration"',
-            check=False,
-        )
+        print("ERROR: Could not prepare SSH key pair on source")
+        return False
 
     # Get public key from source
     rc, pubkey, _ = source.exec("cat ~/.ssh/id_ed25519.pub", check=False)
