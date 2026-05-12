@@ -1,7 +1,0 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes
-30-04-2026-host-cold-0001,CRIU,cold,no,341,25646,7781,325,8447,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-30T00:21:00.307056,2_5G,0.0,0.0,17231.0,0.0,0.0
-30-04-2026-direct-cold-0001,CRIU,cold,no,333,25435,3502,366,4201,0.06,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-30T00:21:28.851970,2_5G,0.0,0.0,14945.0,0.0,0.0
-30-04-2026-host-precopy-0001,CRIU,precopy,no,283,33881,7943,323,8549,0.03,x86_64,x86_64,True,True,transfer_mode=host;iterations=3;relay_node=edge-host-1,2026-04-30T00:22:04.471570,2_5G,4025.0,283.0,21365.0,0.0,0.0
-30-04-2026-direct-precopy-0001,CRIU,precopy,no,282,33108,3472,291,4045,0.08,x86_64,x86_64,True,True,transfer_mode=direct;iterations=3,2026-04-30T00:22:37.210336,2_5G,4057.0,282.0,19354.0,0.0,0.0
-30-04-2026-host-postcopy-0001,CRIU,postcopy,no,999,23485,7893,361,9253,0.02,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-30T00:23:11.718380,2_5G,0.0,999.0,20879.0,6763.0,3291.0
-30-04-2026-direct-postcopy-0001,CRIU,postcopy,no,988,23533,3496,350,4834,0.05,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-30T00:23:45.646160,2_5G,0.0,988.0,20543.0,8604.0,3233.0

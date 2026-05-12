@@ -1,3 +1,0 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,checkpoint_us,checkpoint_ns,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes
-30-04-2026-host-cold-0000,WASM,cold,no,1,947.0,946843.0,2014,6995,2005,9001,0.0,x86_64,x86_64,True,True,transfer_mode=host;module=3mm_with_cr.wasm;relay_node=edge-host-1,2026-04-30T00:09:34.140246,1_WiFi_6,0,1,14964,0,0
-30-04-2026-direct-cold-0000,WASM,cold,no,1,158.0,157252.0,2017,3138,1967,5106,0.01,x86_64,x86_64,True,True,transfer_mode=direct;module=3mm_with_cr.wasm,2026-04-30T00:09:50.722522,1_WiFi_6,0,1,10998,0,0
