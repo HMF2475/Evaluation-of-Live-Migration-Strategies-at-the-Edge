@@ -1,0 +1,363 @@
+=== repeat_wasm_benchmarks.py 2026-05-11T23:03:26.425167 ===
+base_run_id=11-05-2026-wasm-cold-h10-d10-snap-230326 source=edge-node-1 dest=edge-node-2 host_runs=10 direct_runs=10 relay_node=edge-host-1 profile_name=3_LTE module=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm snapshot_node_metrics=True
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0070 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0070/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0070
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11403 restore_ms=1888 downtime_ms=13292
+checkpoint_us=142 checkpoint_ns=141278
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0070
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0071 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0071/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0071
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11176 restore_ms=1968 downtime_ms=13145
+checkpoint_us=122 checkpoint_ns=121359
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0071
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0072 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0072/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0072
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=12629 restore_ms=1890 downtime_ms=14520
+checkpoint_us=129 checkpoint_ns=128484
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0072
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0073 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0073/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0073
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11140 restore_ms=2065 downtime_ms=13206
+checkpoint_us=163 checkpoint_ns=162269
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0073
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0074 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0074/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0074
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11030 restore_ms=1978 downtime_ms=13009
+checkpoint_us=138 checkpoint_ns=137956
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0074
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0075 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0075/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0075
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11703 restore_ms=1923 downtime_ms=13627
+checkpoint_us=168 checkpoint_ns=167511
+archive_bytes=2014
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0075
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0076 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0076/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0076
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=10871 restore_ms=1942 downtime_ms=12814
+checkpoint_us=169 checkpoint_ns=168597
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0076
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0077 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0077/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0077
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=12148 restore_ms=2062 downtime_ms=14211
+checkpoint_us=164 checkpoint_ns=163802
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0077
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0078 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0078/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0078
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11141 restore_ms=2054 downtime_ms=13196
+checkpoint_us=150 checkpoint_ns=149865
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0078
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 11-05-2026-host-cold-0079 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0 --relay-node edge-host-1
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-host-cold-0079/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=11-05-2026-host-cold-0079
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=11071 restore_ms=2198 downtime_ms=13270
+checkpoint_us=161 checkpoint_ns=160241
+archive_bytes=2014
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-host-cold-0079
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0070 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0070/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0070
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5215 restore_ms=1900 downtime_ms=7116
+checkpoint_us=124 checkpoint_ns=123357
+archive_bytes=2014
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0070
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0071 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0071/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0071
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5437 restore_ms=1926 downtime_ms=7364
+checkpoint_us=180 checkpoint_ns=179636
+archive_bytes=2018
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0071
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0072 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0072/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0072
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5334 restore_ms=2129 downtime_ms=7464
+checkpoint_us=181 checkpoint_ns=180454
+archive_bytes=2018
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0072
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0073 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0073/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0073
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5221 restore_ms=2030 downtime_ms=7252
+checkpoint_us=125 checkpoint_ns=124710
+archive_bytes=2019
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0073
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0074 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0074/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0074
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5298 restore_ms=2036 downtime_ms=7335
+checkpoint_us=189 checkpoint_ns=188912
+archive_bytes=2017
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0074
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0075 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0075/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0075
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5225 restore_ms=1995 downtime_ms=7221
+checkpoint_us=155 checkpoint_ns=154820
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0075
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0076 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0076/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0076
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5234 restore_ms=2114 downtime_ms=7349
+checkpoint_us=119 checkpoint_ns=118086
+archive_bytes=2018
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0076
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0077 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0077/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0077
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5359 restore_ms=2003 downtime_ms=7363
+checkpoint_us=150 checkpoint_ns=149533
+archive_bytes=2018
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0077
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0078 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0078/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0078
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5258 restore_ms=2050 downtime_ms=7309
+checkpoint_us=157 checkpoint_ns=156471
+archive_bytes=2017
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0078
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/scripts/orchestrators/wasm_benchmark.py --source edge-node-1 --dest edge-node-2 --transfer-mode direct --run-id 11-05-2026-direct-cold-0079 --module /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/wasm_test_computation/3mm_with_cr.wasm --commands-dir /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/wasm-migrate-commands/build --csv /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv --profile-name 3_LTE --warmup-seconds 0.01 --timeout-seconds 20.0
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+  Transferring /home/ubuntu/wasm-migration/runs/11-05-2026-direct-cold-0079/wasm-state.tar.gz via SCP...
+run_id=11-05-2026-direct-cold-0079
+source=edge-node-1 dest=edge-node-2 transfer_mode=direct
+success=True
+checkpoint_ms=1 transfer_ms=5845 restore_ms=2079 downtime_ms=7925
+checkpoint_us=171 checkpoint_ns=170765
+archive_bytes=2018
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/11-05-2026-direct-cold-0079
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+[exit=0]
+[repeat] run_ids_file=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_logs/11-05-2026-wasm-cold-h10-d10-snap-230326.run_ids.txt
