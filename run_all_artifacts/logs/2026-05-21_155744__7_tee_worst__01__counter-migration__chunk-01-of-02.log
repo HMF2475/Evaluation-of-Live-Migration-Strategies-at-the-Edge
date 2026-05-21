@@ -1,0 +1,2 @@
+[CMD] python3 Container/scripts/orchestrators/repeat_benchmarks.py suite --strategies cold,precopy,postcopy --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 15 --direct-runs 15 --iterations 3 --snapshot-node-metrics --profile-name 7_TEE_Worst --continue-on-failure --no-plots
+

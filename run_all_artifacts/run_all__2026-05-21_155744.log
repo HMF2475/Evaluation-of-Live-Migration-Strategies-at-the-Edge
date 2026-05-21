@@ -1,0 +1,48 @@
+[ARTIFACTS] Session log: run_all_artifacts/run_all__2026-05-21_155744.log
+[ARTIFACTS] Timing CSV : run_all_artifacts/benchmark_durations.csv
+[ARTIFACTS] Bench logs : run_all_artifacts/logs/
+[INFO] Restart between chunks enabled for nodes: edge-node-1, edge-node-2
+[CMD] multipass exec edge-node-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-2 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-host-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-1 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-node-2 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-host-1 -- hostname -I | awk '{print $1}'
+
+[INFO] Nodes:
+  - edge-node-1: ip=10.138.215.40 iface=ens3
+  - edge-node-2: ip=10.138.215.174 iface=ens3
+  - edge-host-1: ip=10.138.215.252 iface=ens3
+
+
+>>>>>>>> INITIALIZING PROFILE: 7_TEE_Worst <<<<<<<<
+[edge-node-1] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.174/32 flowid 1:10
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.252/32 flowid 1:10
+[edge-node-2] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.40/32 flowid 1:10
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.252/32 flowid 1:10
+[edge-host-1] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.40/32 flowid 1:10
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.174/32 flowid 1:10
+
+============================================================
+[BENCHMARK] Running: Counter Migration | Profile: 7_TEE_Worst
+[CHUNK] 1/2 | host/direct runs per suite command: 15
+[LOG] run_all_artifacts/logs/2026-05-21_155744__7_tee_worst__01__counter-migration__chunk-01-of-02.log
+============================================================
