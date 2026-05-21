@@ -1,0 +1,69 @@
+[ARTIFACTS] Session log: run_all_artifacts/run_all__2026-05-21_113404.log
+[ARTIFACTS] Timing CSV : run_all_artifacts/benchmark_durations.csv
+[ARTIFACTS] Bench logs : run_all_artifacts/logs/
+[INFO] Selected benchmarks: WASM Migration
+[INFO] Restart between chunks enabled for nodes: edge-node-1, edge-node-2
+[CMD] multipass exec edge-node-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-2 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-host-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-1 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-node-2 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-host-1 -- hostname -I | awk '{print $1}'
+
+[INFO] Nodes:
+  - edge-node-1: ip=10.138.215.218 iface=ens3
+  - edge-node-2: ip=10.138.215.137 iface=ens3
+  - edge-host-1: ip=10.138.215.36 iface=ens3
+
+
+>>>>>>>> INITIALIZING PROFILE: 6_TEE_Avg <<<<<<<<
+[edge-node-1] Applying TC: 2Mbps, 400ms, 10.0% loss on ens3
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 2mbit ceil 2mbit
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 400ms loss 10.0%
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.137/32 flowid 1:10
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.36/32 flowid 1:10
+[edge-node-2] Applying TC: 2Mbps, 400ms, 10.0% loss on ens3
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 2mbit ceil 2mbit
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 400ms loss 10.0%
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.218/32 flowid 1:10
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.36/32 flowid 1:10
+[edge-host-1] Applying TC: 2Mbps, 400ms, 10.0% loss on ens3
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 2mbit ceil 2mbit
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 400ms loss 10.0%
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.218/32 flowid 1:10
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.137/32 flowid 1:10
+
+============================================================
+[BENCHMARK] Running: WASM Migration | Profile: 6_TEE_Avg
+[CHUNK] 1/4 | host/direct runs per suite command: 10
+[LOG] run_all_artifacts/logs/2026-05-21_113404__6_tee_avg__01__wasm-migration__chunk-01-of-04.log
+============================================================
+
+=== RUN 21-05-2026-host-cold-0000 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/21-05-2026-host-cold-0000/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.36
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.137
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=21-05-2026-host-cold-0000
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=73622 restore_ms=1961 downtime_ms=75584
+checkpoint_us=233 checkpoint_ns=232388
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/21-05-2026-host-cold-0000
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
