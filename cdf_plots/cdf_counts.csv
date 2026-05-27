@@ -1,0 +1,255 @@
+metric,transfer_mode,profile_label,benchmark,method_label,successful_rows
+downtime,direct,WiFi 6,Counter (CRIU),Cold,40
+downtime,direct,WiFi 6,Counter (CRIU),Pre-copy,39
+downtime,direct,WiFi 6,Counter (CRIU),Post-copy,40
+downtime,direct,WiFi 6,TCP Client (CRIU),Cold,40
+downtime,direct,WiFi 6,TCP Client (CRIU),Pre-copy,39
+downtime,direct,WiFi 6,TCP Client (CRIU),Post-copy,38
+downtime,direct,WiFi 6,Game of Life (CRIU),Cold,40
+downtime,direct,WiFi 6,Game of Life (CRIU),Pre-copy,40
+downtime,direct,WiFi 6,Game of Life (CRIU),Post-copy,40
+downtime,direct,WiFi 6,WebAssembly,Wasm,40
+downtime,direct,5G,Counter (CRIU),Cold,40
+downtime,direct,5G,Counter (CRIU),Pre-copy,40
+downtime,direct,5G,Counter (CRIU),Post-copy,40
+downtime,direct,5G,TCP Client (CRIU),Cold,40
+downtime,direct,5G,TCP Client (CRIU),Pre-copy,39
+downtime,direct,5G,TCP Client (CRIU),Post-copy,40
+downtime,direct,5G,Game of Life (CRIU),Cold,40
+downtime,direct,5G,Game of Life (CRIU),Pre-copy,40
+downtime,direct,5G,Game of Life (CRIU),Post-copy,40
+downtime,direct,5G,WebAssembly,Wasm,40
+downtime,direct,LTE,Counter (CRIU),Cold,39
+downtime,direct,LTE,Counter (CRIU),Pre-copy,40
+downtime,direct,LTE,Counter (CRIU),Post-copy,40
+downtime,direct,LTE,TCP Client (CRIU),Cold,40
+downtime,direct,LTE,TCP Client (CRIU),Pre-copy,40
+downtime,direct,LTE,TCP Client (CRIU),Post-copy,40
+downtime,direct,LTE,Game of Life (CRIU),Cold,40
+downtime,direct,LTE,Game of Life (CRIU),Pre-copy,39
+downtime,direct,LTE,WebAssembly,Wasm,40
+downtime,direct,Starlink,Counter (CRIU),Cold,40
+downtime,direct,Starlink,Counter (CRIU),Pre-copy,40
+downtime,direct,Starlink,Counter (CRIU),Post-copy,40
+downtime,direct,Starlink,TCP Client (CRIU),Cold,40
+downtime,direct,Starlink,TCP Client (CRIU),Pre-copy,39
+downtime,direct,Starlink,TCP Client (CRIU),Post-copy,40
+downtime,direct,Starlink,Game of Life (CRIU),Cold,40
+downtime,direct,Starlink,Game of Life (CRIU),Pre-copy,40
+downtime,direct,Starlink,WebAssembly,Wasm,40
+downtime,direct,TEE Best,Counter (CRIU),Cold,40
+downtime,direct,TEE Best,Counter (CRIU),Pre-copy,40
+downtime,direct,TEE Best,Counter (CRIU),Post-copy,40
+downtime,direct,TEE Best,TCP Client (CRIU),Cold,28
+downtime,direct,TEE Best,TCP Client (CRIU),Pre-copy,37
+downtime,direct,TEE Best,TCP Client (CRIU),Post-copy,34
+downtime,direct,TEE Best,Game of Life (CRIU),Cold,40
+downtime,direct,TEE Best,Game of Life (CRIU),Pre-copy,40
+downtime,direct,TEE Best,WebAssembly,Wasm,40
+downtime,direct,TEE Avg,Counter (CRIU),Cold,40
+downtime,direct,TEE Avg,Counter (CRIU),Pre-copy,39
+downtime,direct,TEE Avg,Counter (CRIU),Post-copy,40
+downtime,direct,TEE Avg,TCP Client (CRIU),Cold,38
+downtime,direct,TEE Avg,TCP Client (CRIU),Pre-copy,28
+downtime,direct,TEE Avg,TCP Client (CRIU),Post-copy,32
+downtime,direct,TEE Avg,Game of Life (CRIU),Cold,40
+downtime,direct,TEE Avg,Game of Life (CRIU),Pre-copy,40
+downtime,direct,TEE Avg,WebAssembly,Wasm,40
+downtime,direct,TEE Worst,Counter (CRIU),Cold,29
+downtime,direct,TEE Worst,Counter (CRIU),Pre-copy,30
+downtime,direct,TEE Worst,Counter (CRIU),Post-copy,30
+downtime,direct,TEE Worst,TCP Client (CRIU),Cold,27
+downtime,direct,TEE Worst,TCP Client (CRIU),Pre-copy,17
+downtime,direct,TEE Worst,TCP Client (CRIU),Post-copy,14
+downtime,direct,TEE Worst,WebAssembly,Wasm,30
+downtime,host,WiFi 6,Counter (CRIU),Cold,40
+downtime,host,WiFi 6,Counter (CRIU),Pre-copy,40
+downtime,host,WiFi 6,Counter (CRIU),Post-copy,40
+downtime,host,WiFi 6,TCP Client (CRIU),Cold,40
+downtime,host,WiFi 6,TCP Client (CRIU),Pre-copy,40
+downtime,host,WiFi 6,TCP Client (CRIU),Post-copy,40
+downtime,host,WiFi 6,Game of Life (CRIU),Cold,40
+downtime,host,WiFi 6,Game of Life (CRIU),Pre-copy,40
+downtime,host,WiFi 6,Game of Life (CRIU),Post-copy,40
+downtime,host,WiFi 6,WebAssembly,Wasm,40
+downtime,host,5G,Counter (CRIU),Cold,40
+downtime,host,5G,Counter (CRIU),Pre-copy,40
+downtime,host,5G,Counter (CRIU),Post-copy,40
+downtime,host,5G,TCP Client (CRIU),Cold,40
+downtime,host,5G,TCP Client (CRIU),Pre-copy,40
+downtime,host,5G,TCP Client (CRIU),Post-copy,40
+downtime,host,5G,Game of Life (CRIU),Cold,40
+downtime,host,5G,Game of Life (CRIU),Pre-copy,39
+downtime,host,5G,Game of Life (CRIU),Post-copy,40
+downtime,host,5G,WebAssembly,Wasm,40
+downtime,host,LTE,Counter (CRIU),Cold,40
+downtime,host,LTE,Counter (CRIU),Pre-copy,40
+downtime,host,LTE,Counter (CRIU),Post-copy,40
+downtime,host,LTE,TCP Client (CRIU),Cold,40
+downtime,host,LTE,TCP Client (CRIU),Pre-copy,40
+downtime,host,LTE,TCP Client (CRIU),Post-copy,40
+downtime,host,LTE,Game of Life (CRIU),Cold,40
+downtime,host,LTE,Game of Life (CRIU),Pre-copy,40
+downtime,host,LTE,WebAssembly,Wasm,40
+downtime,host,Starlink,Counter (CRIU),Cold,40
+downtime,host,Starlink,Counter (CRIU),Pre-copy,40
+downtime,host,Starlink,Counter (CRIU),Post-copy,40
+downtime,host,Starlink,TCP Client (CRIU),Cold,40
+downtime,host,Starlink,TCP Client (CRIU),Pre-copy,37
+downtime,host,Starlink,TCP Client (CRIU),Post-copy,40
+downtime,host,Starlink,Game of Life (CRIU),Cold,40
+downtime,host,Starlink,Game of Life (CRIU),Pre-copy,39
+downtime,host,Starlink,WebAssembly,Wasm,40
+downtime,host,TEE Best,Counter (CRIU),Cold,40
+downtime,host,TEE Best,Counter (CRIU),Pre-copy,39
+downtime,host,TEE Best,Counter (CRIU),Post-copy,40
+downtime,host,TEE Best,TCP Client (CRIU),Cold,20
+downtime,host,TEE Best,TCP Client (CRIU),Pre-copy,36
+downtime,host,TEE Best,TCP Client (CRIU),Post-copy,32
+downtime,host,TEE Best,Game of Life (CRIU),Cold,39
+downtime,host,TEE Best,Game of Life (CRIU),Pre-copy,40
+downtime,host,TEE Best,Game of Life (CRIU),Post-copy,1
+downtime,host,TEE Best,WebAssembly,Wasm,40
+downtime,host,TEE Avg,Counter (CRIU),Cold,40
+downtime,host,TEE Avg,Counter (CRIU),Pre-copy,39
+downtime,host,TEE Avg,Counter (CRIU),Post-copy,40
+downtime,host,TEE Avg,TCP Client (CRIU),Cold,36
+downtime,host,TEE Avg,TCP Client (CRIU),Pre-copy,30
+downtime,host,TEE Avg,TCP Client (CRIU),Post-copy,36
+downtime,host,TEE Avg,Game of Life (CRIU),Cold,39
+downtime,host,TEE Avg,Game of Life (CRIU),Pre-copy,39
+downtime,host,TEE Avg,WebAssembly,Wasm,39
+downtime,host,TEE Worst,Counter (CRIU),Cold,30
+downtime,host,TEE Worst,Counter (CRIU),Pre-copy,29
+downtime,host,TEE Worst,Counter (CRIU),Post-copy,30
+downtime,host,TEE Worst,TCP Client (CRIU),Cold,25
+downtime,host,TEE Worst,TCP Client (CRIU),Pre-copy,17
+downtime,host,TEE Worst,TCP Client (CRIU),Post-copy,10
+downtime,host,TEE Worst,WebAssembly,Wasm,30
+migration_time,direct,WiFi 6,Counter (CRIU),Cold,40
+migration_time,direct,WiFi 6,Counter (CRIU),Pre-copy,39
+migration_time,direct,WiFi 6,Counter (CRIU),Post-copy,40
+migration_time,direct,WiFi 6,TCP Client (CRIU),Cold,40
+migration_time,direct,WiFi 6,TCP Client (CRIU),Pre-copy,39
+migration_time,direct,WiFi 6,TCP Client (CRIU),Post-copy,38
+migration_time,direct,WiFi 6,Game of Life (CRIU),Cold,40
+migration_time,direct,WiFi 6,Game of Life (CRIU),Pre-copy,40
+migration_time,direct,WiFi 6,Game of Life (CRIU),Post-copy,40
+migration_time,direct,WiFi 6,WebAssembly,Wasm,40
+migration_time,direct,5G,Counter (CRIU),Cold,40
+migration_time,direct,5G,Counter (CRIU),Pre-copy,40
+migration_time,direct,5G,Counter (CRIU),Post-copy,40
+migration_time,direct,5G,TCP Client (CRIU),Cold,40
+migration_time,direct,5G,TCP Client (CRIU),Pre-copy,39
+migration_time,direct,5G,TCP Client (CRIU),Post-copy,40
+migration_time,direct,5G,Game of Life (CRIU),Cold,40
+migration_time,direct,5G,Game of Life (CRIU),Pre-copy,40
+migration_time,direct,5G,Game of Life (CRIU),Post-copy,40
+migration_time,direct,5G,WebAssembly,Wasm,40
+migration_time,direct,LTE,Counter (CRIU),Cold,39
+migration_time,direct,LTE,Counter (CRIU),Pre-copy,40
+migration_time,direct,LTE,Counter (CRIU),Post-copy,40
+migration_time,direct,LTE,TCP Client (CRIU),Cold,40
+migration_time,direct,LTE,TCP Client (CRIU),Pre-copy,40
+migration_time,direct,LTE,TCP Client (CRIU),Post-copy,40
+migration_time,direct,LTE,Game of Life (CRIU),Cold,40
+migration_time,direct,LTE,Game of Life (CRIU),Pre-copy,39
+migration_time,direct,LTE,WebAssembly,Wasm,40
+migration_time,direct,Starlink,Counter (CRIU),Cold,40
+migration_time,direct,Starlink,Counter (CRIU),Pre-copy,40
+migration_time,direct,Starlink,Counter (CRIU),Post-copy,40
+migration_time,direct,Starlink,TCP Client (CRIU),Cold,40
+migration_time,direct,Starlink,TCP Client (CRIU),Pre-copy,39
+migration_time,direct,Starlink,TCP Client (CRIU),Post-copy,40
+migration_time,direct,Starlink,Game of Life (CRIU),Cold,40
+migration_time,direct,Starlink,Game of Life (CRIU),Pre-copy,40
+migration_time,direct,Starlink,WebAssembly,Wasm,40
+migration_time,direct,TEE Best,Counter (CRIU),Cold,40
+migration_time,direct,TEE Best,Counter (CRIU),Pre-copy,40
+migration_time,direct,TEE Best,Counter (CRIU),Post-copy,40
+migration_time,direct,TEE Best,TCP Client (CRIU),Cold,28
+migration_time,direct,TEE Best,TCP Client (CRIU),Pre-copy,37
+migration_time,direct,TEE Best,TCP Client (CRIU),Post-copy,34
+migration_time,direct,TEE Best,Game of Life (CRIU),Cold,40
+migration_time,direct,TEE Best,Game of Life (CRIU),Pre-copy,40
+migration_time,direct,TEE Best,WebAssembly,Wasm,40
+migration_time,direct,TEE Avg,Counter (CRIU),Cold,40
+migration_time,direct,TEE Avg,Counter (CRIU),Pre-copy,39
+migration_time,direct,TEE Avg,Counter (CRIU),Post-copy,40
+migration_time,direct,TEE Avg,TCP Client (CRIU),Cold,38
+migration_time,direct,TEE Avg,TCP Client (CRIU),Pre-copy,28
+migration_time,direct,TEE Avg,TCP Client (CRIU),Post-copy,32
+migration_time,direct,TEE Avg,Game of Life (CRIU),Cold,40
+migration_time,direct,TEE Avg,Game of Life (CRIU),Pre-copy,40
+migration_time,direct,TEE Avg,WebAssembly,Wasm,40
+migration_time,direct,TEE Worst,Counter (CRIU),Cold,29
+migration_time,direct,TEE Worst,Counter (CRIU),Pre-copy,30
+migration_time,direct,TEE Worst,Counter (CRIU),Post-copy,30
+migration_time,direct,TEE Worst,TCP Client (CRIU),Cold,27
+migration_time,direct,TEE Worst,TCP Client (CRIU),Pre-copy,17
+migration_time,direct,TEE Worst,TCP Client (CRIU),Post-copy,14
+migration_time,direct,TEE Worst,WebAssembly,Wasm,30
+migration_time,host,WiFi 6,Counter (CRIU),Cold,40
+migration_time,host,WiFi 6,Counter (CRIU),Pre-copy,40
+migration_time,host,WiFi 6,Counter (CRIU),Post-copy,40
+migration_time,host,WiFi 6,TCP Client (CRIU),Cold,40
+migration_time,host,WiFi 6,TCP Client (CRIU),Pre-copy,40
+migration_time,host,WiFi 6,TCP Client (CRIU),Post-copy,40
+migration_time,host,WiFi 6,Game of Life (CRIU),Cold,40
+migration_time,host,WiFi 6,Game of Life (CRIU),Pre-copy,40
+migration_time,host,WiFi 6,Game of Life (CRIU),Post-copy,40
+migration_time,host,WiFi 6,WebAssembly,Wasm,40
+migration_time,host,5G,Counter (CRIU),Cold,40
+migration_time,host,5G,Counter (CRIU),Pre-copy,40
+migration_time,host,5G,Counter (CRIU),Post-copy,40
+migration_time,host,5G,TCP Client (CRIU),Cold,40
+migration_time,host,5G,TCP Client (CRIU),Pre-copy,40
+migration_time,host,5G,TCP Client (CRIU),Post-copy,40
+migration_time,host,5G,Game of Life (CRIU),Cold,40
+migration_time,host,5G,Game of Life (CRIU),Pre-copy,39
+migration_time,host,5G,Game of Life (CRIU),Post-copy,40
+migration_time,host,5G,WebAssembly,Wasm,40
+migration_time,host,LTE,Counter (CRIU),Cold,40
+migration_time,host,LTE,Counter (CRIU),Pre-copy,40
+migration_time,host,LTE,Counter (CRIU),Post-copy,40
+migration_time,host,LTE,TCP Client (CRIU),Cold,40
+migration_time,host,LTE,TCP Client (CRIU),Pre-copy,40
+migration_time,host,LTE,TCP Client (CRIU),Post-copy,40
+migration_time,host,LTE,Game of Life (CRIU),Cold,40
+migration_time,host,LTE,Game of Life (CRIU),Pre-copy,40
+migration_time,host,LTE,WebAssembly,Wasm,40
+migration_time,host,Starlink,Counter (CRIU),Cold,40
+migration_time,host,Starlink,Counter (CRIU),Pre-copy,40
+migration_time,host,Starlink,Counter (CRIU),Post-copy,40
+migration_time,host,Starlink,TCP Client (CRIU),Cold,40
+migration_time,host,Starlink,TCP Client (CRIU),Pre-copy,37
+migration_time,host,Starlink,TCP Client (CRIU),Post-copy,40
+migration_time,host,Starlink,Game of Life (CRIU),Cold,40
+migration_time,host,Starlink,Game of Life (CRIU),Pre-copy,39
+migration_time,host,Starlink,WebAssembly,Wasm,40
+migration_time,host,TEE Best,Counter (CRIU),Cold,40
+migration_time,host,TEE Best,Counter (CRIU),Pre-copy,39
+migration_time,host,TEE Best,Counter (CRIU),Post-copy,40
+migration_time,host,TEE Best,TCP Client (CRIU),Cold,20
+migration_time,host,TEE Best,TCP Client (CRIU),Pre-copy,36
+migration_time,host,TEE Best,TCP Client (CRIU),Post-copy,32
+migration_time,host,TEE Best,Game of Life (CRIU),Cold,39
+migration_time,host,TEE Best,Game of Life (CRIU),Pre-copy,40
+migration_time,host,TEE Best,Game of Life (CRIU),Post-copy,1
+migration_time,host,TEE Best,WebAssembly,Wasm,40
+migration_time,host,TEE Avg,Counter (CRIU),Cold,40
+migration_time,host,TEE Avg,Counter (CRIU),Pre-copy,39
+migration_time,host,TEE Avg,Counter (CRIU),Post-copy,40
+migration_time,host,TEE Avg,TCP Client (CRIU),Cold,36
+migration_time,host,TEE Avg,TCP Client (CRIU),Pre-copy,30
+migration_time,host,TEE Avg,TCP Client (CRIU),Post-copy,36
+migration_time,host,TEE Avg,Game of Life (CRIU),Cold,39
+migration_time,host,TEE Avg,Game of Life (CRIU),Pre-copy,39
+migration_time,host,TEE Avg,WebAssembly,Wasm,39
+migration_time,host,TEE Worst,Counter (CRIU),Cold,30
+migration_time,host,TEE Worst,Counter (CRIU),Pre-copy,29
+migration_time,host,TEE Worst,Counter (CRIU),Post-copy,30
+migration_time,host,TEE Worst,TCP Client (CRIU),Cold,25
+migration_time,host,TEE Worst,TCP Client (CRIU),Pre-copy,17
+migration_time,host,TEE Worst,TCP Client (CRIU),Post-copy,10
+migration_time,host,TEE Worst,WebAssembly,Wasm,30

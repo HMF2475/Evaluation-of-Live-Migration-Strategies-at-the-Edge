@@ -1,0 +1,43 @@
+transfer_mode,profile_label,benchmark,method_label,attempted_runs,successful_runs,failed_runs
+host,5G,Game of Life (CRIU),Pre-copy,40,39,1
+direct,5G,TCP Client (CRIU),Pre-copy,40,39,1
+direct,LTE,Counter (CRIU),Cold,40,39,1
+direct,LTE,Game of Life (CRIU),Post-copy,40,0,40
+host,LTE,Game of Life (CRIU),Post-copy,40,0,40
+direct,LTE,Game of Life (CRIU),Pre-copy,40,39,1
+direct,Starlink,Game of Life (CRIU),Post-copy,40,0,40
+host,Starlink,Game of Life (CRIU),Post-copy,40,0,40
+host,Starlink,Game of Life (CRIU),Pre-copy,40,39,1
+direct,Starlink,TCP Client (CRIU),Pre-copy,40,39,1
+host,Starlink,TCP Client (CRIU),Pre-copy,40,37,3
+host,TEE Avg,Game of Life (CRIU),Cold,40,39,1
+direct,TEE Avg,TCP Client (CRIU),Cold,40,38,2
+host,TEE Avg,TCP Client (CRIU),Cold,40,36,4
+direct,TEE Avg,Game of Life (CRIU),Post-copy,40,0,40
+host,TEE Avg,Game of Life (CRIU),Post-copy,40,0,40
+direct,TEE Avg,TCP Client (CRIU),Post-copy,40,32,8
+host,TEE Avg,TCP Client (CRIU),Post-copy,40,36,4
+direct,TEE Avg,Counter (CRIU),Pre-copy,40,39,1
+host,TEE Avg,Counter (CRIU),Pre-copy,40,39,1
+host,TEE Avg,Game of Life (CRIU),Pre-copy,40,39,1
+direct,TEE Avg,TCP Client (CRIU),Pre-copy,40,28,12
+host,TEE Avg,TCP Client (CRIU),Pre-copy,40,30,10
+host,TEE Avg,WebAssembly,Wasm,40,39,1
+host,TEE Best,Game of Life (CRIU),Cold,40,39,1
+direct,TEE Best,TCP Client (CRIU),Cold,40,28,12
+host,TEE Best,TCP Client (CRIU),Cold,40,20,20
+direct,TEE Best,Game of Life (CRIU),Post-copy,40,0,40
+host,TEE Best,Game of Life (CRIU),Post-copy,40,1,39
+direct,TEE Best,TCP Client (CRIU),Post-copy,40,34,6
+host,TEE Best,TCP Client (CRIU),Post-copy,40,32,8
+host,TEE Best,Counter (CRIU),Pre-copy,40,39,1
+direct,TEE Best,TCP Client (CRIU),Pre-copy,40,37,3
+host,TEE Best,TCP Client (CRIU),Pre-copy,39,36,3
+direct,TEE Worst,TCP Client (CRIU),Cold,30,27,3
+host,TEE Worst,TCP Client (CRIU),Cold,30,25,5
+direct,TEE Worst,TCP Client (CRIU),Post-copy,30,14,16
+host,TEE Worst,TCP Client (CRIU),Post-copy,30,10,20
+host,TEE Worst,Counter (CRIU),Pre-copy,30,29,1
+direct,TEE Worst,TCP Client (CRIU),Pre-copy,30,17,13
+host,TEE Worst,TCP Client (CRIU),Pre-copy,30,17,13
+direct,WiFi 6,Counter (CRIU),Pre-copy,40,39,1

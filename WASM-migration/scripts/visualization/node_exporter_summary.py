@@ -10,7 +10,16 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from common import load_migration_csv, resolve_output_file
+from common import (
+    apply_plot_theme,
+    load_migration_csv,
+    ordered_methods,
+    ordered_transfer_modes,
+    resolve_output_file,
+    save_current_figure,
+    successful_runs_only,
+    transfer_mode_palette,
+)
 from prom_text import iter_samples
 
 
@@ -24,6 +33,22 @@ WANTED: Set[str] = {
     "node_disk_written_bytes_total",
     "node_disk_io_time_seconds_total",
 }
+
+
+def _selected_migration_rows(
+    csv_file: str,
+    *,
+    run_id_prefix: Optional[str] = None,
+    run_ids: Optional[Set[str]] = None,
+) -> pd.DataFrame:
+    df = load_migration_csv(csv_file)
+    if df.empty:
+        return df
+    if run_id_prefix:
+        df = df[df["run_id"].astype(str).str.startswith(run_id_prefix)].copy()
+    if run_ids:
+        df = df[df["run_id"].astype(str).isin(run_ids)].copy()
+    return df
 
 
 @dataclass(frozen=True)
@@ -152,13 +177,13 @@ def build_node_exporter_dataframe(
     source_node: str = "edge-node-1",
     dest_node: str = "edge-node-2",
 ) -> pd.DataFrame:
-    df = load_migration_csv(csv_file)
+    df = _selected_migration_rows(
+        csv_file, run_id_prefix=run_id_prefix, run_ids=run_ids
+    )
     if df.empty:
         return df
-    if run_id_prefix:
-        df = df[df["run_id"].astype(str).str.startswith(run_id_prefix)].copy()
-    if run_ids:
-        df = df[df["run_id"].astype(str).isin(run_ids)].copy()
+    df = successful_runs_only(df)
+    selected_successful_ids = set(df["run_id"].astype(str))
 
     rows = []
     base = Path(node_metrics_dir)
@@ -233,6 +258,49 @@ def build_node_exporter_dataframe(
                 }
             )
 
+    result = pd.DataFrame(rows)
+    if not result.empty:
+        return result
+
+    aggregate_path = Path(node_metrics_dir).with_name("node_exporter_metrics.csv")
+    if not aggregate_path.exists() or not selected_successful_ids:
+        return result
+
+    metrics = pd.read_csv(aggregate_path)
+    if metrics.empty or "run_id" not in metrics.columns:
+        return result
+    metrics = metrics[metrics["run_id"].astype(str).isin(selected_successful_ids)]
+    if metrics.empty:
+        return result
+
+    rows = []
+    for _, r in metrics.iterrows():
+        common = {
+            "run_id": str(r["run_id"]),
+            "migration_method": r.get("migration_method"),
+            "transfer_mode": r.get("transfer_mode"),
+        }
+        rows.append(
+            {
+                **common,
+                "node": r.get("source_node", source_node),
+                "node_role": "Source",
+                "cpu_util_pct": r.get("src_cpu_util_pct"),
+                "mem_used_pct_after": r.get("src_mem_used_pct_after"),
+                "disk_mb_s": r.get("src_disk_total_mb_s"),
+            }
+        )
+        rows.append(
+            {
+                **common,
+                "node": r.get("dest_node", dest_node),
+                "node_role": "Destination",
+                "cpu_util_pct": r.get("dst_cpu_util_pct"),
+                "mem_used_pct_after": r.get("dst_mem_used_pct_after"),
+                "disk_mb_s": r.get("dst_disk_total_mb_s"),
+            }
+        )
+
     return pd.DataFrame(rows)
 
 
@@ -286,12 +354,18 @@ def plot_node_exporter_summary(
         melted_avg["metric"].map(metric_labels_avg).fillna(melted_avg["metric"])
     )
 
-    sns.set_style("whitegrid")
+    apply_plot_theme()
+    method_order = ordered_methods(melted_avg["migration_method"].astype(str))
+    mode_order = ordered_transfer_modes(melted_avg["transfer_mode"].astype(str))
+    mode_palette = transfer_mode_palette(mode_order)
     g1 = sns.catplot(
         data=melted_avg,
         x="migration_method",
         y="value",
         hue="transfer_mode",
+        hue_order=mode_order,
+        palette=mode_palette,
+        order=method_order,
         col="metric",
         kind="box",
         sharey=False,
@@ -302,8 +376,12 @@ def plot_node_exporter_summary(
     g1.set_titles("{col_name}")
     g1.set_xlabels("migration_method")
     g1.set_ylabels("")
+    for ax in g1.axes.flat:
+        ax.ticklabel_format(
+            axis="y", style="sci", scilimits=(0, 0), useOffset=False, useMathText=False
+        )
     plt.tight_layout(rect=[0, 0, 0.85, 1])
-    plt.savefig(out, dpi=300)
+    save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
 
@@ -325,7 +403,7 @@ def plot_node_exporter_summary(
         melted_node["metric"].map(metric_labels_node).fillna(melted_node["metric"])
     )
 
-    sns.set_style("whitegrid")
+    apply_plot_theme()
     melted_node["node"] = melted_node["node"].replace(
         {
             "edge-node-1": "Source (edge-node-1)",
@@ -337,6 +415,9 @@ def plot_node_exporter_summary(
         x="migration_method",
         y="value",
         hue="transfer_mode",
+        hue_order=mode_order,
+        palette=mode_palette,
+        order=method_order,
         col="metric",
         row="node",
         kind="box",
@@ -349,8 +430,12 @@ def plot_node_exporter_summary(
     g2.set_titles("{row_name} | {col_name}")
     g2.set_xlabels("migration_method")
     g2.set_ylabels("")
+    for ax in g2.axes.flat:
+        ax.ticklabel_format(
+            axis="y", style="sci", scilimits=(0, 0), useOffset=False, useMathText=False
+        )
 
     plt.tight_layout(rect=[0, 0, 0.9, 1])
-    plt.savefig(out_node, dpi=300)
+    save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()

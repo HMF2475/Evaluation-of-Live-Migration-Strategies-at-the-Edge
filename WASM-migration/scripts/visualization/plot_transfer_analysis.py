@@ -6,12 +6,26 @@ Generates a scatter plot showing the relationship between checkpoint archive
 size and transfer duration, styled by transfer mode (host vs direct).
 """
 
-import seaborn as sns
-import matplotlib.pyplot as plt
 import sys
+import os
 from pathlib import Path
 
-from common import load_migration_csv, resolve_output_file
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from common import (
+    apply_plot_theme,
+    format_plain_axes,
+    load_migration_csv,
+    migration_method_palette,
+    ordered_methods,
+    ordered_transfer_modes,
+    resolve_output_file,
+    save_current_figure,
+    successful_runs_only,
+)
 
 
 def plot_transfer_analysis(
@@ -35,28 +49,39 @@ def plot_transfer_analysis(
         print("ERROR: CSV file is empty")
         sys.exit(1)
 
-    output_file = resolve_output_file(output_file, "transfer_analysis.png")
+    df = successful_runs_only(df)
+    if df.empty:
+        print("No successful rows selected for transfer analysis plot.")
+        return
 
+    output_file = resolve_output_file(output_file, "transfer_analysis.png")
     # Ensure output directory exists
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
+    apply_plot_theme()
     plt.figure(figsize=(10, 6))
+    method_order = ordered_methods(df["migration_method"].astype(str))
+    mode_order = ordered_transfer_modes(df["transfer_mode"].astype(str))
     sns.scatterplot(
         data=df,
-        x="archive_kib",
+        x="archive_bytes",
         y="transfer_ms",
         hue="migration_method",
+        hue_order=method_order,
+        palette=migration_method_palette(method_order),
         style="transfer_mode",
+        style_order=mode_order,
         s=85,
     )
     base_title = "Archive Size vs Transfer Time"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     plt.title(full_title)
-    plt.xlabel("Archive Size (KiB)")
+    plt.xlabel("Archive Size (bytes)")
     plt.ylabel("Transfer Time excl. setup (ms)")
+    format_plain_axes(plt.gca(), "x", "y")
     plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout(rect=[0, 0, 0.85, 1])
-    plt.savefig(output_file, dpi=300)
+    save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()
 

@@ -19,10 +19,14 @@ import pandas as pd
 from common import (
     annotate_segment_std,
     apply_plot_theme,
+    format_plain_axes,
     load_migration_csv,
     ordered_methods,
+    ordered_transfer_modes,
     phase_colors,
     resolve_output_file,
+    save_current_figure,
+    successful_runs_only,
 )
 
 
@@ -52,6 +56,11 @@ def plot_transfer_phase_breakdown(
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
+
+    df = successful_runs_only(df)
+    if df.empty:
+        print("No successful rows selected for transfer phase breakdown plot.")
+        return
 
     detailed_available = [name for name in RAW_DETAILED_COLUMNS if name in df.columns]
     if not detailed_available:
@@ -86,11 +95,7 @@ def plot_transfer_phase_breakdown(
     phase_stds = phase_stds.fillna(0.0)
 
     methods = ordered_methods(phases["migration_method"].astype(str))
-    modes = [
-        m
-        for m in ["host", "direct", "unknown"]
-        if m in set(phases["transfer_mode"].astype(str))
-    ] or sorted(phases["transfer_mode"].astype(str).unique().tolist())
+    modes = ordered_transfer_modes(phases["transfer_mode"].astype(str))
 
     output_file = resolve_output_file(output_file, "transfer_phase_breakdown.png")
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
@@ -167,6 +172,7 @@ def plot_transfer_phase_breakdown(
             annotate_segment_std(ax, bx, base, height, std, y_upper)
     ax.set_xlabel("Migration Method")
     ax.set_ylabel("Time excl. transfer setup (ms)")
+    format_plain_axes(ax, "y")
     base_title = "Transfer Phase Breakdown (Mean, setup excluded)"
     ax.set_title(f"{base_title} - {title_suffix}" if title_suffix else base_title)
     ax.set_xticks(x)
@@ -190,7 +196,7 @@ def plot_transfer_phase_breakdown(
         loc="upper left",
     )
     plt.tight_layout(rect=[0, 0, 0.82, 1])
-    plt.savefig(output_file, dpi=300)
+    save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()
 

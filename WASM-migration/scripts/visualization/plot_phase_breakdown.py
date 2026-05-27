@@ -13,11 +13,17 @@ import numpy as np
 
 from common import (
     annotate_segment_std,
+    add_success_rate_note,
     apply_plot_theme,
+    format_plain_axes,
     load_migration_csv,
     ordered_methods,
+    ordered_transfer_modes,
     phase_colors,
     resolve_output_file,
+    save_current_figure,
+    success_rate_note,
+    successful_runs_only,
 )
 
 
@@ -41,6 +47,12 @@ def plot_phase_breakdown(
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
+
+    success_note = success_rate_note(df)
+    df = successful_runs_only(df)
+    if df.empty:
+        print("No successful rows selected for phase breakdown plot.")
+        return
 
     output_file = resolve_output_file(output_file, "phase_breakdown.png")
 
@@ -80,13 +92,7 @@ def plot_phase_breakdown(
     methods = ordered_methods(phases["migration_method"].astype(str))
     if not methods:
         methods = sorted(phases["migration_method"].unique().tolist())
-    modes = [
-        m
-        for m in ["host", "direct", "unknown"]
-        if m in set(phases["transfer_mode"].astype(str))
-    ]
-    if not modes:
-        modes = sorted(phases["transfer_mode"].unique().tolist())
+    modes = ordered_transfer_modes(phases["transfer_mode"].astype(str))
 
     plt.figure(figsize=(12, 6))
     ax = plt.gca()
@@ -142,6 +148,7 @@ def plot_phase_breakdown(
             annotate_segment_std(ax, bx, base, height, std, y_upper)
     ax.set_xlabel("Migration Method")
     ax.set_ylabel("Time (ms)")
+    format_plain_axes(ax, "y")
     base_title = "Migration Phase Breakdown (Mean)"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     ax.set_title(full_title)
@@ -165,8 +172,9 @@ def plot_phase_breakdown(
         bbox_to_anchor=(1.02, 1),
         loc="upper left",
     )
+    add_success_rate_note(ax, success_note, y=0.52)
     plt.tight_layout(rect=[0, 0, 0.85, 1])
-    plt.savefig(output_file, dpi=300)
+    save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()
 
