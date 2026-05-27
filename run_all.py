@@ -490,12 +490,18 @@ def wait_for_multipass_node(
     log(f"[MULTIPASS] Waiting for {node} SSH readiness...")
 
     while time.monotonic() < deadline:
-        result = subprocess.run(
-            ["multipass", "exec", node, "--", "true"],
-            text=True,
-            capture_output=True,
-            timeout=min(30, max(1, poll_seconds + 10)),
-        )
+        try:
+            result = subprocess.run(
+                ["multipass", "exec", node, "--", "true"],
+                text=True,
+                capture_output=True,
+                timeout=min(60, max(30, poll_seconds + 10)),
+            )
+        except subprocess.TimeoutExpired as exc:
+            last_error = f"readiness probe timed out after {exc.timeout}s"
+            time.sleep(poll_seconds)
+            continue
+
         if result.returncode == 0:
             log(f"[MULTIPASS] {node} is ready")
             return 0

@@ -1,0 +1,301 @@
+=== repeat_benchmarks.py 2026-05-27T05:23:25.800921 ===
+base_run_id=27-05-2026-gol-precopy-h30-d30-i3-relay-edge-host-1-snap-noplots-052325
+strategies=precopy workload=gol source=edge-node-1 dest=edge-node-2 host_runs=30 direct_runs=30 iterations=3 relay_node=edge-host-1 profile_name=7_TEE_Worst snapshot_node_metrics=True no_plots=True
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[05:23:25] Resetting nodes: edge-node-1 -> edge-node-2
+[05:23:25] Step 1: Killing any existing processes on source...
+[05:23:26]   Killing PID 1449958 (from /home/ubuntu/app.pid)
+[05:23:26]   Killing PID 1449958 (from /home/ubuntu/gol.pid)
+[05:23:27]   Killing any remaining background processes...
+[05:23:28] Step 2: Cleaning source node...
+[05:23:30] Step 3: Cleaning destination node...
+[05:23:30]   Killing all remaining gol processes on destination...
+[05:23:34] ✓ Reset complete, nodes are clean
+[05:23:34]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[05:23:34] Ensuring gol binary on edge-node-1...
+[05:23:34] Reusing existing /tmp/gol on edge-node-1
+[05:23:34] Starting gol on edge-node-1...
+[05:23:34] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[05:23:34] Output mode: summary
+[05:23:34] Pattern: random
+[05:23:35] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 27-05-2026-host-precopy-0000 --relay-node edge-host-1 --iterations 3 --profile-name 7_TEE_Worst
+[05:23:38] Starting precopy migration...
+[05:23:38] Source: edge-node-1, Dest: edge-node-2
+[05:23:38] Transfer mode: host
+[05:23:38] Relay node: edge-host-1
+
+[05:23:38] === PRE-COPY LIVE MIGRATION ===
+[05:23:38] Step 1: Checking source process...
+[05:23:38]   Using PID from /home/ubuntu/gol.pid: 1455183
+[05:23:39]   Architecture: x86_64 (compatible)
+[05:23:39] Step 2: Preparing dump directory...
+[05:23:39] Step 3: Running 3 pre-dumps and transferring them while service keeps running...
+[05:23:39]   Pre-dump 1/3...
+[05:23:40]   Archiving and transferring pre-dump 1...
+  Transferring /home/ubuntu/CRIU-gol-iter-0.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.222
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.200
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 1/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 2/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 3/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 4/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+ERROR: SCP edge-node-1->edge-host-1 failed after 5 attempts (last rc=1)
+ERROR: Transfer from source to relay failed
+[07:35:06] ERROR: Failed to transfer pre-dump 1
+[07:35:06] Metrics saved to /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=27-05-2026-host-precopy-0000
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[07:35:06] Resetting nodes: edge-node-1 -> edge-node-2
+[07:35:06] Step 1: Killing any existing processes on source...
+[07:35:07]   Killing PID 1455183 (from /home/ubuntu/app.pid)
+[07:35:08]   Killing PID 1455183 (from /home/ubuntu/gol.pid)
+[07:35:08]   Killing any remaining background processes...
+[07:35:09] Step 2: Cleaning source node...
+[07:35:11] Step 3: Cleaning destination node...
+[07:35:12]   Killing all remaining gol processes on destination...
+[07:35:15] ✓ Reset complete, nodes are clean
+[07:35:15]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[07:35:15] Ensuring gol binary on edge-node-1...
+[07:35:15] Reusing existing /tmp/gol on edge-node-1
+[07:35:15] Starting gol on edge-node-1...
+[07:35:15] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[07:35:15] Output mode: summary
+[07:35:15] Pattern: random
+[07:35:17] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 27-05-2026-host-precopy-0001 --relay-node edge-host-1 --iterations 3 --profile-name 7_TEE_Worst
+[07:35:19] Starting precopy migration...
+[07:35:19] Source: edge-node-1, Dest: edge-node-2
+[07:35:19] Transfer mode: host
+[07:35:19] Relay node: edge-host-1
+
+[07:35:19] === PRE-COPY LIVE MIGRATION ===
+[07:35:19] Step 1: Checking source process...
+[07:35:20]   Using PID from /home/ubuntu/gol.pid: 1465730
+[07:35:20]   Architecture: x86_64 (compatible)
+[07:35:20] Step 2: Preparing dump directory...
+[07:35:20] Step 3: Running 3 pre-dumps and transferring them while service keeps running...
+[07:35:20]   Pre-dump 1/3...
+[07:35:21]   Archiving and transferring pre-dump 1...
+  Transferring /home/ubuntu/CRIU-gol-iter-0.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.222
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.200
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 1/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 2/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+scp: Connection closed
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 3/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 4/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+ERROR: SCP edge-node-1->edge-host-1 failed after 5 attempts (last rc=255)
+ERROR: Transfer from source to relay failed
+[09:09:35] ERROR: Failed to transfer pre-dump 1
+[09:09:35] Metrics saved to /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=27-05-2026-host-precopy-0001
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[09:09:35] Resetting nodes: edge-node-1 -> edge-node-2
+[09:09:35] Step 1: Killing any existing processes on source...
+[09:09:35]   Killing PID 1465730 (from /home/ubuntu/app.pid)
+[09:09:36]   Killing PID 1465730 (from /home/ubuntu/gol.pid)
+[09:09:37]   Killing any remaining background processes...
+[09:09:38] Step 2: Cleaning source node...
+[09:09:39] Step 3: Cleaning destination node...
+[09:09:40]   Killing all remaining gol processes on destination...
+[09:09:44] ✓ Reset complete, nodes are clean
+[09:09:44]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[09:09:44] Ensuring gol binary on edge-node-1...
+[09:09:44] Reusing existing /tmp/gol on edge-node-1
+[09:09:44] Starting gol on edge-node-1...
+[09:09:44] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[09:09:44] Output mode: summary
+[09:09:44] Pattern: random
+[09:09:45] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 27-05-2026-host-precopy-0002 --relay-node edge-host-1 --iterations 3 --profile-name 7_TEE_Worst
+[09:09:48] Starting precopy migration...
+[09:09:48] Source: edge-node-1, Dest: edge-node-2
+[09:09:48] Transfer mode: host
+[09:09:48] Relay node: edge-host-1
+
+[09:09:48] === PRE-COPY LIVE MIGRATION ===
+[09:09:48] Step 1: Checking source process...
+[09:09:48]   Using PID from /home/ubuntu/gol.pid: 1473775
+[09:09:49]   Architecture: x86_64 (compatible)
+[09:09:49] Step 2: Preparing dump directory...
+[09:09:49] Step 3: Running 3 pre-dumps and transferring them while service keeps running...
+[09:09:49]   Pre-dump 1/3...
+[09:09:49]   Archiving and transferring pre-dump 1...
+  Transferring /home/ubuntu/CRIU-gol-iter-0.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.222
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.200
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 1/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 2/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 3/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Connection closed by 10.138.215.222 port 22
+scp: Connection closed
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 4/5 (rc=1); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+lost connection
+ERROR: SCP edge-node-1->edge-host-1 failed after 5 attempts (last rc=1)
+ERROR: Transfer from source to relay failed
+[11:26:41] ERROR: Failed to transfer pre-dump 1
+[11:26:41] Metrics saved to /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=27-05-2026-host-precopy-0002
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[11:26:41] Resetting nodes: edge-node-1 -> edge-node-2
+[11:26:41] Step 1: Killing any existing processes on source...
+[11:26:42]   Killing PID 1473775 (from /home/ubuntu/app.pid)
+[11:26:43]   Killing PID 1473775 (from /home/ubuntu/gol.pid)
+[11:26:43]   Killing any remaining background processes...
+[11:26:45] Step 2: Cleaning source node...
+[11:26:46] Step 3: Cleaning destination node...
+[11:26:47]   Killing all remaining gol processes on destination...
+[11:26:50] ✓ Reset complete, nodes are clean
+[11:26:50]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[11:26:50] Ensuring gol binary on edge-node-1...
+[11:26:50] Reusing existing /tmp/gol on edge-node-1
+[11:26:50] Starting gol on edge-node-1...
+[11:26:50] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[11:26:50] Output mode: summary
+[11:26:50] Pattern: random
+[11:26:52] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 27-05-2026-host-precopy-0003 --relay-node edge-host-1 --iterations 3 --profile-name 7_TEE_Worst
+[11:26:54] Starting precopy migration...
+[11:26:54] Source: edge-node-1, Dest: edge-node-2
+[11:26:54] Transfer mode: host
+[11:26:54] Relay node: edge-host-1
+
+[11:26:54] === PRE-COPY LIVE MIGRATION ===
+[11:26:54] Step 1: Checking source process...
+[11:26:55]   Using PID from /home/ubuntu/gol.pid: 1484521
+[11:26:55]   Architecture: x86_64 (compatible)
+[11:26:55] Step 2: Preparing dump directory...
+[11:26:55] Step 3: Running 3 pre-dumps and transferring them while service keeps running...
+[11:26:55]   Pre-dump 1/3...
+[11:26:56]   Archiving and transferring pre-dump 1...
+  Transferring /home/ubuntu/CRIU-gol-iter-0.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.222
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.200
+  Adding public key to destination's authorized_keys...
+  ✓ SSH key installed; skipping probe, transfer step will verify connectivity
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 1/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Connection closed by 10.138.215.222 port 22
+scp: Connection closed
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 2/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Timeout, server 10.138.215.222 not responding.
+scp: Connection closed
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 3/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Connection closed by 10.138.215.222 port 22
+scp: Connection closed
+WARNING: SCP edge-node-1->edge-host-1 failed on attempt 4/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.222' (ED25519) to the list of known hosts.
+Connection closed by 10.138.215.222 port 22
+scp: Connection closed
+ERROR: SCP edge-node-1->edge-host-1 failed after 5 attempts (last rc=255)
+ERROR: Transfer from source to relay failed
+[11:46:59] ERROR: Failed to transfer pre-dump 1
+[11:46:59] Metrics saved to /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/metrics/migration_metrics.csv
+[exit=1]
+[repeat] ERROR: benchmark failed for run_id=27-05-2026-host-precopy-0003
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/setup/reset_nodes.py edge-node-1 edge-node-2
+[11:46:59] Resetting nodes: edge-node-1 -> edge-node-2
+[11:46:59] Step 1: Killing any existing processes on source...
+[11:47:00]   Killing PID 1484521 (from /home/ubuntu/app.pid)
+[11:47:00]   Killing PID 1484521 (from /home/ubuntu/gol.pid)
+[11:47:01]   Killing any remaining background processes...
+[11:47:02] Step 2: Cleaning source node...
+[11:47:04] Step 3: Cleaning destination node...
+[11:47:04]   Killing all remaining gol processes on destination...
+[11:47:08] ✓ Reset complete, nodes are clean
+[11:47:08]   Next: Start your application
+[exit=0]
+
+$ bash /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/workloads/start_gol_c.sh edge-node-1
+[11:47:08] Ensuring gol binary on edge-node-1...
+[11:47:08] Reusing existing /tmp/gol on edge-node-1
+[11:47:08] Starting gol on edge-node-1...
+[11:47:08] Grid: 2048x2048 (two uint32 grids, approx 32 MiB heap)
+[11:47:08] Output mode: summary
+[11:47:08] Pattern: random
+[11:47:10] ✓ Gol started
+[exit=0]
+[repeat] warmup 2s
+
+$ python3 /home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/Game-of-life-migration/scripts/orchestrators/criu_benchmark.py precopy --source edge-node-1 --dest edge-node-2 --transfer-mode host --run-id 27-05-2026-host-precopy-0004 --relay-node edge-host-1 --iterations 3 --profile-name 7_TEE_Worst

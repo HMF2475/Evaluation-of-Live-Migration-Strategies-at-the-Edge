@@ -20,6 +20,22 @@ except ImportError:
     from multipass_command import MultipassCommand
 
 
+SCP_ATTEMPTS = 5
+SCP_RETRY_DELAY_SECONDS = 20
+SSH_ATTEMPTS = 2
+SSH_RETRY_DELAY_SECONDS = 5
+SSH_OPTIONS = (
+    "-o BatchMode=yes "
+    "-o ConnectTimeout=45 "
+    "-o ConnectionAttempts=1 "
+    "-o ServerAliveInterval=30 "
+    "-o ServerAliveCountMax=4 "
+    "-o StrictHostKeyChecking=no "
+    "-o UserKnownHostsFile=/dev/null"
+)
+SSH_TRUST_PROBE = os.getenv("CRIU_SSH_TRUST_PROBE", "0") == "1"
+
+
 def get_node_ip(node: str) -> Optional[str]:
     """Get first IPv4 address for a multipass node.
 
@@ -34,6 +50,33 @@ def get_node_ip(node: str) -> Optional[str]:
     if rc == 0 and output:
         return output.split()[0]
     return None
+
+
+def _run_remote_with_retries(
+    node: MultipassCommand,
+    command: str,
+    *,
+    label: str,
+    attempts: int,
+    delay_seconds: int,
+) -> bool:
+    """Run a remote shell command with retries for lossy links."""
+    last_rc = 1
+    for attempt in range(1, attempts + 1):
+        rc, _, err = node.exec(command, check=False)
+        last_rc = rc
+        if rc == 0:
+            return True
+        if attempt < attempts:
+            print(
+                f"WARNING: {label} failed on attempt {attempt}/{attempts} "
+                f"(rc={rc}); retrying in {delay_seconds}s"
+            )
+            if err:
+                print(f"  stderr: {err[-300:]}")
+            time.sleep(delay_seconds)
+    print(f"ERROR: {label} failed after {attempts} attempts (last rc={last_rc})")
+    return False
 
 
 def ensure_direct_ssh_trust(source_node: str, dest_node: str) -> bool:
@@ -92,20 +135,29 @@ def ensure_direct_ssh_trust(source_node: str, dest_node: str) -> bool:
         check=False,
     )
 
-    # Test SSH connection
+    if not SSH_TRUST_PROBE:
+        print("  ✓ SSH key installed; skipping probe, transfer step will verify connectivity")
+        return True
+
+    # Test SSH connection only when explicitly requested. Under lossy network
+    # profiles the probe can be less reliable than the retried SCP operation.
     print("  Testing SSH connectivity...")
-    rc, _, _ = source.exec(
-        f"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-        f'ubuntu@{dest_ip} "echo OK"',
-        check=False,
+    ok = _run_remote_with_retries(
+        source,
+        f'ssh {SSH_OPTIONS} ubuntu@{dest_ip} "echo OK"',
+        label=f"SSH test {source_node}->{dest_node}",
+        attempts=SSH_ATTEMPTS,
+        delay_seconds=SSH_RETRY_DELAY_SECONDS,
     )
 
-    if rc == 0:
+    if ok:
         print("  ✓ SSH trust ready")
-        return True
     else:
-        print("ERROR: SSH test failed")
-        return False
+        print(
+            "WARNING: SSH test did not complete, continuing because the key was installed; "
+            "the transfer step will retry and report the final result"
+        )
+    return True
 
 
 def _elapsed_ms(start_ns: int) -> int:
@@ -158,15 +210,16 @@ def transfer_archive_direct(
 
     print(f"  Transferring {source_path} via SCP...")
     send_start = time.time_ns()
-    rc, _, _ = source.exec(
-        f"scp -o BatchMode=yes -o ConnectTimeout=10 "
-        f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-        f"{source_path} ubuntu@{dest_ip}:{dest_path}",
-        check=False,
+    ok = _run_remote_with_retries(
+        source,
+        f"scp {SSH_OPTIONS} {source_path} ubuntu@{dest_ip}:{dest_path}",
+        label=f"SCP {source_node}->{dest_node}",
+        attempts=SCP_ATTEMPTS,
+        delay_seconds=SCP_RETRY_DELAY_SECONDS,
     )
     _add_timing(timings, "transfer_send_ms", _elapsed_ms(send_start))
 
-    return rc == 0
+    return ok
 
 
 def transfer_archive_via_host(
@@ -234,29 +287,31 @@ def transfer_archive_via_host(
         _add_timing(timings, "transfer_setup_ms", _elapsed_ms(setup_start))
 
         send_start = time.time_ns()
-        rc, _, _ = source.exec(
-            f"scp -o BatchMode=yes -o ConnectTimeout=10 "
-            f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-            f"{source_path} ubuntu@{relay_ip}:{relay_stage}",
-            check=False,
+        send_ok = _run_remote_with_retries(
+            source,
+            f"scp {SSH_OPTIONS} {source_path} ubuntu@{relay_ip}:{relay_stage}",
+            label=f"SCP {source_node}->{relay_node}",
+            attempts=SCP_ATTEMPTS,
+            delay_seconds=SCP_RETRY_DELAY_SECONDS,
         )
         _add_timing(timings, "transfer_send_ms", _elapsed_ms(send_start))
-        if rc != 0:
+        if not send_ok:
             print("ERROR: Transfer from source to relay failed")
             return False
 
         receive_start = time.time_ns()
-        rc, _, _ = relay.exec(
-            f"scp -o BatchMode=yes -o ConnectTimeout=10 "
-            f"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "
-            f"{relay_stage} ubuntu@{dest_ip}:{dest_path}",
-            check=False,
+        receive_ok = _run_remote_with_retries(
+            relay,
+            f"scp {SSH_OPTIONS} {relay_stage} ubuntu@{dest_ip}:{dest_path}",
+            label=f"SCP {relay_node}->{dest_node}",
+            attempts=SCP_ATTEMPTS,
+            delay_seconds=SCP_RETRY_DELAY_SECONDS,
         )
         _add_timing(timings, "transfer_receive_ms", _elapsed_ms(receive_start))
         cleanup_start = time.time_ns()
         relay.exec(f"rm -f {relay_stage}", check=False)
         _add_timing(timings, "transfer_cleanup_ms", _elapsed_ms(cleanup_start))
-        if rc != 0:
+        if not receive_ok:
             print("ERROR: Transfer from relay to destination failed")
             return False
 
