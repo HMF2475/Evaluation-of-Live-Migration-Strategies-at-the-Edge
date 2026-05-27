@@ -1,0 +1,175 @@
+[ARTIFACTS] Session log: run_all_artifacts/run_all__2026-05-22_110814.log
+[ARTIFACTS] Timing CSV : run_all_artifacts/benchmark_durations.csv
+[ARTIFACTS] Bench logs : run_all_artifacts/logs/
+[INFO] Selected benchmarks: WASM Migration
+[CMD] multipass exec edge-node-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-2 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-host-1 -- bash -lc "ip -o -4 route show default 2>/dev/null | awk '{print \$5; exit}'"
+[CMD] multipass exec edge-node-1 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-node-2 -- hostname -I | awk '{print $1}'
+[CMD] multipass exec edge-host-1 -- hostname -I | awk '{print $1}'
+
+[INFO] Nodes:
+  - edge-node-1: ip=10.138.215.40 iface=ens3
+  - edge-node-2: ip=10.138.215.174 iface=ens3
+  - edge-host-1: ip=10.138.215.252 iface=ens3
+
+
+>>>>>>>> INITIALIZING PROFILE: 7_TEE_Worst <<<<<<<<
+[edge-node-1] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-node-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.174/32 flowid 1:10
+[CMD] multipass exec edge-node-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.252/32 flowid 1:10
+[edge-node-2] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-node-2 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-node-2 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.40/32 flowid 1:10
+[CMD] multipass exec edge-node-2 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.252/32 flowid 1:10
+[edge-host-1] Applying TC: 0.65Mbps, 3000ms, 15.0% loss on ens3
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 root handle 1: htb default 20
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1: classid 1:1 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:20 htb rate 1000mbit
+[CMD] multipass exec edge-host-1 -- sudo tc class add dev ens3 parent 1:1 classid 1:10 htb rate 0.65mbit ceil 0.65mbit
+[CMD] multipass exec edge-host-1 -- sudo tc qdisc add dev ens3 parent 1:10 handle 10: netem delay 3000ms loss 15.0%
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.40/32 flowid 1:10
+[CMD] multipass exec edge-host-1 -- sudo tc filter add dev ens3 protocol ip parent 1: prio 1 u32 match ip dst 10.138.215.174/32 flowid 1:10
+
+============================================================
+[BENCHMARK] Running: WASM Migration | Profile: 7_TEE_Worst
+[CHUNK] 1/1 | host/direct runs per suite command: 30
+[LOG] run_all_artifacts/logs/2026-05-22_110814__7_tee_worst__01__wasm-migration.log
+============================================================
+
+=== RUN 22-05-2026-host-cold-0000 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0000/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+WARNING: SCP edge-host-1->edge-node-2 failed on attempt 1/5 (rc=255); retrying in 20s
+  stderr: Warning: Permanently added '10.138.215.174' (ED25519) to the list of known hosts.
+Connection closed by 10.138.215.174 port 22
+scp: Connection closed
+run_id=22-05-2026-host-cold-0000
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=787195 restore_ms=2149 downtime_ms=789345
+checkpoint_us=161 checkpoint_ns=160368
+archive_bytes=2017
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0000
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+
+=== RUN 22-05-2026-host-cold-0001 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0001/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+WARNING: SCP edge-host-1->edge-node-2 failed on attempt 1/5 (rc=255); retrying in 20s
+  stderr: Connection closed by 10.138.215.174 port 22
+scp: Connection closed
+run_id=22-05-2026-host-cold-0001
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=771973 restore_ms=2323 downtime_ms=774297
+checkpoint_us=122 checkpoint_ns=121450
+archive_bytes=2011
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0001
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+
+=== RUN 22-05-2026-host-cold-0002 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0002/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=22-05-2026-host-cold-0002
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=594409 restore_ms=2289 downtime_ms=596699
+checkpoint_us=185 checkpoint_ns=184036
+archive_bytes=2017
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0002
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+
+=== RUN 22-05-2026-host-cold-0003 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0003/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=22-05-2026-host-cold-0003
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=657377 restore_ms=2299 downtime_ms=659677
+checkpoint_us=136 checkpoint_ns=135696
+archive_bytes=2019
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0003
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+
+=== RUN 22-05-2026-host-cold-0004 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0004/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=22-05-2026-host-cold-0004
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=685740 restore_ms=2259 downtime_ms=688000
+checkpoint_us=143 checkpoint_ns=142609
+archive_bytes=2015
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0004
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv
+
+=== RUN 22-05-2026-host-cold-0005 ===
+
+  Transferring /home/ubuntu/wasm-migration/runs/22-05-2026-host-cold-0005/wasm-state.tar.gz via relay node edge-host-1...
+Setting up SSH trust: edge-node-1 → ubuntu@10.138.215.252
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+Setting up SSH trust: edge-host-1 → ubuntu@10.138.215.174
+  Adding public key to destination's authorized_keys...
+  Testing SSH connectivity...
+  ✓ SSH trust ready
+run_id=22-05-2026-host-cold-0005
+source=edge-node-1 dest=edge-node-2 transfer_mode=host
+success=True
+checkpoint_ms=1 transfer_ms=693253 restore_ms=2323 downtime_ms=695577
+checkpoint_us=183 checkpoint_ns=182141
+archive_bytes=2016
+artifacts=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/run_artifacts/22-05-2026-host-cold-0005
+csv=/home/ivo/Evaluation-of-Live-Migration-Strategies-at-the-Edge/WASM-migration/metrics/migration_metrics.csv

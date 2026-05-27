@@ -1,0 +1,2 @@
+[CMD] python3 WASM-migration/scripts/orchestrators/repeat_wasm_benchmarks.py suite --strategies cold --source edge-node-1 --dest edge-node-2 --relay-node edge-host-1 --host-runs 30 --direct-runs 30 --snapshot-node-metrics --profile-name 7_TEE_Worst --continue-on-failure --no-plots
+
