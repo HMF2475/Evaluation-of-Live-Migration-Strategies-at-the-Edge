@@ -53,7 +53,7 @@ COMPARISON_SETS = {
     },
     "access_networks": {
         "label": "Access Networks",
-        "profiles": ["WiFi 6", "5G", "LTE", "Starlink"],
+        "profiles": ["WiFi 6", "5G", "LTE"],
     },
     "tactical_edge": {
         "label": "Tactical Edge",
@@ -99,12 +99,12 @@ TRANSFER_MODE_NOTE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
 METRICS = {
     "downtime": {
         "column": "downtime_ms",
-        "label": "Downtime (ms)",
+        "label": "Downtime (milliseconds, log scale)",
         "title": "Downtime CDF",
     },
     "migration_time": {
         "column": "migration_time_ms",
-        "label": "Migration time (ms)",
+        "label": "Migration time (milliseconds, log scale)",
         "title": "Migration Time CDF",
     },
 }
@@ -124,7 +124,7 @@ def parse_transfer_mode_from_row(row: pd.Series) -> str | None:
 
 
 def apply_transfer_setup_adjustment(df: pd.DataFrame) -> pd.DataFrame:
-    """Match the setup-adjusted timing used by the existing plot scripts."""
+    """Adjust transfer timing while keeping raw measured downtime."""
     adjusted = df.copy()
     if "transfer_ms" not in adjusted.columns:
         return adjusted
@@ -147,9 +147,6 @@ def apply_transfer_setup_adjustment(df: pd.DataFrame) -> pd.DataFrame:
     if "downtime_ms" in adjusted.columns:
         raw_downtime = numeric("downtime_ms")
         adjusted["raw_downtime_ms"] = raw_downtime
-        adjusted["downtime_ms"] = (raw_downtime - setup + archive_create + unpack).clip(
-            lower=0.0
-        )
 
     if "total_ms" in adjusted.columns:
         raw_total = numeric("total_ms")
@@ -355,6 +352,34 @@ def failure_legend_handles(failures: pd.DataFrame) -> list[Line2D]:
     return handles
 
 
+def incomplete_profile_handles(
+    benchmark: str,
+    comparison_key: str,
+    profile_labels: list[str],
+) -> list[Line2D]:
+    handles: list[Line2D] = []
+    if (
+        benchmark == "Game of Life (CRIU)"
+        and comparison_key in {"all_profiles", "tactical_edge"}
+        and "TEE Worst" in profile_labels
+    ):
+        handles.append(
+            Line2D(
+                [0],
+                [0],
+                color="#555555",
+                marker="x",
+                linestyle="None",
+                markersize=6,
+                label=(
+                    "TEE Worst / Game of Life: no successful samples; "
+                    "archive and pre-dump transfers failed"
+                ),
+            )
+        )
+    return handles
+
+
 def ecdf_xy(values: pd.Series) -> tuple[pd.Series, pd.Series]:
     x = values.sort_values(ignore_index=True)
     y = pd.Series((range(1, len(x) + 1)), dtype=float) * 100.0 / len(x)
@@ -406,7 +431,14 @@ def plot_single_ecdf(
                 label=f"{profile} / {method}",
             )
 
-    ax.set_xlim(left=0)
+    subset = subset[pd.to_numeric(subset[value_column], errors="coerce") > 0]
+    x_min = float(subset[value_column].min())
+    x_max = float(subset[value_column].max())
+    ax.set_xscale("log")
+    if x_min == x_max:
+        ax.set_xlim(max(x_min * 0.95, 1.0), x_max * 1.05)
+    else:
+        ax.set_xlim(x_min, x_max)
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.set_yticklabels([f"{tick}%" for tick in [0, 20, 40, 60, 80, 100]])
@@ -414,9 +446,6 @@ def plot_single_ecdf(
     ax.set_ylabel("Cumulative runs (%)")
     ax.set_title(
         f"{metric['title']} - {benchmark} - {mode.title()} - {comparison_label}"
-    )
-    ax.ticklabel_format(
-        axis="x", style="sci", scilimits=(0, 0), useOffset=False, useMathText=False
     )
 
     count_subset = counts[
@@ -477,6 +506,13 @@ def plot_single_ecdf(
     run_status_handles = [success_handle]
     if not failures.empty:
         run_status_handles.extend(failure_legend_handles(failures))
+    run_status_handles.extend(
+        incomplete_profile_handles(
+            benchmark=benchmark,
+            comparison_key=comparison_key,
+            profile_labels=profile_labels,
+        )
+    )
     ax.legend(
         handles=run_status_handles,
         title="Run status",

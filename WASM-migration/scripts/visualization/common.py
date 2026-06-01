@@ -124,12 +124,14 @@ def _backfill_checkpoint_precision(df: pd.DataFrame, csv_file: str) -> None:
 
 
 def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
-    """Use setup-adjusted migration-window timing for plots.
+    """Use setup-adjusted transfer timing while keeping raw downtime.
 
     The Wasm benchmark records archive creation separately, but destination
     setup/unpack is already inside `restore_ms` because the restore timer starts
     before destination seeding. Therefore, plots add archive creation to the
     transfer phase and subtract transfer setup, without adding `unpack_ms` again.
+    Downtime remains the raw measured service interruption, because subtracting
+    setup can clip tiny successful runs to 0 ms and make the plots misleading.
     """
     if "transfer_ms" not in df.columns:
         return
@@ -154,7 +156,6 @@ def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
     if "downtime_ms" in df.columns:
         raw_downtime = pd.to_numeric(df["downtime_ms"], errors="coerce").fillna(0.0)
         df["raw_downtime_ms"] = raw_downtime
-        df["downtime_ms"] = (raw_downtime - setup + archive_create).clip(lower=0.0)
 
 
 def load_migration_csv(csv_file: str) -> pd.DataFrame:

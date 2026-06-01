@@ -63,12 +63,14 @@ def parse_transfer_mode(notes: str) -> str:
 
 
 def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
-    """Use setup-adjusted migration-window timing for plots.
+    """Use setup-adjusted transfer timing while keeping raw downtime.
 
     Raw CRIU rows keep archive creation and destination unpack as separate
     fields, while raw `transfer_ms` only covers the transfer helper. For plots,
     the transfer phase represents the whole window between checkpoint completion
     and restore start, excluding only pre-established setup overhead.
+    Downtime remains the raw measured service interruption, because subtracting
+    setup can clip tiny successful runs to 0 ms and make the plots misleading.
     """
     if "transfer_ms" not in df.columns:
         return
@@ -98,9 +100,6 @@ def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
     if "downtime_ms" in df.columns:
         raw_downtime = pd.to_numeric(df["downtime_ms"], errors="coerce").fillna(0.0)
         df["raw_downtime_ms"] = raw_downtime
-        df["downtime_ms"] = (raw_downtime - setup + archive_create + unpack).clip(
-            lower=0.0
-        )
 
 
 def load_migration_csv(csv_file: str) -> pd.DataFrame:
