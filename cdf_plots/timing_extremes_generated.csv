@@ -1,0 +1,141 @@
+metric,benchmark,profile,method,fastest,slowest,successes
+downtime_ms,Counter (CRIU),WiFi 6,Cold,"\shortstack[l]{direct / 2\,352\\C/T/R: 528/1\,495/329}","\shortstack[l]{host / 4\,216\\C/T/R: 593/3\,317/306}",80/80
+downtime_ms,Counter (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 2\,296\\C/T/R: 529/1\,461/306\\P: 16\,055}","\shortstack[l]{host / 4\,361\\C/T/R: 896/3\,126/339\\P: 27\,597}",79/80
+downtime_ms,Counter (CRIU),WiFi 6,Post-copy,"\shortstack[l]{direct / 2\,788\\C/T/R: 1\,031/1\,398/359}","\shortstack[l]{host / 4\,550\\C/T/R: 1\,386/2\,836/328}",80/80
+downtime_ms,Counter (CRIU),5G,Cold,"\shortstack[l]{direct / 2\,552\\C/T/R: 599/1\,650/303}","\shortstack[l]{host / 4\,531\\C/T/R: 606/3\,561/364}",80/80
+downtime_ms,Counter (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 2\,535\\C/T/R: 555/1\,664/316\\P: 17\,626}","\shortstack[l]{host / 4\,836\\C/T/R: 876/3\,659/301\\P: 29\,488}",80/80
+downtime_ms,Counter (CRIU),5G,Post-copy,"\shortstack[l]{direct / 3\,024\\C/T/R: 1\,043/1\,603/378}","\shortstack[l]{host / 5\,110\\C/T/R: 1\,217/3\,541/352}",80/80
+downtime_ms,Counter (CRIU),LTE,Cold,"\shortstack[l]{direct / 3\,784\\C/T/R: 580/2\,934/270}","\shortstack[l]{host / 7\,317\\C/T/R: 646/6\,372/299}",79/80
+downtime_ms,Counter (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 3\,749\\C/T/R: 559/2\,885/305\\P: 22\,524}","\shortstack[l]{host / 7\,252\\C/T/R: 725/6\,204/323\\P: 40\,302}",80/80
+downtime_ms,Counter (CRIU),LTE,Post-copy,"\shortstack[l]{direct / 4\,348\\C/T/R: 985/2\,870/493}","\shortstack[l]{host / 8\,248\\C/T/R: 1\,040/6\,687/521}",80/80
+downtime_ms,Counter (CRIU),Starlink,Cold,"\shortstack[l]{direct / 4\,032\\C/T/R: 592/3\,164/276}","\shortstack[l]{host / 9\,068\\C/T/R: 720/7\,936/412}",80/80
+downtime_ms,Counter (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 3\,932\\C/T/R: 541/3\,084/307\\P: 25\,555}","\shortstack[l]{host / 9\,141\\C/T/R: 569/8\,223/349\\P: 43\,445}",80/80
+downtime_ms,Counter (CRIU),Starlink,Post-copy,"\shortstack[l]{direct / 4\,552\\C/T/R: 983/3\,115/454}","\shortstack[l]{host / 8\,969\\C/T/R: 1\,122/7\,344/503}",80/80
+downtime_ms,Counter (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 10\,551\\C/T/R: 636/9\,603/312}","\shortstack[l]{host / 33\,701\\C/T/R: 692/32\,633/376}",80/80
+downtime_ms,Counter (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 10\,488\\C/T/R: 556/9\,595/337\\P: 66\,607}","\shortstack[l]{host / 32\,585\\C/T/R: 957/31\,314/314\\P: 123\,391}",79/80
+downtime_ms,Counter (CRIU),TEE Best,Post-copy,"\shortstack[l]{direct / 12\,251\\C/T/R: 936/10\,135/1\,180}","\shortstack[l]{host / 32\,490\\C/T/R: 1\,006/29\,458/2\,026}",80/80
+downtime_ms,Counter (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 20\,075\\C/T/R: 592/19\,185/298}","\shortstack[l]{host / 85\,361\\C/T/R: 584/84\,478/299}",80/80
+downtime_ms,Counter (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 22\,111\\C/T/R: 576/21\,243/292\\P: 152\,591}","\shortstack[l]{host / 93\,704\\C/T/R: 572/92\,805/327\\P: 290\,330}",78/80
+downtime_ms,Counter (CRIU),TEE Avg,Post-copy,"\shortstack[l]{direct / 22\,885\\C/T/R: 1\,066/19\,899/1\,920}","\shortstack[l]{host / 84\,689\\C/T/R: 1\,059/77\,135/6\,495}",80/80
+downtime_ms,Counter (CRIU),TEE Worst,Cold,"\shortstack[l]{direct / 155\,148\\C/T/R: 628/154\,216/304}","\shortstack[l]{host / 1\,204\,100\\C/T/R: 644/1\,203\,139/317}",59/59
+downtime_ms,Counter (CRIU),TEE Worst,Pre-copy,"\shortstack[l]{direct / 152\,647\\C/T/R: 915/151\,420/312\\P: 662\,394}","\shortstack[l]{host / 1\,097\,795\\C/T/R: 912/1\,096\,566/317\\P: 1\,674\,253}",59/60
+downtime_ms,Counter (CRIU),TEE Worst,Post-copy,"\shortstack[l]{direct / 155\,762\\C/T/R: 1\,016/141\,376/13\,370}","\shortstack[l]{host / 952\,595\\C/T/R: 970/925\,796/25\,829}",60/60
+downtime_ms,TCP Client (CRIU),WiFi 6,Cold,"\shortstack[l]{direct / 2\,110\\C/T/R: 341/1\,452/317}","\shortstack[l]{host / 3\,809\\C/T/R: 545/2\,782/482}",80/80
+downtime_ms,TCP Client (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 2\,119\\C/T/R: 301/1\,518/300\\P: 16\,107}","\shortstack[l]{host / 4\,094\\C/T/R: 358/3\,277/459\\P: 27\,889}",79/79
+downtime_ms,TCP Client (CRIU),WiFi 6,Post-copy,"\shortstack[l]{direct / 2\,504\\C/T/R: 729/1\,415/360}","\shortstack[l]{host / 4\,632\\C/T/R: 863/3\,425/344}",78/78
+downtime_ms,TCP Client (CRIU),5G,Cold,"\shortstack[l]{direct / 2\,323\\C/T/R: 333/1\,678/312}","\shortstack[l]{host / 4\,555\\C/T/R: 386/3\,869/300}",80/80
+downtime_ms,TCP Client (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 2\,211\\C/T/R: 296/1\,587/328\\P: 17\,545}","\shortstack[l]{host / 4\,336\\C/T/R: 711/3\,309/316\\P: 29\,887}",79/80
+downtime_ms,TCP Client (CRIU),5G,Post-copy,"\shortstack[l]{direct / 2\,755\\C/T/R: 755/1\,624/376}","\shortstack[l]{host / 4\,943\\C/T/R: 768/3\,774/401}",80/80
+downtime_ms,TCP Client (CRIU),LTE,Cold,"\shortstack[l]{direct / 3\,523\\C/T/R: 316/2\,891/316}","\shortstack[l]{host / 6\,880\\C/T/R: 360/6\,214/306}",80/80
+downtime_ms,TCP Client (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 3\,543\\C/T/R: 296/2\,944/303\\P: 22\,715}","\shortstack[l]{host / 7\,057\\C/T/R: 699/6\,017/341\\P: 40\,917}",80/80
+downtime_ms,TCP Client (CRIU),LTE,Post-copy,"\shortstack[l]{direct / 4\,141\\C/T/R: 771/2\,874/496}","\shortstack[l]{host / 7\,490\\C/T/R: 701/6\,294/495}",80/80
+downtime_ms,TCP Client (CRIU),Starlink,Cold,"\shortstack[l]{direct / 3\,763\\C/T/R: 358/3\,098/307}","\shortstack[l]{host / 8\,430\\C/T/R: 346/7\,747/337}",80/80
+downtime_ms,TCP Client (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 3\,632\\C/T/R: 280/3\,048/304\\P: 24\,348}","\shortstack[l]{host / 7\,865\\C/T/R: 632/6\,891/342\\P: 42\,683}",76/80
+downtime_ms,TCP Client (CRIU),Starlink,Post-copy,"\shortstack[l]{direct / 4\,290\\C/T/R: 700/3\,060/530}","\shortstack[l]{host / 8\,559\\C/T/R: 752/7\,290/517}",80/80
+downtime_ms,TCP Client (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 10\,983\\C/T/R: 322/10\,353/308}","\shortstack[l]{host / 29\,198\\C/T/R: 349/28\,543/306}",48/80
+downtime_ms,TCP Client (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 10\,194\\C/T/R: 305/9\,572/317\\P: 59\,020}","\shortstack[l]{host / 29\,801\\C/T/R: 299/29\,138/364\\P: 122\,238}",73/79
+downtime_ms,TCP Client (CRIU),TEE Best,Post-copy,"\shortstack[l]{direct / 11\,560\\C/T/R: 752/9\,662/1\,146}","\shortstack[l]{host / 36\,561\\C/T/R: 733/34\,695/1\,133}",66/80
+downtime_ms,TCP Client (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 20\,322\\C/T/R: 330/19\,643/349}","\shortstack[l]{host / 80\,216\\C/T/R: 432/79\,371/413}",74/80
+downtime_ms,TCP Client (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 21\,288\\C/T/R: 329/20\,633/326\\P: 160\,342}","\shortstack[l]{host / 89\,500\\C/T/R: 643/88\,541/316\\P: 274\,041}",58/80
+downtime_ms,TCP Client (CRIU),TEE Avg,Post-copy,"\shortstack[l]{direct / 20\,856\\C/T/R: 715/18\,176/1\,965}","\shortstack[l]{host / 105\,370\\C/T/R: 730/101\,051/3\,589}",68/80
+downtime_ms,TCP Client (CRIU),TEE Worst,Cold,"\shortstack[l]{direct / 166\,984\\C/T/R: 340/166\,317/327}","\shortstack[l]{host / 1\,031\,267\\C/T/R: 348/1\,030\,581/338}",52/60
+downtime_ms,TCP Client (CRIU),TEE Worst,Pre-copy,"\shortstack[l]{direct / 173\,937\\C/T/R: 625/172\,982/330\\P: 775\,429}","\shortstack[l]{host / 969\,373\\C/T/R: 664/968\,397/312\\P: 1\,203\,034}",34/60
+downtime_ms,TCP Client (CRIU),TEE Worst,Post-copy,"\shortstack[l]{direct / 176\,398\\C/T/R: 782/163\,250/12\,366}","\shortstack[l]{host / 790\,281\\C/T/R: 745/763\,638/25\,898}",24/60
+downtime_ms,Game of Life (CRIU),WiFi 6,Cold,"\shortstack[l]{direct / 3\,689\\C/T/R: 340/3\,005/344}","\shortstack[l]{host / 5\,850\\C/T/R: 437/5\,074/339}",80/80
+downtime_ms,Game of Life (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 3\,239\\C/T/R: 320/2\,595/324\\P: 20\,468}","\shortstack[l]{host / 4\,882\\C/T/R: 551/4\,003/328\\P: 31\,787}",80/80
+downtime_ms,Game of Life (CRIU),WiFi 6,Post-copy,"\shortstack[l]{direct / 2\,784\\C/T/R: 999/1\,444/341}","\shortstack[l]{host / 6\,339\\C/T/R: 999/5\,021/319}",80/80
+downtime_ms,Game of Life (CRIU),5G,Cold,"\shortstack[l]{direct / 4\,265\\C/T/R: 358/3\,575/332}","\shortstack[l]{host / 7\,512\\C/T/R: 353/6\,837/322}",80/80
+downtime_ms,Game of Life (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 3\,565\\C/T/R: 315/2\,925/325\\P: 21\,947}","\shortstack[l]{host / 6\,843\\C/T/R: 397/6\,113/333\\P: 34\,609}",79/80
+downtime_ms,Game of Life (CRIU),5G,Post-copy,"\shortstack[l]{direct / 3\,039\\C/T/R: 934/1\,725/380}","\shortstack[l]{host / 5\,075\\C/T/R: 1\,077/3\,642/356}",80/80
+downtime_ms,Game of Life (CRIU),LTE,Cold,"\shortstack[l]{direct / 7\,568\\C/T/R: 346/6\,906/316}","\shortstack[l]{host / 34\,275\\C/T/R: 358/33\,574/343}",80/80
+downtime_ms,Game of Life (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 5\,776\\C/T/R: 320/5\,110/346\\P: 43\,897}","\shortstack[l]{host / 17\,720\\C/T/R: 302/17\,102/316\\P: 55\,313}",79/80
+downtime_ms,Game of Life (CRIU),LTE,Post-copy,--,--,0/80
+downtime_ms,Game of Life (CRIU),Starlink,Cold,"\shortstack[l]{direct / 7\,370\\C/T/R: 336/6\,667/367}","\shortstack[l]{host / 122\,322\\C/T/R: 368/121\,623/331}",80/80
+downtime_ms,Game of Life (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 5\,590\\C/T/R: 340/4\,924/326\\P: 113\,840}","\shortstack[l]{host / 46\,116\\C/T/R: 657/45\,138/321\\P: 160\,119}",79/80
+downtime_ms,Game of Life (CRIU),Starlink,Post-copy,--,--,0/80
+downtime_ms,Game of Life (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 368\,100\\C/T/R: 341/367\,433/326}","\shortstack[l]{host / 1\,075\,766\\C/T/R: 389/1\,075\,034/343}",79/80
+downtime_ms,Game of Life (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 63\,399\\C/T/R: 661/62\,390/348\\P: 760\,232}","\shortstack[l]{host / 243\,462\\C/T/R: 640/242\,498/324\\P: 1\,280\,339}",80/80
+downtime_ms,Game of Life (CRIU),TEE Best,Post-copy,"\shortstack[l]{host / 1\,000\,300\\C/T/R: 980/998\,935/385}","\shortstack[l]{host / 1\,000\,300\\C/T/R: 980/998\,935/385}",1/80
+downtime_ms,Game of Life (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 1\,060\,617\\C/T/R: 340/1\,059\,938/339}","\shortstack[l]{host / 2\,638\,855\\C/T/R: 306/2\,638\,197/352}",79/80
+downtime_ms,Game of Life (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 166\,449\\C/T/R: 711/165\,426/312\\P: 1\,776\,580}","\shortstack[l]{host / 490\,114\\C/T/R: 677/489\,088/349\\P: 3\,483\,861}",79/80
+downtime_ms,Game of Life (CRIU),TEE Avg,Post-copy,--,--,0/80
+downtime_ms,Game of Life (CRIU),TEE Worst,Cold,--,--,--
+downtime_ms,Game of Life (CRIU),TEE Worst,Pre-copy,--,--,--
+downtime_ms,Game of Life (CRIU),TEE Worst,Post-copy,--,--,--
+downtime_ms,WebAssembly,WiFi 6,Wasm,"\shortstack[l]{direct / 3\,304\\C/T/R: 0/1\,395/1\,909}","\shortstack[l]{host / 5\,097\\C/T/R: 0/3\,093/2\,004}",80/80
+downtime_ms,WebAssembly,5G,Wasm,"\shortstack[l]{direct / 3\,522\\C/T/R: 0/1\,545/1\,977}","\shortstack[l]{host / 5\,475\\C/T/R: 0/3\,473/2\,002}",80/80
+downtime_ms,WebAssembly,LTE,Wasm,"\shortstack[l]{direct / 4\,669\\C/T/R: 0/2\,769/1\,900}","\shortstack[l]{host / 8\,087\\C/T/R: 0/6\,197/1\,890}",80/80
+downtime_ms,WebAssembly,Starlink,Wasm,"\shortstack[l]{direct / 4\,897\\C/T/R: 0/3\,013/1\,884}","\shortstack[l]{host / 9\,331\\C/T/R: 0/7\,387/1\,944}",80/80
+downtime_ms,WebAssembly,TEE Best,Wasm,"\shortstack[l]{direct / 11\,115\\C/T/R: 0/9\,213/1\,902}","\shortstack[l]{host / 32\,158\\C/T/R: 0/30\,239/1\,919}",80/80
+downtime_ms,WebAssembly,TEE Avg,Wasm,"\shortstack[l]{direct / 20\,011\\C/T/R: 0/18\,088/1\,923}","\shortstack[l]{host / 69\,835\\C/T/R: 0/67\,785/2\,050}",79/80
+downtime_ms,WebAssembly,TEE Worst,Wasm,"\shortstack[l]{direct / 152\,287\\C/T/R: 0/149\,920/2\,367}","\shortstack[l]{host / 936\,904\\C/T/R: 0/934\,620/2\,284}",60/60
+migration_time_ms,Counter (CRIU),WiFi 6,Cold,"\shortstack[l]{host / 9\,793\\C/T/R/O: 605/2\,618/311/6\,259}","\shortstack[l]{direct / 11\,384\\C/T/R/O: 631/2\,089/298/8\,366}",80/80
+migration_time_ms,Counter (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 26\,223\\C/T/R/O: 611/1\,536/327/23\,749\\P: 15\,799}","\shortstack[l]{host / 38\,349\\C/T/R/O: 878/2\,797/303/34\,371\\P: 28\,073}",79/80
+migration_time_ms,Counter (CRIU),WiFi 6,Post-copy,"\shortstack[l]{host / 13\,330\\C/T/R/O: 1\,005/2\,737/340/9\,248}","\shortstack[l]{direct / 15\,321\\C/T/R/O: 1\,068/1\,736/320/12\,197}",80/80
+migration_time_ms,Counter (CRIU),5G,Cold,"\shortstack[l]{host / 10\,336\\C/T/R/O: 621/3\,177/313/6\,225}","\shortstack[l]{direct / 11\,555\\C/T/R/O: 570/2\,062/310/8\,613}",80/80
+migration_time_ms,Counter (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 27\,501\\C/T/R/O: 578/1\,754/298/24\,871\\P: 16\,650}","\shortstack[l]{host / 40\,577\\C/T/R/O: 958/3\,088/301/36\,230\\P: 30\,169}",80/80
+migration_time_ms,Counter (CRIU),5G,Post-copy,"\shortstack[l]{host / 14\,095\\C/T/R/O: 1\,000/3\,274/323/9\,498}","\shortstack[l]{direct / 16\,977\\C/T/R/O: 1\,002/1\,770/392/13\,813}",80/80
+migration_time_ms,Counter (CRIU),LTE,Cold,"\shortstack[l]{host / 12\,782\\C/T/R/O: 594/5\,564/289/6\,335}","\shortstack[l]{host / 14\,099\\C/T/R/O: 756/5\,744/505/7\,094}",79/80
+migration_time_ms,Counter (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 34\,638\\C/T/R/O: 561/2\,924/291/30\,862\\P: 22\,119}","\shortstack[l]{host / 54\,801\\C/T/R/O: 659/5\,707/310/48\,125\\P: 41\,800}",80/80
+migration_time_ms,Counter (CRIU),LTE,Post-copy,"\shortstack[l]{host / 17\,612\\C/T/R/O: 1\,097/5\,509/529/10\,477}","\shortstack[l]{host / 19\,387\\C/T/R/O: 1\,040/6\,687/521/11\,139}",80/80
+migration_time_ms,Counter (CRIU),Starlink,Cold,"\shortstack[l]{direct / 13\,205\\C/T/R/O: 543/3\,228/311/9\,123}","\shortstack[l]{host / 16\,099\\C/T/R/O: 720/7\,936/412/7\,031}",80/80
+migration_time_ms,Counter (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 36\,874\\C/T/R/O: 578/3\,190/343/32\,763\\P: 23\,905}","\shortstack[l]{host / 59\,108\\C/T/R/O: 607/6\,484/313/51\,704\\P: 45\,434}",80/80
+migration_time_ms,Counter (CRIU),Starlink,Post-copy,"\shortstack[l]{direct / 18\,133\\C/T/R/O: 983/3\,115/454/13\,581}","\shortstack[l]{direct / 20\,626\\C/T/R/O: 1\,056/3\,474/501/15\,595}",80/80
+migration_time_ms,Counter (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 23\,992\\C/T/R/O: 613/10\,021/300/13\,058}","\shortstack[l]{host / 39\,999\\C/T/R/O: 692/32\,633/376/6\,298}",80/80
+migration_time_ms,Counter (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 84\,625\\C/T/R/O: 536/9\,694/310/74\,085\\P: 60\,538}","\shortstack[l]{host / 169\,383\\C/T/R/O: 963/28\,148/292/139\,980\\P: 133\,535}",79/80
+migration_time_ms,Counter (CRIU),TEE Best,Post-copy,"\shortstack[l]{direct / 34\,804\\C/T/R/O: 1\,185/11\,581/1\,104/20\,934}","\shortstack[l]{host / 52\,244\\C/T/R/O: 1\,066/30\,275/1\,085/19\,818}",80/80
+migration_time_ms,Counter (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 42\,220\\C/T/R/O: 539/21\,922/289/19\,470}","\shortstack[l]{host / 91\,826\\C/T/R/O: 584/84\,478/299/6\,465}",80/80
+migration_time_ms,Counter (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 156\,279\\C/T/R/O: 574/22\,402/312/132\,991\\P: 113\,796}","\shortstack[l]{host / 391\,500\\C/T/R/O: 899/50\,349/288/339\,964\\P: 333\,938}",78/80
+migration_time_ms,Counter (CRIU),TEE Avg,Post-copy,"\shortstack[l]{direct / 60\,237\\C/T/R/O: 1\,027/21\,632/1\,916/35\,662}","\shortstack[l]{host / 112\,758\\C/T/R/O: 1\,072/81\,030/1\,932/28\,724}",80/80
+migration_time_ms,Counter (CRIU),TEE Worst,Cold,"\shortstack[l]{direct / 162\,626\\C/T/R/O: 628/154\,216/304/7\,478}","\shortstack[l]{host / 1\,210\,458\\C/T/R/O: 644/1\,203\,139/317/6\,358}",59/59
+migration_time_ms,Counter (CRIU),TEE Worst,Pre-copy,"\shortstack[l]{direct / 704\,734\\C/T/R/O: 906/177\,220/316/526\,292\\P: 518\,937}","\shortstack[l]{host / 2\,778\,233\\C/T/R/O: 912/1\,096\,566/317/1\,680\,438\\P: 1\,674\,253}",59/60
+migration_time_ms,Counter (CRIU),TEE Worst,Post-copy,"\shortstack[l]{direct / 185\,144\\C/T/R/O: 1\,016/141\,376/13\,370/29\,382}","\shortstack[l]{host / 981\,125\\C/T/R/O: 970/925\,796/25\,829/28\,530}",60/60
+migration_time_ms,TCP Client (CRIU),WiFi 6,Cold,"\shortstack[l]{host / 15\,522\\C/T/R/O: 352/2\,641/322/12\,207}","\shortstack[l]{direct / 17\,877\\C/T/R/O: 383/1\,614/306/15\,574}",80/80
+migration_time_ms,TCP Client (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 32\,609\\C/T/R/O: 317/1\,624/321/30\,347\\P: 15\,689}","\shortstack[l]{host / 45\,047\\C/T/R/O: 354/2\,623/432/41\,638\\P: 27\,975}",79/79
+migration_time_ms,TCP Client (CRIU),WiFi 6,Post-copy,"\shortstack[l]{host / 17\,866\\C/T/R/O: 858/2\,683/352/13\,973}","\shortstack[l]{direct / 20\,205\\C/T/R/O: 839/1\,593/362/17\,411}",78/78
+migration_time_ms,TCP Client (CRIU),5G,Cold,"\shortstack[l]{host / 15\,973\\C/T/R/O: 310/3\,165/300/12\,198}","\shortstack[l]{direct / 17\,547\\C/T/R/O: 346/1\,772/377/15\,052}",80/80
+migration_time_ms,TCP Client (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 33\,503\\C/T/R/O: 297/1\,720/305/31\,181\\P: 16\,707}","\shortstack[l]{host / 46\,914\\C/T/R/O: 361/3\,294/299/42\,960\\P: 29\,757}",79/80
+migration_time_ms,TCP Client (CRIU),5G,Post-copy,"\shortstack[l]{host / 18\,320\\C/T/R/O: 773/3\,065/391/14\,091}","\shortstack[l]{direct / 20\,198\\C/T/R/O: 771/1\,847/355/17\,225}",80/80
+migration_time_ms,TCP Client (CRIU),LTE,Cold,"\shortstack[l]{host / 18\,372\\C/T/R/O: 310/5\,533/340/12\,189}","\shortstack[l]{host / 19\,692\\C/T/R/O: 542/5\,747/556/12\,847}",80/80
+migration_time_ms,TCP Client (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 41\,386\\C/T/R/O: 286/2\,963/305/37\,832\\P: 22\,225}","\shortstack[l]{host / 61\,254\\C/T/R/O: 311/5\,705/296/54\,942\\P: 42\,267}",80/80
+migration_time_ms,TCP Client (CRIU),LTE,Post-copy,"\shortstack[l]{host / 20\,858\\C/T/R/O: 724/5\,521/500/14\,113}","\shortstack[l]{host / 22\,304\\C/T/R/O: 787/5\,956/505/15\,056}",80/80
+migration_time_ms,TCP Client (CRIU),Starlink,Cold,"\shortstack[l]{host / 18\,868\\C/T/R/O: 314/6\,033/307/12\,214}","\shortstack[l]{direct / 21\,041\\C/T/R/O: 333/5\,160/293/15\,255}",80/80
+migration_time_ms,TCP Client (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 43\,213\\C/T/R/O: 277/3\,148/304/39\,484\\P: 23\,920}","\shortstack[l]{host / 65\,683\\C/T/R/O: 309/6\,785/316/58\,273\\P: 45\,338}",76/80
+migration_time_ms,TCP Client (CRIU),Starlink,Post-copy,"\shortstack[l]{direct / 21\,444\\C/T/R/O: 764/3\,108/505/17\,067}","\shortstack[l]{direct / 23\,882\\C/T/R/O: 750/4\,276/482/18\,374}",80/80
+migration_time_ms,TCP Client (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 30\,404\\C/T/R/O: 328/10\,857/334/18\,885}","\shortstack[l]{host / 41\,869\\C/T/R/O: 349/28\,543/306/12\,671}",48/80
+migration_time_ms,TCP Client (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 87\,386\\C/T/R/O: 294/9\,661/295/77\,136\\P: 56\,635}","\shortstack[l]{host / 172\,405\\C/T/R/O: 279/24\,625/343/147\,158\\P: 134\,243}",73/79
+migration_time_ms,TCP Client (CRIU),TEE Best,Post-copy,"\shortstack[l]{direct / 33\,082\\C/T/R/O: 757/10\,061/1\,150/21\,114}","\shortstack[l]{host / 51\,376\\C/T/R/O: 733/34\,695/1\,133/14\,815}",66/80
+migration_time_ms,TCP Client (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 49\,282\\C/T/R/O: 350/21\,707/340/26\,885}","\shortstack[l]{host / 94\,054\\C/T/R/O: 432/79\,371/413/13\,838}",74/80
+migration_time_ms,TCP Client (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 172\,296\\C/T/R/O: 613/25\,029/315/146\,339\\P: 121\,633}","\shortstack[l]{host / 387\,426\\C/T/R/O: 631/57\,312/323/329\,160\\P: 316\,133}",58/80
+migration_time_ms,TCP Client (CRIU),TEE Avg,Post-copy,"\shortstack[l]{direct / 52\,487\\C/T/R/O: 715/18\,176/1\,965/31\,631}","\shortstack[l]{host / 120\,064\\C/T/R/O: 730/101\,051/3\,589/14\,694}",68/80
+migration_time_ms,TCP Client (CRIU),TEE Worst,Cold,"\shortstack[l]{direct / 181\,831\\C/T/R/O: 340/166\,317/327/14\,847}","\shortstack[l]{host / 1\,044\,545\\C/T/R/O: 348/1\,030\,581/338/13\,278}",52/60
+migration_time_ms,TCP Client (CRIU),TEE Worst,Pre-copy,"\shortstack[l]{direct / 786\,074\\C/T/R/O: 656/207\,932/314/577\,172\\P: 561\,668}","\shortstack[l]{host / 2\,958\,912\\C/T/R/O: 651/756\,998/336/2\,200\,927\\P: 2\,187\,234}",34/60
+migration_time_ms,TCP Client (CRIU),TEE Worst,Post-copy,"\shortstack[l]{direct / 193\,101\\C/T/R/O: 782/163\,250/12\,366/16\,703}","\shortstack[l]{host / 805\,563\\C/T/R/O: 745/763\,638/25\,898/15\,282}",24/60
+migration_time_ms,Game of Life (CRIU),WiFi 6,Cold,"\shortstack[l]{host / 13\,355\\C/T/R/O: 338/4\,603/313/8\,101}","\shortstack[l]{direct / 14\,601\\C/T/R/O: 361/3\,593/335/10\,312}",80/80
+migration_time_ms,Game of Life (CRIU),WiFi 6,Pre-copy,"\shortstack[l]{direct / 33\,530\\C/T/R/O: 310/2\,652/370/30\,198\\P: 20\,091}","\shortstack[l]{host / 45\,869\\C/T/R/O: 401/3\,998/420/41\,050\\P: 32\,812}",80/80
+migration_time_ms,Game of Life (CRIU),WiFi 6,Post-copy,"\shortstack[l]{host / 17\,194\\C/T/R/O: 999/5\,021/319/10\,855}","\shortstack[l]{direct / 21\,444\\C/T/R/O: 1\,010/1\,547/332/18\,555}",80/80
+migration_time_ms,Game of Life (CRIU),5G,Cold,"\shortstack[l]{host / 14\,100\\C/T/R/O: 349/5\,490/315/7\,946}","\shortstack[l]{host / 16\,007\\C/T/R/O: 353/6\,837/322/8\,495}",80/80
+migration_time_ms,Game of Life (CRIU),5G,Pre-copy,"\shortstack[l]{direct / 34\,990\\C/T/R/O: 310/3\,004/339/31\,337\\P: 21\,441}","\shortstack[l]{host / 51\,559\\C/T/R/O: 370/4\,522/325/46\,342\\P: 38\,323}",79/80
+migration_time_ms,Game of Life (CRIU),5G,Post-copy,"\shortstack[l]{host / 22\,719\\C/T/R/O: 983/3\,095/352/18\,289}","\shortstack[l]{direct / 27\,047\\C/T/R/O: 1\,142/1\,723/415/23\,767}",80/80
+migration_time_ms,Game of Life (CRIU),LTE,Cold,"\shortstack[l]{direct / 18\,209\\C/T/R/O: 349/6\,928/326/10\,606}","\shortstack[l]{host / 42\,405\\C/T/R/O: 358/33\,574/343/8\,130}",80/80
+migration_time_ms,Game of Life (CRIU),LTE,Pre-copy,"\shortstack[l]{direct / 49\,039\\C/T/R/O: 361/5\,553/375/42\,750\\P: 31\,863}","\shortstack[l]{host / 88\,575\\C/T/R/O: 319/8\,976/393/78\,887\\P: 70\,719}",79/80
+migration_time_ms,Game of Life (CRIU),LTE,Post-copy,--,--,0/80
+migration_time_ms,Game of Life (CRIU),Starlink,Cold,"\shortstack[l]{direct / 18\,178\\C/T/R/O: 336/6\,667/367/10\,808}","\shortstack[l]{host / 130\,359\\C/T/R/O: 368/121\,623/331/8\,037}",80/80
+migration_time_ms,Game of Life (CRIU),Starlink,Pre-copy,"\shortstack[l]{direct / 90\,889\\C/T/R/O: 312/14\,785/343/75\,449\\P: 64\,583}","\shortstack[l]{host / 246\,334\\C/T/R/O: 631/39\,479/336/205\,888\\P: 197\,784}",79/80
+migration_time_ms,Game of Life (CRIU),Starlink,Post-copy,--,--,0/80
+migration_time_ms,Game of Life (CRIU),TEE Best,Cold,"\shortstack[l]{direct / 382\,605\\C/T/R/O: 341/367\,433/326/14\,505}","\shortstack[l]{host / 1\,083\,743\\C/T/R/O: 389/1\,075\,034/343/7\,977}",79/80
+migration_time_ms,Game of Life (CRIU),TEE Best,Pre-copy,"\shortstack[l]{direct / 779\,295\\C/T/R/O: 683/95\,804/317/682\,491\\P: 666\,452}","\shortstack[l]{host / 1\,757\,133\\C/T/R/O: 640/199\,096/336/1\,557\,061\\P: 1\,548\,919}",80/80
+migration_time_ms,Game of Life (CRIU),TEE Best,Post-copy,"\shortstack[l]{host / 1\,017\,859\\C/T/R/O: 980/998\,935/385/17\,559}","\shortstack[l]{host / 1\,017\,859\\C/T/R/O: 980/998\,935/385/17\,559}",1/80
+migration_time_ms,Game of Life (CRIU),TEE Avg,Cold,"\shortstack[l]{direct / 1\,080\,025\\C/T/R/O: 350/1\,060\,032/394/19\,249}","\shortstack[l]{host / 2\,646\,836\\C/T/R/O: 306/2\,638\,197/352/7\,981}",79/80
+migration_time_ms,Game of Life (CRIU),TEE Avg,Pre-copy,"\shortstack[l]{direct / 1\,876\,225\\C/T/R/O: 642/223\,247/346/1\,651\,990\\P: 1\,623\,340}","\shortstack[l]{host / 3\,989\,146\\C/T/R/O: 699/445\,133/357/3\,542\,957\\P: 3\,534\,917}",79/80
+migration_time_ms,Game of Life (CRIU),TEE Avg,Post-copy,--,--,0/80
+migration_time_ms,Game of Life (CRIU),TEE Worst,Cold,--,--,--
+migration_time_ms,Game of Life (CRIU),TEE Worst,Pre-copy,--,--,--
+migration_time_ms,Game of Life (CRIU),TEE Worst,Post-copy,--,--,--
+migration_time_ms,WebAssembly,WiFi 6,Wasm,"\shortstack[l]{direct / 8\,620\\C/T/R/O: 0/1\,346/1\,986/5\,288}","\shortstack[l]{host / 11\,050\\C/T/R/O: 0/2\,759/2\,129/6\,162}",80/80
+migration_time_ms,WebAssembly,5G,Wasm,"\shortstack[l]{direct / 8\,704\\C/T/R/O: 0/1\,600/1\,927/5\,177}","\shortstack[l]{host / 11\,257\\C/T/R/O: 0/3\,117/1\,994/6\,146}",80/80
+migration_time_ms,WebAssembly,LTE,Wasm,"\shortstack[l]{direct / 9\,993\\C/T/R/O: 0/2\,772/1\,962/5\,259}","\shortstack[l]{host / 13\,764\\C/T/R/O: 0/5\,479/2\,308/5\,977}",80/80
+migration_time_ms,WebAssembly,Starlink,Wasm,"\shortstack[l]{direct / 10\,068\\C/T/R/O: 0/3\,013/1\,884/5\,171}","\shortstack[l]{host / 14\,682\\C/T/R/O: 0/7\,100/1\,895/5\,687}",80/80
+migration_time_ms,WebAssembly,TEE Best,Wasm,"\shortstack[l]{direct / 16\,679\\C/T/R/O: 0/9\,213/1\,902/5\,564}","\shortstack[l]{host / 37\,415\\C/T/R/O: 0/30\,239/1\,919/5\,257}",80/80
+migration_time_ms,WebAssembly,TEE Avg,Wasm,"\shortstack[l]{direct / 25\,589\\C/T/R/O: 0/18\,088/1\,923/5\,578}","\shortstack[l]{host / 75\,347\\C/T/R/O: 0/67\,785/2\,050/5\,512}",79/80
+migration_time_ms,WebAssembly,TEE Worst,Wasm,"\shortstack[l]{direct / 157\,915\\C/T/R/O: 0/149\,920/2\,367/5\,628}","\shortstack[l]{host / 942\,508\\C/T/R/O: 0/934\,620/2\,284/5\,604}",60/60

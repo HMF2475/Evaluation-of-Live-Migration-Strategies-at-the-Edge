@@ -124,14 +124,14 @@ def _backfill_checkpoint_precision(df: pd.DataFrame, csv_file: str) -> None:
 
 
 def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
-    """Use setup-adjusted transfer timing while keeping raw downtime.
+    """Use setup-adjusted transfer timing for plots.
 
     The Wasm benchmark records archive creation separately, but destination
     setup/unpack is already inside `restore_ms` because the restore timer starts
     before destination seeding. Therefore, plots add archive creation to the
     transfer phase and subtract transfer setup, without adding `unpack_ms` again.
-    Downtime remains the raw measured service interruption, because subtracting
-    setup can clip tiny successful runs to 0 ms and make the plots misleading.
+    Plotted downtime is computed later from the same phase values used by the
+    phase-breakdown figure.
     """
     if "transfer_ms" not in df.columns:
         return
@@ -193,6 +193,13 @@ def load_migration_csv(csv_file: str) -> pd.DataFrame:
     else:
         df["checkpoint_plot_ms"] = 0.0
         df["checkpoint_plot_us"] = 0.0
+
+    if {"downtime_ms", "transfer_ms", "restore_ms"}.issubset(df.columns):
+        df["downtime_ms"] = (
+            pd.to_numeric(df["checkpoint_plot_ms"], errors="coerce").fillna(0.0)
+            + pd.to_numeric(df["transfer_ms"], errors="coerce").fillna(0.0)
+            + pd.to_numeric(df["restore_ms"], errors="coerce").fillna(0.0)
+        )
 
     if "archive_bytes" in df.columns:
         df["archive_kib"] = df["archive_bytes"] / 1024.0

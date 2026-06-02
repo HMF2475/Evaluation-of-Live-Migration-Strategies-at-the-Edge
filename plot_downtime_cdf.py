@@ -99,12 +99,12 @@ TRANSFER_MODE_NOTE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
 METRICS = {
     "downtime": {
         "column": "downtime_ms",
-        "label": "Downtime (milliseconds, log scale)",
+        "label": "Downtime (milliseconds)",
         "title": "Downtime CDF",
     },
     "migration_time": {
         "column": "migration_time_ms",
-        "label": "Migration time (milliseconds, log scale)",
+        "label": "Migration time (milliseconds)",
         "title": "Migration Time CDF",
     },
 }
@@ -123,8 +123,8 @@ def parse_transfer_mode_from_row(row: pd.Series) -> str | None:
     return parse_transfer_mode(str(row.get("run_id", "")))
 
 
-def apply_transfer_setup_adjustment(df: pd.DataFrame) -> pd.DataFrame:
-    """Adjust transfer timing while keeping raw measured downtime."""
+def apply_transfer_setup_adjustment(df: pd.DataFrame, module: str = "") -> pd.DataFrame:
+    """Adjust transfer and downtime timing once for plotting."""
     adjusted = df.copy()
     if "transfer_ms" not in adjusted.columns:
         return adjusted
@@ -136,8 +136,14 @@ def apply_transfer_setup_adjustment(df: pd.DataFrame) -> pd.DataFrame:
 
     setup = numeric("transfer_setup_ms")
     archive_create = numeric("archive_create_ms")
-    unpack = numeric("unpack_ms")
-    raw_transfer = numeric("transfer_ms")
+    unpack = pd.Series(0.0, index=adjusted.index)
+    if module != "WASM-migration":
+        unpack = numeric("unpack_ms")
+    raw_transfer = (
+        numeric("raw_transfer_ms")
+        if "raw_transfer_ms" in adjusted.columns
+        else numeric("transfer_ms")
+    )
     adjusted["raw_transfer_ms"] = raw_transfer
     adjusted["transfer_setup_removed_ms"] = setup
     adjusted["transfer_ms"] = (raw_transfer - setup + archive_create + unpack).clip(
@@ -146,10 +152,20 @@ def apply_transfer_setup_adjustment(df: pd.DataFrame) -> pd.DataFrame:
 
     if "downtime_ms" in adjusted.columns:
         raw_downtime = numeric("downtime_ms")
+        if "raw_downtime_ms" in adjusted.columns:
+            raw_downtime = numeric("raw_downtime_ms")
         adjusted["raw_downtime_ms"] = raw_downtime
+        checkpoint = numeric("checkpoint_plot_ms")
+        if (checkpoint == 0).all():
+            checkpoint = numeric("final_dump_ms")
+            checkpoint = checkpoint.where(checkpoint > 0, numeric("checkpoint_ms"))
+        restore = numeric("restore_ms")
+        adjusted["downtime_ms"] = checkpoint + adjusted["transfer_ms"] + restore
 
     if "total_ms" in adjusted.columns:
         raw_total = numeric("total_ms")
+        if "raw_total_ms" in adjusted.columns:
+            raw_total = numeric("raw_total_ms")
         adjusted["raw_total_ms"] = raw_total
         adjusted["migration_time_ms"] = (raw_total - setup).clip(lower=0.0)
     elif "downtime_ms" in adjusted.columns:
@@ -197,7 +213,7 @@ def load_latest_plotted_metrics() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
     failed_detail_frames: list[pd.DataFrame] = []
     for (module, profile), csv_path in sorted(selected.items()):
         df = pd.read_csv(csv_path)
-        df = apply_transfer_setup_adjustment(df)
+        df = apply_transfer_setup_adjustment(df, module=module)
         if module == "WASM-migration":
             df["migration_method"] = df["migration_method"].replace(
                 {"cold": "Wasm", "wasm": "Wasm"}
@@ -301,6 +317,27 @@ def load_latest_plotted_metrics() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
         categories=[METHOD_LABELS[m] for m in METHOD_ORDER],
         ordered=True,
     )
+    counts_combined = counts_combined.sort_values(
+        ["profile_label", "benchmark", "transfer_mode", "method_label"]
+    )
+    failed_details_combined["profile_label"] = pd.Categorical(
+        failed_details_combined["profile_label"],
+        categories=[PROFILE_LABELS[p] for p in PROFILE_ORDER],
+        ordered=True,
+    )
+    failed_details_combined["benchmark"] = pd.Categorical(
+        failed_details_combined["benchmark"],
+        categories=BENCHMARK_ORDER,
+        ordered=True,
+    )
+    failed_details_combined["method_label"] = pd.Categorical(
+        failed_details_combined["method_label"],
+        categories=[METHOD_LABELS[m] for m in METHOD_ORDER],
+        ordered=True,
+    )
+    failed_details_combined = failed_details_combined.sort_values(
+        ["profile_label", "benchmark", "transfer_mode", "method_label", "run_id"]
+    )
     return combined, counts_combined, failed_details_combined
 
 
@@ -326,7 +363,6 @@ def failure_rows(count_subset: pd.DataFrame) -> pd.DataFrame:
         return failures
     failures = failures.sort_values(
         ["profile_label", "method_label"],
-        key=lambda col: col.astype(str),
     )
     return failures
 
@@ -372,8 +408,8 @@ def incomplete_profile_handles(
                 linestyle="None",
                 markersize=6,
                 label=(
-                    "TEE Worst / Game of Life: no successful samples; "
-                    "archive and pre-dump transfers failed"
+                    "TEE Worst / Game of Life:\n"
+                    "no successful samples; archive/pre-dump transfers failed"
                 ),
             )
         )
@@ -434,7 +470,6 @@ def plot_single_ecdf(
     subset = subset[pd.to_numeric(subset[value_column], errors="coerce") > 0]
     x_min = float(subset[value_column].min())
     x_max = float(subset[value_column].max())
-    ax.set_xscale("log")
     if x_min == x_max:
         ax.set_xlim(max(x_min * 0.95, 1.0), x_max * 1.05)
     else:

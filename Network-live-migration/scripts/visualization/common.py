@@ -63,14 +63,14 @@ def parse_transfer_mode(notes: str) -> str:
 
 
 def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
-    """Use setup-adjusted transfer timing while keeping raw downtime.
+    """Use setup-adjusted transfer and downtime timing for plots.
 
     Raw CRIU rows keep archive creation and destination unpack as separate
     fields, while raw `transfer_ms` only covers the transfer helper. For plots,
     the transfer phase represents the whole window between checkpoint completion
     and restore start, excluding only pre-established setup overhead.
-    Downtime remains the raw measured service interruption, because subtracting
-    setup can clip tiny successful runs to 0 ms and make the plots misleading.
+    The plotted downtime is the sum of the plotted phase stack, so downtime and
+    phase-breakdown figures use the same timing convention.
     """
     if "transfer_ms" not in df.columns:
         return
@@ -100,6 +100,23 @@ def _apply_transfer_setup_adjustment(df: pd.DataFrame) -> None:
     if "downtime_ms" in df.columns:
         raw_downtime = pd.to_numeric(df["downtime_ms"], errors="coerce").fillna(0.0)
         df["raw_downtime_ms"] = raw_downtime
+        checkpoint = (
+            pd.to_numeric(df["final_dump_ms"], errors="coerce").fillna(0.0)
+            if "final_dump_ms" in df.columns
+            else pd.Series(0.0, index=df.index)
+        )
+        fallback_checkpoint = (
+            pd.to_numeric(df["checkpoint_ms"], errors="coerce").fillna(0.0)
+            if "checkpoint_ms" in df.columns
+            else pd.Series(0.0, index=df.index)
+        )
+        checkpoint = checkpoint.where(checkpoint > 0, fallback_checkpoint)
+        restore = (
+            pd.to_numeric(df["restore_ms"], errors="coerce").fillna(0.0)
+            if "restore_ms" in df.columns
+            else pd.Series(0.0, index=df.index)
+        )
+        df["downtime_ms"] = checkpoint + df["transfer_ms"] + restore
 
 
 def load_migration_csv(csv_file: str) -> pd.DataFrame:
