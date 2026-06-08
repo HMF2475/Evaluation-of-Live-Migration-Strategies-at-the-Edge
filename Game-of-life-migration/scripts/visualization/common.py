@@ -326,9 +326,15 @@ def annotate_segment_std(
     if height >= min_inside_height:
         y = bottom + height / 2
         va = "center"
+        fontsize = 6
+        pad = 1.2
     else:
-        y = bottom + height + y_upper * 0.006
-        va = "bottom"
+        # Thin stacked segments still deserve labels, but the normal label box
+        # can collide with the next segment. Keep them inside, compactly.
+        y = bottom + height / 2
+        va = "center"
+        fontsize = 4.8
+        pad = 0.35
 
     ax.text(
         x,
@@ -336,13 +342,13 @@ def annotate_segment_std(
         format_std_label(float(std)),
         ha="center",
         va=va,
-        fontsize=6,
+        fontsize=fontsize,
         color="#222222",
         bbox={
             "facecolor": "white",
             "edgecolor": "none",
             "alpha": 0.82,
-            "pad": 1.2,
+            "pad": pad,
         },
         clip_on=True,
         zorder=10,
