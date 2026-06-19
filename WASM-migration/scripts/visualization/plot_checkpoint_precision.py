@@ -12,7 +12,16 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from common import load_migration_csv, ordered_methods, resolve_output_file
+from common import (
+    apply_plot_theme,
+    load_migration_csv,
+    ordered_methods,
+    ordered_transfer_modes,
+    resolve_output_file,
+    save_current_figure,
+    successful_runs_only,
+    transfer_mode_palette,
+)
 
 
 def plot_checkpoint_precision(
@@ -36,13 +45,21 @@ def plot_checkpoint_precision(
         print("ERROR: CSV file is empty")
         sys.exit(1)
 
+    df = successful_runs_only(df)
+    if df.empty:
+        print("No successful rows selected for checkpoint precision plot.")
+        return
+
     output_file = resolve_output_file(output_file, "checkpoint_precision.png")
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
     order = ordered_methods(df["migration_method"].astype(str))
     if not order:
         order = None
+    hue_order = ordered_transfer_modes(df["transfer_mode"].astype(str))
+    hue_palette = transfer_mode_palette(hue_order)
 
+    apply_plot_theme()
     plt.figure(figsize=(10, 6))
     sns.boxplot(
         data=df,
@@ -50,6 +67,8 @@ def plot_checkpoint_precision(
         y="checkpoint_plot_us",
         hue="transfer_mode",
         order=order,
+        hue_order=hue_order,
+        palette=hue_palette,
         showfliers=False,
     )
     sns.stripplot(
@@ -58,6 +77,8 @@ def plot_checkpoint_precision(
         y="checkpoint_plot_us",
         hue="transfer_mode",
         order=order,
+        hue_order=hue_order,
+        palette=hue_palette,
         dodge=True,
         alpha=0.45,
         size=3,
@@ -85,7 +106,7 @@ def plot_checkpoint_precision(
     plt.ylabel("Checkpoint Time (us)")
     plt.xlabel("Migration Method")
     plt.tight_layout(rect=[0, 0, 0.85, 1])
-    plt.savefig(output_file, dpi=300)
+    save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()
 

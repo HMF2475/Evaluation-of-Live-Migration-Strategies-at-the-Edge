@@ -13,7 +13,6 @@ import os
 import argparse
 from pathlib import Path
 
-import pandas as pd
 
 _mpl_dir = Path(os.environ.get("MPLCONFIGDIR", "/tmp/matplotlib"))
 _mpl_dir.mkdir(parents=True, exist_ok=True)
@@ -24,6 +23,7 @@ from plot_transfer_analysis import plot_transfer_analysis
 from plot_phase_breakdown import plot_phase_breakdown
 from plot_transfer_phase_breakdown import plot_transfer_phase_breakdown
 from node_exporter_summary import plot_node_exporter_summary
+from common import load_migration_csv, successful_runs_only
 
 
 def main() -> int:
@@ -60,7 +60,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     filtered_csv = out_dir / "filtered_migration_metrics.csv"
-    df = pd.read_csv(csv_path)
+    df = load_migration_csv(str(csv_path))
     run_ids = None
     if args.run_ids_file:
         p = Path(args.run_ids_file)
@@ -80,6 +80,9 @@ def main() -> int:
         print("No rows selected for plotting (empty metrics after filtering).")
         return 0
     df.to_csv(filtered_csv, index=False)
+    successful_runs_only(df).to_csv(
+        out_dir / "successful_migration_metrics.csv", index=False
+    )
 
     plot_downtime(
         str(filtered_csv),

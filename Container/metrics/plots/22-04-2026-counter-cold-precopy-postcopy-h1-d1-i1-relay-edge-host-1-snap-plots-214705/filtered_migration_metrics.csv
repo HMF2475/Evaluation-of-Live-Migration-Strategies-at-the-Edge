@@ -1,7 +1,0 @@
-run_id,technology,migration_method,network_migration,checkpoint_ms,archive_bytes,transfer_ms,restore_ms,downtime_ms,bandwidth_mbps,src_arch,dst_arch,same_arch,success,notes,timestamp,profile_name,predump_ms,final_dump_ms,total_ms,lazy_pages_active_ms,lazy_pages_log_bytes
-22-04-2026-host-cold-0021,CRIU,cold,no,624,25327,6843,324,7791,0.03,x86_64,x86_64,True,True,transfer_mode=host;relay_node=edge-host-1,2026-04-22T21:47:35.403282,SMOKE-2026-04-22,0.0,0.0,15026.0,0.0,0.0
-22-04-2026-direct-cold-0021,CRIU,cold,no,663,25182,2903,317,3883,0.07,x86_64,x86_64,True,True,transfer_mode=direct,2026-04-22T21:48:03.267378,SMOKE-2026-04-22,0.0,0.0,13059.0,0.0,0.0
-22-04-2026-host-precopy-0021,CRIU,precopy,no,622,27035,7105,331,8058,0.03,x86_64,x86_64,True,True,transfer_mode=host;iterations=1;relay_node=edge-host-1,2026-04-22T21:48:35.298983,SMOKE-2026-04-22,1339.0,622.0,16514.0,0.0,0.0
-22-04-2026-direct-precopy-0021,CRIU,precopy,no,608,27078,2926,323,3857,0.07,x86_64,x86_64,True,True,transfer_mode=direct;iterations=1,2026-04-22T21:49:04.248651,SMOKE-2026-04-22,1325.0,608.0,13918.0,0.0,0.0
-22-04-2026-host-postcopy-0021,CRIU,postcopy,no,1088,22638,6929,362,8379,0.03,x86_64,x86_64,True,True,transfer_mode=host;lazy_pages_port=9999;relay_node=edge-host-1,2026-04-22T21:49:38.939910,SMOKE-2026-04-22,0.0,1088.0,19019.0,4953.0,2946.0
-22-04-2026-direct-postcopy-0021,CRIU,postcopy,no,1114,22538,2920,349,4383,0.06,x86_64,x86_64,True,True,transfer_mode=direct;lazy_pages_port=9999,2026-04-22T21:50:11.892741,SMOKE-2026-04-22,0.0,1114.0,17524.0,4871.0,2785.0
