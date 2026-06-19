@@ -49,6 +49,8 @@ def plot_transfer_analysis(
         print("No successful rows selected for transfer analysis plot.")
         return
 
+    df["archive_kib"] = df["archive_bytes"].astype(float) / 1024.0
+
     output_file = resolve_output_file(output_file, "transfer_analysis.png")
 
     # Ensure output directory exists
@@ -60,7 +62,7 @@ def plot_transfer_analysis(
     mode_order = ordered_transfer_modes(df["transfer_mode"].astype(str))
     sns.scatterplot(
         data=df,
-        x="archive_bytes",
+        x="archive_kib",
         y="transfer_ms",
         hue="migration_method",
         hue_order=method_order,
@@ -72,7 +74,7 @@ def plot_transfer_analysis(
     base_title = "Archive Size vs Transfer Time"
     full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
     plt.title(full_title)
-    plt.xlabel("Archive Size (bytes)")
+    plt.xlabel("Archive Size (KiB)")
     plt.ylabel("Transfer Time excl. setup (ms)")
     format_plain_axes(plt.gca(), "x", "y")
     plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
