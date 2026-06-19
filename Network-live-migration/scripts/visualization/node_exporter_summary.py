@@ -377,9 +377,7 @@ def plot_node_exporter_summary(
     g1.set_xlabels("migration_method")
     g1.set_ylabels("")
     for ax in g1.axes.flat:
-        ax.ticklabel_format(
-            axis="y", style="sci", scilimits=(0, 0), useOffset=False, useMathText=False
-        )
+        ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
     plt.tight_layout(rect=[0, 0, 0.85, 1])
     save_current_figure(out)
     print(f"✓ Saved: {out}")
@@ -431,9 +429,7 @@ def plot_node_exporter_summary(
     g2.set_xlabels("migration_method")
     g2.set_ylabels("")
     for ax in g2.axes.flat:
-        ax.ticklabel_format(
-            axis="y", style="sci", scilimits=(0, 0), useOffset=False, useMathText=False
-        )
+        ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
 
     plt.tight_layout(rect=[0, 0, 0.9, 1])
     save_current_figure(out_node)

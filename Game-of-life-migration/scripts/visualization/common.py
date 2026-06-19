@@ -287,20 +287,14 @@ def phase_colors(labels: list[str]) -> dict[str, tuple[float, float, float]]:
     return colors
 
 
-def format_scientific_axes(ax: plt.Axes, *axes: str) -> None:
+def format_plain_axes(ax: plt.Axes, *axes: str) -> None:
     for axis in axes:
         ax.ticklabel_format(
             axis=axis,
-            style="sci",
-            scilimits=(0, 0),
+            style="plain",
             useOffset=False,
             useMathText=False,
         )
-
-
-def format_plain_axes(ax: plt.Axes, *axes: str) -> None:
-    # Kept as a compatibility alias for older plot modules.
-    format_scientific_axes(ax, *axes)
 
 
 def format_std_label(value: float) -> str:

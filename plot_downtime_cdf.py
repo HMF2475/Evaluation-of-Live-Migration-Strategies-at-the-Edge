@@ -99,12 +99,12 @@ TRANSFER_MODE_NOTE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
 METRICS = {
     "downtime": {
         "column": "downtime_ms",
-        "label": "Downtime (milliseconds)",
+        "label": "Downtime (ms)",
         "title": "Downtime CDF",
     },
     "migration_time": {
         "column": "migration_time_ms",
-        "label": "Migration time (milliseconds)",
+        "label": "Migration time (ms)",
         "title": "Migration Time CDF",
     },
 }
@@ -474,6 +474,7 @@ def plot_single_ecdf(
         ax.set_xlim(max(x_min * 0.95, 1.0), x_max * 1.05)
     else:
         ax.set_xlim(x_min, x_max)
+    ax.ticklabel_format(axis="x", style="plain", useOffset=False)
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.set_yticklabels([f"{tick}%" for tick in [0, 20, 40, 60, 80, 100]])
