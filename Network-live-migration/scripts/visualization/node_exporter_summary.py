@@ -9,6 +9,7 @@ from typing import Dict, Optional, Set, Tuple
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 from common import (
     apply_plot_theme,
@@ -33,6 +34,43 @@ WANTED: Set[str] = {
     "node_disk_written_bytes_total",
     "node_disk_io_time_seconds_total",
 }
+
+
+def _set_compact_method_ticks(ax: plt.Axes, method_order: list[str]) -> None:
+    ticks = list(range(len(method_order)))
+    label_map = {
+        "cold": "cold",
+        "precopy": "pre",
+        "postcopy": "post",
+        "Wasm": "Wasm",
+    }
+    labels = [
+        label_map.get(
+            method, method.replace("precopy", "pre").replace("postcopy", "post")
+        )
+        for method in method_order
+    ]
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+    ax.tick_params(axis="x", labelbottom=True)
+
+
+def _place_transfer_mode_legend(grid, mode_order: list[str]) -> None:
+    if grid._legend is not None:
+        grid._legend.remove()
+    palette = transfer_mode_palette(mode_order)
+    handles = [
+        Patch(facecolor=palette[mode], edgecolor="#333333", label=mode.title())
+        for mode in mode_order
+    ]
+    grid.fig.legend(
+        handles=handles,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.99),
+        ncol=max(1, len(mode_order)),
+        frameon=True,
+        fontsize=11,
+    )
 
 
 def _selected_migration_rows(
@@ -346,9 +384,9 @@ def plot_node_exporter_summary(
         value_name="value",
     )
     metric_labels_avg = {
-        "cpu_util_pct_avg": "CPU util avg (%)",
+        "cpu_util_pct_avg": "CPU avg (%)",
         "disk_mb_s_avg": "Disk IO avg (MB/s)",
-        "mem_used_pct_after_avg": "Mem used avg (after, %)",
+        "mem_used_pct_after_avg": "Mem avg (%)",
     }
     melted_avg["metric"] = (
         melted_avg["metric"].map(metric_labels_avg).fillna(melted_avg["metric"])
@@ -370,20 +408,19 @@ def plot_node_exporter_summary(
         kind="box",
         sharey=False,
         showfliers=False,
-        height=2.6,
-        aspect=1.05,
+        height=2.5,
+        aspect=1.18,
         legend_out=False,
     )
     g1.set_titles("{col_name}")
-    g1.set_xlabels("migration_method")
+    g1.set_xlabels("")
     g1.set_ylabels("")
     for ax in g1.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
-    if g1._legend is not None:
-        g1._legend.set_bbox_to_anchor((0.5, 1.04))
-        g1._legend.set_loc("lower center")
-        g1._legend.set_ncols(max(1, len(mode_order)))
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+        ax.set_title(ax.get_title(), fontsize=12, pad=8)
+        _set_compact_method_ticks(ax, method_order)
+    _place_transfer_mode_legend(g1, mode_order)
+    g1.fig.subplots_adjust(top=0.76, bottom=0.20, wspace=0.28)
     save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
@@ -398,9 +435,9 @@ def plot_node_exporter_summary(
     )
 
     metric_labels_node = {
-        "cpu_util_pct": "CPU util (%)",
+        "cpu_util_pct": "CPU (%)",
         "disk_mb_s": "Disk IO (MB/s)",
-        "mem_used_pct_after": "Mem used (after, %)",
+        "mem_used_pct_after": "Mem used (%)",
     }
     melted_node["metric"] = (
         melted_node["metric"].map(metric_labels_node).fillna(melted_node["metric"])
@@ -409,8 +446,8 @@ def plot_node_exporter_summary(
     apply_plot_theme()
     melted_node["node"] = melted_node["node"].replace(
         {
-            "edge-node-1": "Source (edge-node-1)",
-            "edge-node-2": "Destination (edge-node-2)",
+            "edge-node-1": "Source",
+            "edge-node-2": "Destination",
         }
     )
     g2 = sns.catplot(
@@ -426,22 +463,21 @@ def plot_node_exporter_summary(
         kind="box",
         sharey=False,
         showfliers=False,
-        height=2.15,
-        aspect=1.15,
+        height=2.35,
+        aspect=1.25,
         legend_out=False,
     )
 
     g2.set_titles("{row_name} | {col_name}")
-    g2.set_xlabels("migration_method")
+    g2.set_xlabels("")
     g2.set_ylabels("")
     for ax in g2.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
+        ax.set_title(ax.get_title(), fontsize=12, pad=8)
+        _set_compact_method_ticks(ax, method_order)
 
-    if g2._legend is not None:
-        g2._legend.set_bbox_to_anchor((0.5, 1.04))
-        g2._legend.set_loc("lower center")
-        g2._legend.set_ncols(max(1, len(mode_order)))
-    plt.tight_layout(rect=[0, 0, 1, 0.90])
+    _place_transfer_mode_legend(g2, mode_order)
+    g2.fig.subplots_adjust(top=0.82, bottom=0.18, hspace=0.72, wspace=0.28)
     save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()

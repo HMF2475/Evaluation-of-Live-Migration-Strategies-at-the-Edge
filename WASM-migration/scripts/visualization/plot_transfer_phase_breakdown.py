@@ -102,7 +102,7 @@ def plot_transfer_phase_breakdown(
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     apply_plot_theme()
 
-    plt.figure(figsize=(9.2, 4.4))
+    plt.figure(figsize=(9.0, 4.2))
     ax = plt.gca()
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
@@ -172,7 +172,7 @@ def plot_transfer_phase_breakdown(
         for bx, base, height, std in label_records:
             annotate_segment_std(ax, bx, base, height, std, y_upper)
     ax.set_xlabel("Migration Method")
-    ax.set_ylabel("Time excl. transfer setup (ms)")
+    ax.set_ylabel("Transfer time (ms)")
     format_plain_axes(ax, "y")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
@@ -183,18 +183,18 @@ def plot_transfer_phase_breakdown(
         transform=ax.transAxes,
         ha="left",
         va="top",
-        fontsize=8,
+        fontsize=10,
         color="#333333",
         bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
     )
     ax.legend(
         ncol=4,
-        fontsize=8,
+        fontsize=9,
         frameon=False,
         bbox_to_anchor=(0.5, 1.08),
         loc="lower center",
     )
-    plt.tight_layout(rect=[0, 0, 1, 0.84])
+    plt.tight_layout(rect=[0.04, 0, 1, 0.84])
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

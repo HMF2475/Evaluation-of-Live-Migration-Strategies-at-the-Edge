@@ -19,6 +19,9 @@ from matplotlib.ticker import MaxNLocator
 
 ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / "cdf_plots"
+CDF_LEGEND_FONTSIZE = 10
+CDF_LEGEND_TITLE_FONTSIZE = 11
+CDF_RUN_STATUS_BBOX = (0.5, 0.01)
 
 PROFILE_ORDER = [
     "1_WiFi_6",
@@ -445,7 +448,7 @@ def plot_single_ecdf(
         return None
 
     sns.set_theme(style="whitegrid", context="talk", font_scale=0.88)
-    fig, ax = plt.subplots(figsize=(10.4, 4.6))
+    fig, ax = plt.subplots(figsize=(9.2, 4.2))
 
     for profile in profile_labels:
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]:
@@ -526,6 +529,8 @@ def plot_single_ecdf(
         frameon=True,
         borderaxespad=0,
         ncol=min(4, max(1, len(profile_handles))),
+        fontsize=CDF_LEGEND_FONTSIZE,
+        title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
     )
     fig.add_artist(first_legend)
     second_legend = fig.legend(
@@ -536,6 +541,8 @@ def plot_single_ecdf(
         frameon=True,
         borderaxespad=0,
         ncol=min(4, max(1, len(method_handles))),
+        fontsize=CDF_LEGEND_FONTSIZE,
+        title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
     )
     fig.add_artist(second_legend)
 
@@ -552,17 +559,17 @@ def plot_single_ecdf(
     fig.legend(
         handles=run_status_handles,
         title="Run status",
-        bbox_to_anchor=(0.5, 0.79),
-        loc="upper center",
+        bbox_to_anchor=CDF_RUN_STATUS_BBOX,
+        loc="lower center",
         frameon=True,
         borderaxespad=0,
         handlelength=1.4,
         handletextpad=0.6,
-        ncol=2 if len(run_status_handles) > 2 else 1,
-        fontsize=11,
-        title_fontsize=12,
+        ncol=min(3, max(1, len(run_status_handles))),
+        fontsize=CDF_LEGEND_FONTSIZE,
+        title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
     )
-    fig.subplots_adjust(left=0.08, right=0.98, bottom=0.18, top=0.56)
+    fig.subplots_adjust(left=0.09, right=0.98, bottom=0.40, top=0.72)
 
     out_dir = OUT_DIR / comparison_key / metric_name / mode
     out_dir.mkdir(parents=True, exist_ok=True)

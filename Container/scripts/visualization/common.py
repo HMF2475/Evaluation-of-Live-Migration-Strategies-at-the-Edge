@@ -264,18 +264,18 @@ def apply_plot_theme() -> None:
     sns.set_theme(
         style="whitegrid",
         context="talk",
-        font_scale=0.88,
+        font_scale=1.0,
         rc={
             "axes.spines.right": False,
             "axes.spines.top": False,
             "axes.formatter.useoffset": False,
             "axes.formatter.use_mathtext": False,
-            "axes.titlesize": 16,
-            "axes.labelsize": 14,
-            "xtick.labelsize": 12,
-            "ytick.labelsize": 12,
-            "legend.fontsize": 10,
-            "legend.title_fontsize": 11,
+            "axes.titlesize": 15,
+            "axes.labelsize": 15,
+            "xtick.labelsize": 13,
+            "ytick.labelsize": 13,
+            "legend.fontsize": 11,
+            "legend.title_fontsize": 12,
         },
     )
 
@@ -338,7 +338,7 @@ def annotate_segment_std(
         format_std_label(float(std)),
         ha="center",
         va=va,
-        fontsize=7,
+        fontsize=8,
         color="#222222",
         bbox={
             "facecolor": "white",
