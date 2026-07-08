@@ -58,7 +58,7 @@ def plot_transfer_analysis(
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
     apply_plot_theme()
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8.4, 4.2))
     method_order = ordered_methods(df["migration_method"].astype(str))
     mode_order = ordered_transfer_modes(df["transfer_mode"].astype(str))
     sns.scatterplot(
@@ -72,14 +72,11 @@ def plot_transfer_analysis(
         style_order=mode_order,
         s=85,
     )
-    base_title = "Archive Size vs Transfer Time"
-    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
-    plt.title(full_title)
     plt.xlabel("Archive Size (KiB)")
     plt.ylabel("Transfer Time excl. setup (ms)")
     format_plain_axes(plt.gca(), "x", "y")
-    plt.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.legend(bbox_to_anchor=(0.5, 1.08), loc="lower center", ncol=3)
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

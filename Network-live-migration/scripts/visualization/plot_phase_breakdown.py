@@ -93,7 +93,7 @@ def plot_phase_breakdown(
         methods = sorted(phases["migration_method"].unique().tolist())
     modes = ordered_transfer_modes(phases["transfer_mode"].astype(str))
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(8.8, 4.4))
     ax = plt.gca()
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
@@ -148,9 +148,6 @@ def plot_phase_breakdown(
     ax.set_xlabel("Migration Method")
     ax.set_ylabel("Time (ms)")
     format_plain_axes(ax, "y")
-    base_title = "Migration Phase Breakdown (Mean)"
-    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
-    ax.set_title(full_title)
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
     ax.text(
@@ -165,14 +162,14 @@ def plot_phase_breakdown(
         bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
     )
     ax.legend(
-        ncol=1,
+        ncol=3,
         fontsize=8,
         frameon=False,
-        bbox_to_anchor=(1.02, 1),
-        loc="upper left",
+        bbox_to_anchor=(0.5, 1.08),
+        loc="lower center",
     )
     add_success_rate_note(ax, success_note, y=0.52)
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.tight_layout(rect=[0, 0, 1, 0.84])
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

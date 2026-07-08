@@ -60,7 +60,7 @@ def plot_checkpoint_precision(
     hue_palette = transfer_mode_palette(hue_order)
 
     apply_plot_theme()
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8.4, 4.2))
     sns.boxplot(
         data=df,
         x="migration_method",
@@ -95,17 +95,15 @@ def plot_checkpoint_precision(
             list(unique.values()),
             list(unique.keys()),
             title="transfer_mode",
-            bbox_to_anchor=(1.02, 1),
-            loc="upper left",
+            bbox_to_anchor=(0.5, 1.08),
+            loc="lower center",
+            ncol=max(1, len(unique)),
             borderaxespad=0,
         )
 
-    base_title = "Checkpoint Duration"
-    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
-    plt.title(full_title)
     plt.ylabel("Checkpoint Time (us)")
     plt.xlabel("Migration Method")
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

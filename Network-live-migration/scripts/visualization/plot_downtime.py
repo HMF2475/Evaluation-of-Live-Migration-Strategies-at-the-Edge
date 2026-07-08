@@ -56,7 +56,7 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
     apply_plot_theme()
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(8.4, 4.2))
     order = ordered_methods(df["migration_method"].astype(str))
     if not order:
         order = None
@@ -97,17 +97,15 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
             list(unique.values()),
             list(unique.keys()),
             title="transfer_mode",
-            bbox_to_anchor=(1.02, 1),
-            loc="upper left",
+            bbox_to_anchor=(0.5, 1.08),
+            loc="lower center",
             borderaxespad=0,
+            ncol=max(1, len(unique)),
         )
     add_success_rate_note(ax, success_note, y=0.68)
-    base_title = "Migration Downtime by Strategy (Host vs Direct)"
-    full_title = f"{base_title} - {title_suffix}" if title_suffix else base_title
-    plt.title(full_title)
     plt.ylabel("Downtime (ms)")
     plt.xlabel("Migration Method")
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

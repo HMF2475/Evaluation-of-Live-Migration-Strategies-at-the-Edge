@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 
 
 ROOT = Path(__file__).resolve().parent
@@ -443,8 +444,8 @@ def plot_single_ecdf(
     if subset.empty:
         return None
 
-    sns.set_theme(style="whitegrid", context="paper", font_scale=1.15)
-    fig, ax = plt.subplots(figsize=(14.5, 7.0))
+    sns.set_theme(style="whitegrid", context="talk", font_scale=0.88)
+    fig, ax = plt.subplots(figsize=(10.4, 4.6))
 
     for profile in profile_labels:
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]:
@@ -475,15 +476,12 @@ def plot_single_ecdf(
     else:
         ax.set_xlim(x_min, x_max)
     ax.ticklabel_format(axis="x", style="plain", useOffset=False)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 20, 40, 60, 80, 100])
     ax.set_yticklabels([f"{tick}%" for tick in [0, 20, 40, 60, 80, 100]])
     ax.set_xlabel(metric["label"])
     ax.set_ylabel("Cumulative runs (%)")
-    ax.set_title(
-        f"{metric['title']} - {benchmark} - {mode.title()} - {comparison_label}"
-    )
-
     count_subset = counts[
         counts["transfer_mode"].eq(mode)
         & counts["benchmark"].eq(benchmark)
@@ -520,24 +518,26 @@ def plot_single_ecdf(
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]
         if subset["method_label"].eq(method).any()
     ]
-    first_legend = ax.legend(
+    first_legend = fig.legend(
         handles=profile_handles,
         title="Network profile",
-        bbox_to_anchor=(1.01, 1.0),
+        bbox_to_anchor=(0.04, 0.98),
         loc="upper left",
         frameon=True,
         borderaxespad=0,
+        ncol=min(4, max(1, len(profile_handles))),
     )
-    ax.add_artist(first_legend)
-    second_legend = ax.legend(
+    fig.add_artist(first_legend)
+    second_legend = fig.legend(
         handles=method_handles,
         title="Migration method",
-        bbox_to_anchor=(1.01, 0.56),
-        loc="upper left",
+        bbox_to_anchor=(0.96, 0.98),
+        loc="upper right",
         frameon=True,
         borderaxespad=0,
+        ncol=min(4, max(1, len(method_handles))),
     )
-    ax.add_artist(second_legend)
+    fig.add_artist(second_legend)
 
     run_status_handles = [success_handle]
     if not failures.empty:
@@ -549,17 +549,20 @@ def plot_single_ecdf(
             profile_labels=profile_labels,
         )
     )
-    ax.legend(
+    fig.legend(
         handles=run_status_handles,
         title="Run status",
-        bbox_to_anchor=(1.01, 0.33),
-        loc="upper left",
+        bbox_to_anchor=(0.5, 0.79),
+        loc="upper center",
         frameon=True,
         borderaxespad=0,
         handlelength=1.4,
         handletextpad=0.6,
+        ncol=2 if len(run_status_handles) > 2 else 1,
+        fontsize=11,
+        title_fontsize=12,
     )
-    fig.tight_layout(rect=[0, 0, 0.84, 1])
+    fig.subplots_adjust(left=0.08, right=0.98, bottom=0.18, top=0.56)
 
     out_dir = OUT_DIR / comparison_key / metric_name / mode
     out_dir.mkdir(parents=True, exist_ok=True)

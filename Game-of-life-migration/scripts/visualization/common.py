@@ -7,6 +7,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from matplotlib.ticker import MaxNLocator
 
 
 _TRANSFER_MODE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
@@ -206,7 +207,7 @@ def add_success_rate_note(
         transform=ax.transAxes,
         ha="left",
         va="top",
-        fontsize=10,
+        fontsize=12,
         color="#222222",
         bbox={
             "boxstyle": "round,pad=0.35",
@@ -255,20 +256,26 @@ def save_current_figure(output_file: Path | str, *, dpi: int = 300) -> None:
     """Save the active matplotlib figure as PNG and a thesis-ready PDF."""
     path = Path(output_file)
     path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(path, dpi=dpi)
-    plt.savefig(path.with_suffix(".pdf"))
+    plt.savefig(path, dpi=dpi, bbox_inches="tight")
+    plt.savefig(path.with_suffix(".pdf"), bbox_inches="tight")
 
 
 def apply_plot_theme() -> None:
     sns.set_theme(
         style="whitegrid",
-        context="notebook",
-        font_scale=1.05,
+        context="talk",
+        font_scale=0.88,
         rc={
             "axes.spines.right": False,
             "axes.spines.top": False,
             "axes.formatter.useoffset": False,
             "axes.formatter.use_mathtext": False,
+            "axes.titlesize": 16,
+            "axes.labelsize": 14,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 10,
+            "legend.title_fontsize": 11,
         },
     )
 
@@ -295,6 +302,7 @@ def format_plain_axes(ax: plt.Axes, *axes: str) -> None:
             useOffset=False,
             useMathText=False,
         )
+        getattr(ax, f"{axis}axis").set_major_locator(MaxNLocator(nbins=5))
 
 
 def format_std_label(value: float) -> str:

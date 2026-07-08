@@ -370,15 +370,20 @@ def plot_node_exporter_summary(
         kind="box",
         sharey=False,
         showfliers=False,
-        height=4,
-        aspect=1.0,
+        height=2.6,
+        aspect=1.05,
+        legend_out=False,
     )
     g1.set_titles("{col_name}")
     g1.set_xlabels("migration_method")
     g1.set_ylabels("")
     for ax in g1.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
-    plt.tight_layout(rect=[0, 0, 0.85, 1])
+    if g1._legend is not None:
+        g1._legend.set_bbox_to_anchor((0.5, 1.04))
+        g1._legend.set_loc("lower center")
+        g1._legend.set_ncols(max(1, len(mode_order)))
+    plt.tight_layout(rect=[0, 0, 1, 0.88])
     save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
@@ -421,8 +426,9 @@ def plot_node_exporter_summary(
         kind="box",
         sharey=False,
         showfliers=False,
-        height=4,
-        aspect=1.2,
+        height=2.15,
+        aspect=1.15,
+        legend_out=False,
     )
 
     g2.set_titles("{row_name} | {col_name}")
@@ -431,7 +437,11 @@ def plot_node_exporter_summary(
     for ax in g2.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
 
-    plt.tight_layout(rect=[0, 0, 0.9, 1])
+    if g2._legend is not None:
+        g2._legend.set_bbox_to_anchor((0.5, 1.04))
+        g2._legend.set_loc("lower center")
+        g2._legend.set_ncols(max(1, len(mode_order)))
+    plt.tight_layout(rect=[0, 0, 1, 0.90])
     save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()
