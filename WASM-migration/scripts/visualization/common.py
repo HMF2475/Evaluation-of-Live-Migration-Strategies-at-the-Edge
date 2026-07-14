@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Optional
@@ -419,3 +420,15 @@ def annotate_segment_std(
         clip_on=True,
         zorder=10,
     )
+
+
+def annotate_segment_stds(
+    ax: plt.Axes,
+    records: list[tuple[float, float, float, float]],
+    y_upper: float,
+) -> None:
+    """Draw SD labels only where the segment can contain them legibly."""
+    min_inside_height = y_upper * 0.045
+    for x, bottom, height, std in records:
+        if height >= min_inside_height and math.isfinite(std) and std > 0:
+            annotate_segment_std(ax, x, bottom, height, std, y_upper)

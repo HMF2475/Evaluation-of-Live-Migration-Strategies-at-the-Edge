@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from common import (
-    annotate_segment_std,
+    annotate_segment_stds,
     add_success_rate_note,
     apply_plot_theme,
     format_plain_axes,
@@ -143,8 +143,7 @@ def plot_phase_breakdown(
     if max_top > 0:
         y_upper = max_top * 1.14
         ax.set_ylim(top=y_upper)
-        for bx, base, height, std in label_records:
-            annotate_segment_std(ax, bx, base, height, std, y_upper)
+        annotate_segment_stds(ax, label_records, y_upper)
     ax.set_xlabel("Migration Method")
     ax.set_ylabel("Time (ms)")
     format_plain_axes(ax, "y")
@@ -153,7 +152,7 @@ def plot_phase_breakdown(
     ax.text(
         0.01,
         0.98,
-        "Segment labels show +/-SD (ms)",
+        "Visible labels show +/-SD (ms)",
         transform=ax.transAxes,
         ha="left",
         va="top",

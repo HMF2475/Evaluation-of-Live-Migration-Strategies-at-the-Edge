@@ -6,6 +6,7 @@ from __future__ import annotations
 import re
 import os
 import shutil
+import textwrap
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
@@ -13,15 +14,14 @@ os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
 
 
 ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / "cdf_plots"
-CDF_LEGEND_FONTSIZE = 10
-CDF_LEGEND_TITLE_FONTSIZE = 11
-CDF_RUN_STATUS_BBOX = (0.5, 0.01)
+CDF_LEGEND_FONTSIZE = 12
+CDF_LEGEND_TITLE_FONTSIZE = 13
+CDF_STATUS_FONTSIZE = 12.5
 
 PROFILE_ORDER = [
     "1_WiFi_6",
@@ -99,6 +99,10 @@ METHOD_LINESTYLES = {
 }
 
 MODE_ORDER = ["host", "direct"]
+RUNS_PER_GROUP = {
+    "default": 40,
+    "TEE Worst": 30,
+}
 TRANSFER_MODE_NOTE_RE = re.compile(r"(?:^|;)\s*transfer_mode=(host|direct)\b")
 METRICS = {
     "downtime": {
@@ -246,6 +250,14 @@ def load_latest_plotted_metrics() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFr
         )
         counts = attempts.merge(successes, on=group_cols, how="left")
         counts["successful_runs"] = counts["successful_runs"].fillna(0).astype(int)
+        # A launched run that never produced a metrics row is still part of the
+        # planned experiment. Keep the CDF status denominator consistent with
+        # the coverage tables: 40 runs per method/mode, or 30 for TEE Worst.
+        expected_runs = RUNS_PER_GROUP.get(
+            str(PROFILE_LABELS.get(profile, profile)), RUNS_PER_GROUP["default"]
+        )
+        counts["observed_rows"] = counts["attempted_runs"].astype(int)
+        counts["attempted_runs"] = counts["attempted_runs"].clip(lower=expected_runs)
         count_frames.append(counts)
 
         ok_mask = success_mask(df)
@@ -371,53 +383,60 @@ def failure_rows(count_subset: pd.DataFrame) -> pd.DataFrame:
     return failures
 
 
-def failure_legend_handles(failures: pd.DataFrame) -> list[Line2D]:
-    handles: list[Line2D] = []
-    for _, row in failures.iterrows():
-        label = (
-            f"{row['profile_label']} / {row['method_label']}: "
-            f"{int(row['failed_runs'])} failed"
-        )
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                color="#555555",
-                marker="x",
-                linestyle="None",
-                markersize=6,
-                label=label,
-            )
-        )
-    return handles
+def _profile_failure_entries(failures: pd.DataFrame) -> list[str]:
+    entries: list[str] = []
+    method_order = [METHOD_LABELS[method] for method in METHOD_ORDER]
+    profile_order = [PROFILE_LABELS[profile] for profile in PROFILE_ORDER]
+    for profile in profile_order:
+        profile_rows = failures[failures["profile_label"].eq(profile)]
+        if profile_rows.empty:
+            continue
+        methods: list[str] = []
+        for method in method_order:
+            row = profile_rows[profile_rows["method_label"].eq(method)]
+            if row.empty:
+                continue
+            methods.append(f"{method} {int(row.iloc[0]['failed_runs'])}")
+        if methods:
+            entries.append(f"{profile}: {', '.join(methods)}")
+    return entries
 
 
-def incomplete_profile_handles(
+def incomplete_profile_entry(
     benchmark: str,
     comparison_key: str,
     profile_labels: list[str],
-) -> list[Line2D]:
-    handles: list[Line2D] = []
+) -> str:
     if (
         benchmark == "Game of Life (CRIU)"
         and comparison_key in {"all_profiles", "tactical_edge"}
         and "TEE Worst" in profile_labels
     ):
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                color="#555555",
-                marker="x",
-                linestyle="None",
-                markersize=6,
-                label=(
-                    "TEE Worst / Game of Life:\n"
-                    "no successful samples; archive/pre-dump transfers failed"
-                ),
+        return "TEE Worst: no timing samples " "(archive/pre-dump transfer failed)"
+    return ""
+
+
+def run_status_lines(
+    failures: pd.DataFrame,
+    *,
+    successful: int,
+    attempted: int,
+    incomplete_entry: str = "",
+) -> list[str]:
+    lines = [f"Run status: {successful}/{attempted} successful"]
+    entries = _profile_failure_entries(failures)
+    if incomplete_entry:
+        entries.append(incomplete_entry)
+    if entries:
+        lines.extend(
+            textwrap.wrap(
+                "Failures - " + "; ".join(entries),
+                width=100,
+                break_long_words=False,
+                break_on_hyphens=False,
             )
         )
-    return handles
+    return lines
 
 
 def ecdf_xy(values: pd.Series) -> tuple[pd.Series, pd.Series]:
@@ -493,14 +512,6 @@ def plot_single_ecdf(
     total_success = int(count_subset["successful_runs"].sum())
     total_attempted = int(count_subset["attempted_runs"].sum())
     failures = failure_rows(count_subset)
-    success_handle = Line2D(
-        [0],
-        [0],
-        color="none",
-        marker="",
-        linestyle="None",
-        label=f"Successful: {total_success}/{total_attempted}",
-    )
 
     profile_handles = [
         plt.Line2D([0], [0], color=PROFILE_COLORS[profile], lw=2.5, label=profile)
@@ -521,55 +532,47 @@ def plot_single_ecdf(
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]
         if subset["method_label"].eq(method).any()
     ]
-    first_legend = fig.legend(
-        handles=profile_handles,
-        title="Network profile",
-        bbox_to_anchor=(0.04, 0.98),
-        loc="upper left",
+    encoding_handles = profile_handles + method_handles
+    encoding_columns = max(len(profile_handles), len(method_handles), 1)
+    encoding_legend = fig.legend(
+        handles=encoding_handles,
+        title="Color: network profile  |  Line and marker: migration method",
+        bbox_to_anchor=(0.5, 0.985),
+        loc="upper center",
         frameon=True,
         borderaxespad=0,
-        ncol=min(4, max(1, len(profile_handles))),
+        ncol=encoding_columns,
         fontsize=CDF_LEGEND_FONTSIZE,
         title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
     )
-    fig.add_artist(first_legend)
-    second_legend = fig.legend(
-        handles=method_handles,
-        title="Migration method",
-        bbox_to_anchor=(0.96, 0.98),
-        loc="upper right",
-        frameon=True,
-        borderaxespad=0,
-        ncol=min(4, max(1, len(method_handles))),
-        fontsize=CDF_LEGEND_FONTSIZE,
-        title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
-    )
-    fig.add_artist(second_legend)
+    fig.add_artist(encoding_legend)
 
-    run_status_handles = [success_handle]
-    if not failures.empty:
-        run_status_handles.extend(failure_legend_handles(failures))
-    run_status_handles.extend(
-        incomplete_profile_handles(
-            benchmark=benchmark,
-            comparison_key=comparison_key,
-            profile_labels=profile_labels,
-        )
+    status_lines = run_status_lines(
+        failures,
+        successful=total_success,
+        attempted=total_attempted,
+        incomplete_entry=incomplete_profile_entry(
+            benchmark, comparison_key, profile_labels
+        ),
     )
-    fig.legend(
-        handles=run_status_handles,
-        title="Run status",
-        bbox_to_anchor=CDF_RUN_STATUS_BBOX,
-        loc="lower center",
-        frameon=True,
-        borderaxespad=0,
-        handlelength=1.4,
-        handletextpad=0.6,
-        ncol=min(3, max(1, len(run_status_handles))),
-        fontsize=CDF_LEGEND_FONTSIZE,
-        title_fontsize=CDF_LEGEND_TITLE_FONTSIZE,
+    fig.text(
+        0.5,
+        0.018,
+        "\n".join(status_lines),
+        ha="center",
+        va="bottom",
+        fontsize=CDF_STATUS_FONTSIZE,
+        color="#222222",
+        linespacing=1.25,
+        bbox={
+            "boxstyle": "round,pad=0.35",
+            "facecolor": "white",
+            "edgecolor": "#d0d0d0",
+            "alpha": 1.0,
+        },
     )
-    fig.subplots_adjust(left=0.09, right=0.98, bottom=0.40, top=0.72)
+    status_height = 0.27 + 0.055 * max(0, len(status_lines) - 1)
+    fig.subplots_adjust(left=0.09, right=0.98, bottom=status_height, top=0.69)
 
     out_dir = OUT_DIR / comparison_key / metric_name / mode
     out_dir.mkdir(parents=True, exist_ok=True)
