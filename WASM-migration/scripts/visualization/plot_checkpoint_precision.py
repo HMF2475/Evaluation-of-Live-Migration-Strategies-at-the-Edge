@@ -13,12 +13,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from common import (
+    add_success_rate_note,
     apply_plot_theme,
     load_migration_csv,
     ordered_methods,
     ordered_transfer_modes,
+    place_figure_legend,
+    PLOT_FIGSIZE,
     resolve_output_file,
     save_current_figure,
+    success_rate_note,
     successful_runs_only,
     transfer_mode_palette,
 )
@@ -45,6 +49,7 @@ def plot_checkpoint_precision(
         print("ERROR: CSV file is empty")
         sys.exit(1)
 
+    success_note = success_rate_note(df)
     df = successful_runs_only(df)
     if df.empty:
         print("No successful rows selected for checkpoint precision plot.")
@@ -60,7 +65,7 @@ def plot_checkpoint_precision(
     hue_palette = transfer_mode_palette(hue_order)
 
     apply_plot_theme()
-    plt.figure(figsize=(8.4, 4.2))
+    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
     sns.boxplot(
         data=df,
         x="migration_method",
@@ -85,25 +90,27 @@ def plot_checkpoint_precision(
         linewidth=0,
     )
 
-    handles, labels = plt.gca().get_legend_handles_labels()
+    handles, labels = ax.get_legend_handles_labels()
     if handles:
         unique = {}
         for handle, label in zip(handles, labels):
             if label not in unique:
                 unique[label] = handle
-        plt.legend(
+        if ax.legend_ is not None:
+            ax.legend_.remove()
+        place_figure_legend(
+            fig,
             list(unique.values()),
-            list(unique.keys()),
-            title="transfer_mode",
-            bbox_to_anchor=(0.5, 1.08),
-            loc="lower center",
+            [label.title() for label in unique],
+            title="Transfer mode",
             ncol=max(1, len(unique)),
-            borderaxespad=0,
         )
 
-    plt.ylabel("Checkpoint Time (us)")
-    plt.xlabel("Migration Method")
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    ax.set_ylabel("Checkpoint time (µs)")
+    ax.set_xlabel("Migration Method")
+    add_success_rate_note(ax, success_note)
+    status_height = 0.23 + 0.05 * success_note.count("\n")
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.76)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

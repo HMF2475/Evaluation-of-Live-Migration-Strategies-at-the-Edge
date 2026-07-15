@@ -37,6 +37,10 @@ PHASE_PALETTE = {
     "cleanup": "#E15759",
     "destination unpack": "#76B7B2",
 }
+PLOT_FIGSIZE = (9.2, 4.2)
+PLOT_LEGEND_FONTSIZE = 12
+PLOT_LEGEND_TITLE_FONTSIZE = 13
+PLOT_NOTE_FONTSIZE = 12.5
 _NUMERIC_COLUMNS = [
     "checkpoint_ms",
     "checkpoint_us",
@@ -227,7 +231,7 @@ def successful_runs_only(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def success_rate_note(df: pd.DataFrame) -> str:
-    """Summarize only groups whose success rate is below 100%."""
+    """Summarize run status using the same wording as the CDF figures."""
     if df.empty or "success" not in df.columns:
         return ""
     if "migration_method" not in df.columns or "transfer_mode" not in df.columns:
@@ -235,9 +239,11 @@ def success_rate_note(df: pd.DataFrame) -> str:
 
     work = df.copy()
     work["_success_bool"] = _success_mask(work)
-    rows: list[str] = []
-    group_sizes = work.groupby(["migration_method", "transfer_mode"]).size()
-    expected_total = int(group_sizes.max()) if not group_sizes.empty else 0
+    failures: list[str] = []
+    profiles = work.get("profile_name", pd.Series(dtype=str)).astype(str)
+    expected_total = 30 if profiles.str.contains("tee_worst", case=False).any() else 40
+    attempted_total = 0
+    successful_total = int(work["_success_bool"].sum())
     methods = ordered_methods(work["migration_method"].astype(str))
     modes = [
         m
@@ -256,37 +262,69 @@ def success_rate_note(df: pd.DataFrame) -> str:
             total = int(len(group))
             ok = int(group["_success_bool"].sum())
             denominator = expected_total if expected_total > total else total
+            attempted_total += denominator
             if ok != denominator:
-                rows.append(f"{method} {mode}: {ok}/{denominator}")
+                method_label = {
+                    "cold": "Cold",
+                    "precopy": "Pre-copy",
+                    "postcopy": "Post-copy",
+                    "Wasm": "Wasm",
+                }.get(method, method)
+                failures.append(f"{method_label} {mode.title()} {denominator - ok}")
 
-    return "\n".join(rows)
+    lines = [f"Run status: {successful_total}/{attempted_total} successful"]
+    if failures:
+        lines.append("Failures - " + ", ".join(failures))
+    return "\n".join(lines)
 
 
 def add_success_rate_note(
     ax: plt.Axes,
     note: str,
     *,
-    x: float = 1.02,
-    y: float = 0.64,
+    x: float = 0.5,
+    y: float = 0.018,
 ) -> None:
     if not note:
         return
-    ax.text(
+    ax.figure.text(
         x,
         y,
-        "Success\n" + note,
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=12,
+        note,
+        ha="center",
+        va="bottom",
+        fontsize=PLOT_NOTE_FONTSIZE,
         color="#222222",
+        linespacing=1.25,
         bbox={
             "boxstyle": "round,pad=0.35",
             "facecolor": "white",
             "edgecolor": "#d9d9d9",
             "alpha": 1.0,
         },
-        clip_on=False,
+    )
+
+
+def place_figure_legend(
+    fig: plt.Figure,
+    handles,
+    labels=None,
+    *,
+    title: str,
+    ncol: int,
+):
+    """Place a CDF-style boxed legend above a compact figure."""
+    return fig.legend(
+        handles=handles,
+        labels=labels,
+        title=title,
+        bbox_to_anchor=(0.5, 0.985),
+        loc="upper center",
+        frameon=True,
+        borderaxespad=0,
+        ncol=max(1, ncol),
+        fontsize=PLOT_LEGEND_FONTSIZE,
+        title_fontsize=PLOT_LEGEND_TITLE_FONTSIZE,
     )
 
 
@@ -345,8 +383,8 @@ def apply_plot_theme() -> None:
             "axes.labelsize": 15,
             "xtick.labelsize": 13,
             "ytick.labelsize": 13,
-            "legend.fontsize": 11,
-            "legend.title_fontsize": 12,
+            "legend.fontsize": PLOT_LEGEND_FONTSIZE,
+            "legend.title_fontsize": PLOT_LEGEND_TITLE_FONTSIZE,
         },
     )
 
@@ -427,8 +465,64 @@ def annotate_segment_stds(
     records: list[tuple[float, float, float, float]],
     y_upper: float,
 ) -> None:
-    """Draw SD labels only where the segment can contain them legibly."""
+    """Draw every finite SD without making thin segments look larger."""
     min_inside_height = y_upper * 0.045
+    thin_by_bar: dict[float, list[tuple[float, float, float, float]]] = {}
+
     for x, bottom, height, std in records:
-        if height >= min_inside_height and math.isfinite(std) and std > 0:
+        if not math.isfinite(std) or std <= 0:
+            continue
+        if height >= min_inside_height:
             annotate_segment_std(ax, x, bottom, height, std, y_upper)
+        else:
+            thin_by_bar.setdefault(round(x, 6), []).append((x, bottom, height, std))
+
+    min_gap = y_upper * 0.04
+    min_label_y = y_upper * 0.035
+    max_label_y = y_upper * 0.965
+    for thin_records in thin_by_bar.values():
+        thin_records.sort(key=lambda item: item[1] + item[2] / 2)
+        targets = [bottom + height / 2 for _, bottom, height, _ in thin_records]
+        label_positions: list[float] = []
+        for target in targets:
+            label_y = max(min_label_y, target)
+            if label_positions:
+                label_y = max(label_y, label_positions[-1] + min_gap)
+            label_positions.append(label_y)
+
+        if label_positions and label_positions[-1] > max_label_y:
+            label_positions[-1] = max_label_y
+            for idx in range(len(label_positions) - 2, -1, -1):
+                label_positions[idx] = min(
+                    label_positions[idx], label_positions[idx + 1] - min_gap
+                )
+
+        for (x, bottom, height, std), target_y, label_y in zip(
+            thin_records, targets, label_positions
+        ):
+            group_center = round(x)
+            direction = -1 if x < group_center else 1
+            label_x = x + direction * 0.11
+            ax.annotate(
+                format_std_label(float(std)),
+                xy=(x, target_y),
+                xytext=(label_x, label_y),
+                ha="right" if direction < 0 else "left",
+                va="center",
+                fontsize=7.2,
+                color="#222222",
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": "#bdbdbd",
+                    "linewidth": 0.4,
+                    "alpha": 0.94,
+                    "pad": 0.3,
+                },
+                arrowprops={
+                    "arrowstyle": "-",
+                    "color": "#777777",
+                    "linewidth": 0.55,
+                },
+                annotation_clip=True,
+                zorder=11,
+            )

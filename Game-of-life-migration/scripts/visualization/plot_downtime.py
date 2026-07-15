@@ -18,6 +18,8 @@ from common import (
     load_migration_csv,
     ordered_methods,
     ordered_transfer_modes,
+    place_figure_legend,
+    PLOT_FIGSIZE,
     resolve_output_file,
     save_current_figure,
     success_rate_note,
@@ -56,7 +58,7 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
     apply_plot_theme()
-    plt.figure(figsize=(8.4, 4.2))
+    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
     order = ordered_methods(df["migration_method"].astype(str))
     if not order:
         order = None
@@ -85,7 +87,6 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
         size=3,
         linewidth=0,
     )
-    ax = plt.gca()
     format_plain_axes(ax, "y")
     handles, labels = ax.get_legend_handles_labels()
     if handles:
@@ -93,19 +94,20 @@ def plot_downtime(csv_file: str, output_file: str = None, title_suffix: str = ""
         for h, lab in zip(handles, labels):
             if lab not in unique:
                 unique[lab] = h
-        ax.legend(
+        if ax.legend_ is not None:
+            ax.legend_.remove()
+        place_figure_legend(
+            fig,
             list(unique.values()),
-            list(unique.keys()),
-            title="transfer_mode",
-            bbox_to_anchor=(0.5, 1.08),
-            loc="lower center",
-            borderaxespad=0,
+            [label.title() for label in unique],
+            title="Transfer mode",
             ncol=max(1, len(unique)),
         )
-    add_success_rate_note(ax, success_note, y=0.68)
+    add_success_rate_note(ax, success_note)
     plt.ylabel("Downtime (ms)")
     plt.xlabel("Migration Method")
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    status_height = 0.23 + 0.05 * success_note.count("\n")
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.76)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

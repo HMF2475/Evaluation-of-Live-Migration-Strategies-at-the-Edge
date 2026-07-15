@@ -20,6 +20,8 @@ from common import (
     ordered_methods,
     ordered_transfer_modes,
     phase_colors,
+    place_figure_legend,
+    PLOT_FIGSIZE,
     resolve_output_file,
     save_current_figure,
     success_rate_note,
@@ -93,13 +95,13 @@ def plot_phase_breakdown(
         methods = sorted(phases["migration_method"].unique().tolist())
     modes = ordered_transfer_modes(phases["transfer_mode"].astype(str))
 
-    plt.figure(figsize=(8.8, 4.4))
-    ax = plt.gca()
+    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
     max_top = 0.0
     label_records = []
-    color_labels = [f"{mode}: {label}" for mode in modes for _, label in phase_columns]
+    legend_seen: set[str] = set()
+    color_labels = [label for _, label in phase_columns]
     colors = phase_colors(color_labels)
 
     for j, mode in enumerate(modes):
@@ -120,13 +122,15 @@ def plot_phase_breakdown(
                     for m in methods
                 ]
             )
-            legend_label = f"{mode}: {phase_label}"
+            legend_label = phase_label
+            label = legend_label if legend_label not in legend_seen else "_nolegend_"
+            legend_seen.add(legend_label)
             ax.bar(
                 bar_x,
                 values,
                 width,
                 bottom=bottom,
-                label=legend_label,
+                label=label,
                 color=colors[legend_label],
                 edgecolor="white",
                 linewidth=0.4,
@@ -149,26 +153,18 @@ def plot_phase_breakdown(
     format_plain_axes(ax, "y")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
-    ax.text(
-        0.01,
-        0.98,
-        "Visible labels show +/-SD (ms)",
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=8,
-        color="#333333",
-        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
-    )
-    ax.legend(
+    handles, labels = ax.get_legend_handles_labels()
+    place_figure_legend(
+        fig,
+        handles,
+        labels,
+        title="Color: migration phase  |  Left bar: Host  |  Right bar: Direct",
         ncol=3,
-        fontsize=8,
-        frameon=False,
-        bbox_to_anchor=(0.5, 1.08),
-        loc="lower center",
     )
-    add_success_rate_note(ax, success_note, y=0.52)
-    plt.tight_layout(rect=[0, 0, 1, 0.84])
+    figure_note = success_note + "\nSegment labels: +/-SD (ms)"
+    add_success_rate_note(ax, figure_note)
+    status_height = 0.25 + 0.05 * figure_note.count("\n")
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.69)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

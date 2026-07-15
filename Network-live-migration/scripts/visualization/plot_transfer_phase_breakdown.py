@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from common import (
+    add_success_rate_note,
     annotate_segment_stds,
     apply_plot_theme,
     format_plain_axes,
@@ -24,8 +25,11 @@ from common import (
     ordered_methods,
     ordered_transfer_modes,
     phase_colors,
+    place_figure_legend,
+    PLOT_FIGSIZE,
     resolve_output_file,
     save_current_figure,
+    success_rate_note,
     successful_runs_only,
 )
 
@@ -57,6 +61,7 @@ def plot_transfer_phase_breakdown(
         print("ERROR: CSV file is empty")
         sys.exit(1)
 
+    success_note = success_rate_note(df)
     df = successful_runs_only(df)
     if df.empty:
         print("No successful rows selected for transfer phase breakdown plot.")
@@ -101,21 +106,17 @@ def plot_transfer_phase_breakdown(
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     apply_plot_theme()
 
-    plt.figure(figsize=(9.0, 4.2))
-    ax = plt.gca()
+    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
     labels = dict(PHASE_COLUMNS)
     legend_seen: set[str] = set()
     max_top = 0.0
     label_records = []
-    color_labels = []
-    for mode in modes:
-        for column in active_columns:
-            phase_label = labels[column]
-            if mode == "direct" and column == "transfer_send_ms":
-                phase_label = "copy"
-            color_labels.append(f"{mode}: {phase_label}")
+    color_labels = [
+        "copy" if column == "transfer_send_ms" else labels[column]
+        for column in active_columns
+    ]
     colors = phase_colors(color_labels)
 
     for j, mode in enumerate(modes):
@@ -133,10 +134,8 @@ def plot_transfer_phase_breakdown(
             if np.allclose(values, 0.0):
                 continue
 
-            phase_label = labels[column]
-            if mode == "direct" and column == "transfer_send_ms":
-                phase_label = "copy"
-            legend_label = f"{mode}: {phase_label}"
+            phase_label = "copy" if column == "transfer_send_ms" else labels[column]
+            legend_label = phase_label
             label = legend_label if legend_label not in legend_seen else "_nolegend_"
             legend_seen.add(legend_label)
 
@@ -174,25 +173,18 @@ def plot_transfer_phase_breakdown(
     format_plain_axes(ax, "y")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
-    ax.text(
-        0.01,
-        0.98,
-        "Visible labels show +/-SD (ms)",
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=10,
-        color="#333333",
-        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
+    handles, legend_labels = ax.get_legend_handles_labels()
+    place_figure_legend(
+        fig,
+        handles,
+        legend_labels,
+        title="Color: transfer subphase  |  Left bar: Host  |  Right bar: Direct",
+        ncol=5,
     )
-    ax.legend(
-        ncol=4,
-        fontsize=9,
-        frameon=False,
-        bbox_to_anchor=(0.5, 1.08),
-        loc="lower center",
-    )
-    plt.tight_layout(rect=[0.04, 0, 1, 0.84])
+    figure_note = success_note + "\nSegment labels: +/-SD (ms)"
+    add_success_rate_note(ax, figure_note)
+    status_height = 0.25 + 0.05 * figure_note.count("\n")
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.66)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

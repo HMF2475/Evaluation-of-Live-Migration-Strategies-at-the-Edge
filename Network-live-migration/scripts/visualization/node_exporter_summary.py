@@ -12,12 +12,16 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
 from common import (
+    add_success_rate_note,
     apply_plot_theme,
     load_migration_csv,
     ordered_methods,
     ordered_transfer_modes,
+    PLOT_LEGEND_FONTSIZE,
+    PLOT_LEGEND_TITLE_FONTSIZE,
     resolve_output_file,
     save_current_figure,
+    success_rate_note,
     successful_runs_only,
     transfer_mode_palette,
 )
@@ -65,11 +69,13 @@ def _place_transfer_mode_legend(grid, mode_order: list[str]) -> None:
     ]
     grid.fig.legend(
         handles=handles,
+        title="Transfer mode",
         loc="upper center",
         bbox_to_anchor=(0.5, 0.99),
         ncol=max(1, len(mode_order)),
         frameon=True,
-        fontsize=11,
+        fontsize=PLOT_LEGEND_FONTSIZE,
+        title_fontsize=PLOT_LEGEND_TITLE_FONTSIZE,
     )
 
 
@@ -354,6 +360,11 @@ def plot_node_exporter_summary(
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
 
+    selected_rows = _selected_migration_rows(
+        csv_file, run_id_prefix=run_id_prefix, run_ids=run_ids
+    )
+    run_status = success_rate_note(selected_rows)
+
     df = build_node_exporter_dataframe(
         csv_file, node_metrics_dir, run_id_prefix=run_id_prefix, run_ids=run_ids
     )
@@ -420,7 +431,9 @@ def plot_node_exporter_summary(
         ax.set_title(ax.get_title(), fontsize=12, pad=8)
         _set_compact_method_ticks(ax, method_order)
     _place_transfer_mode_legend(g1, mode_order)
-    g1.fig.subplots_adjust(top=0.76, bottom=0.20, wspace=0.28)
+    add_success_rate_note(g1.axes.flat[0], run_status)
+    status_height = 0.23 + 0.05 * run_status.count("\n")
+    g1.fig.subplots_adjust(top=0.66, bottom=status_height, wspace=0.28)
     save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
@@ -475,9 +488,13 @@ def plot_node_exporter_summary(
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
         ax.set_title(ax.get_title(), fontsize=12, pad=8)
         _set_compact_method_ticks(ax, method_order)
+    for ax in g2.axes[0]:
+        ax.tick_params(axis="x", labelbottom=False)
 
     _place_transfer_mode_legend(g2, mode_order)
-    g2.fig.subplots_adjust(top=0.82, bottom=0.18, hspace=0.72, wspace=0.28)
+    add_success_rate_note(g2.axes.flat[0], run_status)
+    status_height = 0.23 + 0.05 * run_status.count("\n")
+    g2.fig.subplots_adjust(top=0.70, bottom=status_height, hspace=0.58, wspace=0.28)
     save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()
