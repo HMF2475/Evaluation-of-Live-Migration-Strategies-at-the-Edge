@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import os
 import shutil
@@ -19,9 +20,9 @@ from matplotlib.ticker import MaxNLocator
 
 ROOT = Path(__file__).resolve().parent
 OUT_DIR = ROOT / "cdf_plots"
-CDF_LEGEND_FONTSIZE = 12
-CDF_LEGEND_TITLE_FONTSIZE = 13
-CDF_STATUS_FONTSIZE = 12.5
+CDF_LEGEND_FONTSIZE = 14
+CDF_LEGEND_TITLE_FONTSIZE = 15
+CDF_STATUS_FONTSIZE = 14
 
 PROFILE_ORDER = [
     "1_WiFi_6",
@@ -42,13 +43,16 @@ PROFILE_LABELS = {
     "7_TEE_Worst": "TEE Worst",
 }
 PROFILE_COLORS = {
-    "WiFi 6": "#4E79A7",
-    "5G": "#F28E2B",
-    "LTE": "#59A14F",
-    "Starlink": "#E15759",
-    "TEE Best": "#B07AA1",
-    "TEE Avg": "#76B7B2",
-    "TEE Worst": "#9C755F",
+    # ColorBrewer YlGnBu (9-class), excluding its two palest swatches.
+    # The ordered progression remains legible for color-vision deficiencies
+    # and when printed, while avoiding a near-white curve.
+    "WiFi 6": "#C7E9B4",
+    "5G": "#7FCDBB",
+    "LTE": "#41B6C4",
+    "Starlink": "#1D91C0",
+    "TEE Best": "#225EA8",
+    "TEE Avg": "#253494",
+    "TEE Worst": "#081D58",
 }
 COMPARISON_SETS = {
     "all_profiles": {
@@ -466,8 +470,17 @@ def plot_single_ecdf(
     if subset.empty:
         return None
 
-    sns.set_theme(style="whitegrid", context="talk", font_scale=0.88)
-    fig, ax = plt.subplots(figsize=(9.2, 4.2))
+    sns.set_theme(
+        style="whitegrid",
+        context="talk",
+        font_scale=1.0,
+        rc={
+            "axes.labelsize": 17,
+            "xtick.labelsize": 15,
+            "ytick.labelsize": 15,
+        },
+    )
+    fig, ax = plt.subplots(figsize=(9.6, 4.6))
 
     for profile in profile_labels:
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]:
@@ -483,10 +496,10 @@ def plot_single_ecdf(
                 where="post",
                 color=PROFILE_COLORS[profile],
                 linestyle=METHOD_LINESTYLES[method],
-                linewidth=2.0,
+                linewidth=2.5,
                 marker=METHOD_MARKERS[method],
                 markevery=max(1, len(x) // 6),
-                markersize=5,
+                markersize=6,
                 label=f"{profile} / {method}",
             )
 
@@ -514,7 +527,7 @@ def plot_single_ecdf(
     failures = failure_rows(count_subset)
 
     profile_handles = [
-        plt.Line2D([0], [0], color=PROFILE_COLORS[profile], lw=2.5, label=profile)
+        plt.Line2D([0], [0], color=PROFILE_COLORS[profile], lw=3.0, label=profile)
         for profile in profile_labels
         if subset["profile_label"].eq(profile).any()
     ]
@@ -523,10 +536,10 @@ def plot_single_ecdf(
             [0],
             [0],
             color="#333333",
-            lw=1.8,
+            lw=2.2,
             linestyle=METHOD_LINESTYLES[method],
             marker=METHOD_MARKERS[method],
-            markersize=6,
+            markersize=7,
             label=method,
         )
         for method in [METHOD_LABELS[m] for m in METHOD_ORDER]
@@ -586,7 +599,48 @@ def plot_single_ecdf(
     return out_path
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate downtime and migration-time CDF plots."
+    )
+    parser.add_argument(
+        "--benchmarks",
+        nargs="+",
+        choices=BENCHMARK_ORDER,
+        default=None,
+        help="Only regenerate the selected workloads.",
+    )
+    parser.add_argument(
+        "--metrics",
+        nargs="+",
+        choices=list(METRICS),
+        default=None,
+        help="Only regenerate the selected metrics.",
+    )
+    parser.add_argument(
+        "--modes",
+        nargs="+",
+        choices=MODE_ORDER,
+        default=None,
+        help="Only regenerate the selected transfer modes.",
+    )
+    parser.add_argument(
+        "--comparison-sets",
+        nargs="+",
+        choices=list(COMPARISON_SETS),
+        default=None,
+        help="Only regenerate the selected profile comparison sets.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+    selected_benchmarks = args.benchmarks or BENCHMARK_ORDER
+    selected_metrics = args.metrics or list(METRICS)
+    selected_modes = args.modes or MODE_ORDER
+    selected_comparisons = args.comparison_sets or list(COMPARISON_SETS)
+
     data, counts, failed_details = load_latest_plotted_metrics()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     data.to_csv(OUT_DIR / "cdf_input.csv", index=False)
@@ -604,22 +658,30 @@ def main() -> None:
     ]:
         if stale.exists():
             stale.unlink()
-    for generated_dir in [
-        OUT_DIR / "all_profiles",
-        OUT_DIR / "access_networks",
-        OUT_DIR / "downtime",
-        OUT_DIR / "latency",
-        OUT_DIR / "migration_time",
-        OUT_DIR / "tactical_edge",
-    ]:
-        if generated_dir.exists():
-            shutil.rmtree(generated_dir)
+    full_generation = (
+        set(selected_benchmarks) == set(BENCHMARK_ORDER)
+        and set(selected_metrics) == set(METRICS)
+        and set(selected_modes) == set(MODE_ORDER)
+        and set(selected_comparisons) == set(COMPARISON_SETS)
+    )
+    if full_generation:
+        for generated_dir in [
+            OUT_DIR / "all_profiles",
+            OUT_DIR / "access_networks",
+            OUT_DIR / "downtime",
+            OUT_DIR / "latency",
+            OUT_DIR / "migration_time",
+            OUT_DIR / "tactical_edge",
+        ]:
+            if generated_dir.exists():
+                shutil.rmtree(generated_dir)
 
     written: list[Path] = []
-    for comparison_key, comparison in COMPARISON_SETS.items():
-        for metric_name in METRICS:
-            for mode in MODE_ORDER:
-                for benchmark in BENCHMARK_ORDER:
+    for comparison_key in selected_comparisons:
+        comparison = COMPARISON_SETS[comparison_key]
+        for metric_name in selected_metrics:
+            for mode in selected_modes:
+                for benchmark in selected_benchmarks:
                     out_path = plot_single_ecdf(
                         data=data,
                         counts=counts,

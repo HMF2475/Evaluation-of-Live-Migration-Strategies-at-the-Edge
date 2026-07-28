@@ -25,6 +25,13 @@ METHOD_PALETTE = {
     "postcopy": "#59A14F",
     "Wasm": "#B07AA1",
 }
+# ColorBrewer YlGnBu, using darker swatches so boxes remain distinct in print.
+RESOURCE_METHOD_PALETTE = {
+    "cold": "#7FCDBB",
+    "precopy": "#2C7FB8",
+    "postcopy": "#253494",
+    "Wasm": "#2C7FB8",
+}
 PHASE_PALETTE = {
     "checkpoint": "#4E79A7",
     "transfer (excl. setup)": "#F28E2B",
@@ -37,9 +44,9 @@ PHASE_PALETTE = {
     "destination unpack": "#76B7B2",
 }
 PLOT_FIGSIZE = (9.2, 4.2)
-PLOT_LEGEND_FONTSIZE = 12
-PLOT_LEGEND_TITLE_FONTSIZE = 13
-PLOT_NOTE_FONTSIZE = 12.5
+PLOT_LEGEND_FONTSIZE = 14
+PLOT_LEGEND_TITLE_FONTSIZE = 15
+PLOT_NOTE_FONTSIZE = 14
 _NUMERIC_COLUMNS = [
     "checkpoint_ms",
     "archive_bytes",
@@ -280,6 +287,10 @@ def migration_method_palette(values) -> dict[str, str]:
     return {method: METHOD_PALETTE.get(method, "#8C8C8C") for method in values}
 
 
+def resource_method_palette(values) -> dict[str, str]:
+    return {method: RESOURCE_METHOD_PALETTE.get(method, "#2C7FB8") for method in values}
+
+
 def default_plots_dir() -> Path:
     script_dir = Path(__file__).resolve().parent
     return script_dir.parent.parent / "metrics" / "plots"
@@ -309,10 +320,10 @@ def apply_plot_theme() -> None:
             "axes.spines.top": False,
             "axes.formatter.useoffset": False,
             "axes.formatter.use_mathtext": False,
-            "axes.titlesize": 15,
-            "axes.labelsize": 15,
-            "xtick.labelsize": 13,
-            "ytick.labelsize": 13,
+            "axes.titlesize": 17,
+            "axes.labelsize": 17,
+            "xtick.labelsize": 15,
+            "ytick.labelsize": 15,
             "legend.fontsize": PLOT_LEGEND_FONTSIZE,
             "legend.title_fontsize": PLOT_LEGEND_TITLE_FONTSIZE,
         },

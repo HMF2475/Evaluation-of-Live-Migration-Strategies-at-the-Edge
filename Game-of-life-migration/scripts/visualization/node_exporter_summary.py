@@ -20,6 +20,7 @@ from common import (
     PLOT_LEGEND_FONTSIZE,
     PLOT_LEGEND_TITLE_FONTSIZE,
     resolve_output_file,
+    resource_method_palette,
     save_current_figure,
     success_rate_note,
     successful_runs_only,
@@ -355,6 +356,7 @@ def plot_node_exporter_summary(
     *,
     run_id_prefix: Optional[str] = None,
     run_ids: Optional[Set[str]] = None,
+    transfer_mode: Optional[str] = None,
 ) -> None:
     out = resolve_output_file(output_file, "node_exporter_summary.png")
     out = Path(out)
@@ -363,11 +365,17 @@ def plot_node_exporter_summary(
     selected_rows = _selected_migration_rows(
         csv_file, run_id_prefix=run_id_prefix, run_ids=run_ids
     )
+    if transfer_mode:
+        selected_rows = selected_rows[
+            selected_rows["transfer_mode"].astype(str).eq(transfer_mode)
+        ].copy()
     run_status = success_rate_note(selected_rows)
 
     df = build_node_exporter_dataframe(
         csv_file, node_metrics_dir, run_id_prefix=run_id_prefix, run_ids=run_ids
     )
+    if transfer_mode and not df.empty:
+        df = df[df["transfer_mode"].astype(str).eq(transfer_mode)].copy()
     if df.empty:
         print(
             "! No node_exporter snapshots found for selected runs (skipping node_exporter plots)."
@@ -407,20 +415,27 @@ def plot_node_exporter_summary(
     method_order = ordered_methods(melted_avg["migration_method"].astype(str))
     mode_order = ordered_transfer_modes(melted_avg["transfer_mode"].astype(str))
     mode_palette = transfer_mode_palette(mode_order)
+    hue_column = "migration_method" if transfer_mode else "transfer_mode"
+    hue_order = method_order if transfer_mode else mode_order
+    hue_palette = (
+        resource_method_palette(method_order) if transfer_mode else mode_palette
+    )
     g1 = sns.catplot(
         data=melted_avg,
         x="migration_method",
         y="value",
-        hue="transfer_mode",
-        hue_order=mode_order,
-        palette=mode_palette,
+        hue=hue_column,
+        hue_order=hue_order,
+        palette=hue_palette,
         order=method_order,
         col="metric",
         kind="box",
         sharey=False,
         showfliers=False,
-        height=2.5,
+        dodge=not bool(transfer_mode),
+        height=2.8,
         aspect=1.18,
+        legend=not bool(transfer_mode),
         legend_out=False,
     )
     g1.set_titles("{col_name}")
@@ -428,12 +443,20 @@ def plot_node_exporter_summary(
     g1.set_ylabels("")
     for ax in g1.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
-        ax.set_title(ax.get_title(), fontsize=12, pad=8)
+        ax.set_title(ax.get_title(), fontsize=15, pad=9)
         _set_compact_method_ticks(ax, method_order)
-    _place_transfer_mode_legend(g1, mode_order)
+    if transfer_mode:
+        g1.fig.suptitle(
+            f"{transfer_mode.title()} transfer mode",
+            fontsize=16,
+            y=0.99,
+        )
+    else:
+        _place_transfer_mode_legend(g1, mode_order)
     add_success_rate_note(g1.axes.flat[0], run_status)
     status_height = 0.23 + 0.05 * run_status.count("\n")
-    g1.fig.subplots_adjust(top=0.66, bottom=status_height, wspace=0.28)
+    top = 0.80 if transfer_mode else 0.66
+    g1.fig.subplots_adjust(top=top, bottom=status_height, wspace=0.28)
     save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
@@ -467,17 +490,19 @@ def plot_node_exporter_summary(
         data=melted_node,
         x="migration_method",
         y="value",
-        hue="transfer_mode",
-        hue_order=mode_order,
-        palette=mode_palette,
+        hue=hue_column,
+        hue_order=hue_order,
+        palette=hue_palette,
         order=method_order,
         col="metric",
         row="node",
         kind="box",
         sharey=False,
         showfliers=False,
-        height=2.35,
+        dodge=not bool(transfer_mode),
+        height=2.65,
         aspect=1.25,
+        legend=not bool(transfer_mode),
         legend_out=False,
     )
 
@@ -486,15 +511,23 @@ def plot_node_exporter_summary(
     g2.set_ylabels("")
     for ax in g2.axes.flat:
         ax.ticklabel_format(axis="y", style="plain", useOffset=False, useMathText=False)
-        ax.set_title(ax.get_title(), fontsize=12, pad=8)
+        ax.set_title(ax.get_title(), fontsize=15, pad=9)
         _set_compact_method_ticks(ax, method_order)
     for ax in g2.axes[0]:
         ax.tick_params(axis="x", labelbottom=False)
 
-    _place_transfer_mode_legend(g2, mode_order)
+    if transfer_mode:
+        g2.fig.suptitle(
+            f"{transfer_mode.title()} transfer mode",
+            fontsize=16,
+            y=0.995,
+        )
+    else:
+        _place_transfer_mode_legend(g2, mode_order)
     add_success_rate_note(g2.axes.flat[0], run_status)
     status_height = 0.23 + 0.05 * run_status.count("\n")
-    g2.fig.subplots_adjust(top=0.70, bottom=status_height, hspace=0.58, wspace=0.28)
+    top = 0.86 if transfer_mode else 0.70
+    g2.fig.subplots_adjust(top=top, bottom=status_height, hspace=0.58, wspace=0.28)
     save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()

@@ -52,6 +52,12 @@ def main() -> int:
         default="",
         help="Network profile name to append to plot titles",
     )
+    parser.add_argument(
+        "--resource-transfer-mode",
+        choices=["host", "direct"],
+        default=None,
+        help="Restrict node-exporter resource plots to one transfer mode.",
+    )
 
     args = parser.parse_args()
 
@@ -120,6 +126,7 @@ def main() -> int:
         str(out_dir / "node_exporter_summary.png"),
         run_id_prefix=args.run_id_prefix,
         run_ids=run_ids,
+        transfer_mode=args.resource_transfer_mode,
     )
 
     print(f"✓ Plots written to: {out_dir}")
