@@ -42,6 +42,14 @@ PHASE_COLUMNS = [
     ("unpack_ms", "destination unpack"),
 ]
 
+NATO_PHASE_PALETTE = {
+    "archive create": "#7FCDBB",
+    "copy": "#41B6C4",
+    "copy leg 2": "#1D91C0",
+    "cleanup": "#225EA8",
+    "destination unpack": "#253494",
+}
+
 
 RAW_DETAILED_COLUMNS = [
     "transfer_setup_ms",
@@ -50,7 +58,12 @@ RAW_DETAILED_COLUMNS = [
 
 
 def plot_transfer_phase_breakdown(
-    csv_file: str, output_file: str = None, title_suffix: str = ""
+    csv_file: str,
+    output_file: str = None,
+    title_suffix: str = "",
+    *,
+    color_scheme: str = "default",
+    show_run_status: bool = True,
 ) -> None:
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
@@ -117,7 +130,10 @@ def plot_transfer_phase_breakdown(
         "copy" if column == "transfer_send_ms" else labels[column]
         for column in active_columns
     ]
-    colors = phase_colors(color_labels)
+    if color_scheme == "nato":
+        colors = {label: NATO_PHASE_PALETTE[label] for label in color_labels}
+    else:
+        colors = phase_colors(color_labels)
 
     for j, mode in enumerate(modes):
         sub = phases[phases["transfer_mode"] == mode].set_index("migration_method")
@@ -181,10 +197,13 @@ def plot_transfer_phase_breakdown(
         title="Color: transfer subphase  |  Left bar: Host  |  Right bar: Direct",
         ncol=5,
     )
-    figure_note = success_note + "\nSegment labels: +/-SD (ms)"
-    add_success_rate_note(ax, figure_note)
-    status_height = 0.25 + 0.05 * figure_note.count("\n")
-    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.66)
+    if show_run_status:
+        figure_note = success_note + "\nSegment labels: +/-SD (ms)"
+        add_success_rate_note(ax, figure_note)
+        bottom = 0.25 + 0.05 * figure_note.count("\n")
+    else:
+        bottom = 0.18
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=bottom, top=0.66)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

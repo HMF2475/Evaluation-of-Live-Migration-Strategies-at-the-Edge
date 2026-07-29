@@ -458,6 +458,9 @@ def plot_single_ecdf(
     comparison_key: str,
     comparison_label: str,
     profile_labels: list[str],
+    *,
+    x_max_ms: float | None = None,
+    show_run_status: bool = True,
 ) -> Path | None:
     metric = METRICS[metric_name]
     value_column = metric["column"]
@@ -509,7 +512,8 @@ def plot_single_ecdf(
     if x_min == x_max:
         ax.set_xlim(max(x_min * 0.95, 1.0), x_max * 1.05)
     else:
-        ax.set_xlim(x_min, x_max)
+        visible_x_max = x_max_ms if x_max_ms is not None else x_max
+        ax.set_xlim(x_min, visible_x_max)
     ax.ticklabel_format(axis="x", style="plain", useOffset=False)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
     ax.set_ylim(0, 100)
@@ -560,32 +564,35 @@ def plot_single_ecdf(
     )
     fig.add_artist(encoding_legend)
 
-    status_lines = run_status_lines(
-        failures,
-        successful=total_success,
-        attempted=total_attempted,
-        incomplete_entry=incomplete_profile_entry(
-            benchmark, comparison_key, profile_labels
-        ),
-    )
-    fig.text(
-        0.5,
-        0.018,
-        "\n".join(status_lines),
-        ha="center",
-        va="bottom",
-        fontsize=CDF_STATUS_FONTSIZE,
-        color="#222222",
-        linespacing=1.25,
-        bbox={
-            "boxstyle": "round,pad=0.35",
-            "facecolor": "white",
-            "edgecolor": "#d0d0d0",
-            "alpha": 1.0,
-        },
-    )
-    status_height = 0.27 + 0.055 * max(0, len(status_lines) - 1)
-    fig.subplots_adjust(left=0.09, right=0.98, bottom=status_height, top=0.69)
+    if show_run_status:
+        status_lines = run_status_lines(
+            failures,
+            successful=total_success,
+            attempted=total_attempted,
+            incomplete_entry=incomplete_profile_entry(
+                benchmark, comparison_key, profile_labels
+            ),
+        )
+        fig.text(
+            0.5,
+            0.018,
+            "\n".join(status_lines),
+            ha="center",
+            va="bottom",
+            fontsize=CDF_STATUS_FONTSIZE,
+            color="#222222",
+            linespacing=1.25,
+            bbox={
+                "boxstyle": "round,pad=0.35",
+                "facecolor": "white",
+                "edgecolor": "#d0d0d0",
+                "alpha": 1.0,
+            },
+        )
+        bottom = 0.27 + 0.055 * max(0, len(status_lines) - 1)
+    else:
+        bottom = 0.18
+    fig.subplots_adjust(left=0.09, right=0.98, bottom=bottom, top=0.69)
 
     out_dir = OUT_DIR / comparison_key / metric_name / mode
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -630,6 +637,17 @@ def parse_args() -> argparse.Namespace:
         choices=list(COMPARISON_SETS),
         default=None,
         help="Only regenerate the selected profile comparison sets.",
+    )
+    parser.add_argument(
+        "--x-max-ms",
+        type=float,
+        default=None,
+        help="Cap the visible x-axis at this millisecond value.",
+    )
+    parser.add_argument(
+        "--hide-run-status",
+        action="store_true",
+        help="Omit the run-status box below each selected plot.",
     )
     return parser.parse_args()
 
@@ -691,6 +709,8 @@ def main() -> None:
                         comparison_key=comparison_key,
                         comparison_label=comparison["label"],
                         profile_labels=comparison["profiles"],
+                        x_max_ms=args.x_max_ms,
+                        show_run_status=not args.hide_run_status,
                     )
                     if out_path is not None:
                         written.append(out_path)

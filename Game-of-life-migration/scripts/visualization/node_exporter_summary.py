@@ -357,6 +357,7 @@ def plot_node_exporter_summary(
     run_id_prefix: Optional[str] = None,
     run_ids: Optional[Set[str]] = None,
     transfer_mode: Optional[str] = None,
+    show_run_status: bool = True,
 ) -> None:
     out = resolve_output_file(output_file, "node_exporter_summary.png")
     out = Path(out)
@@ -453,10 +454,13 @@ def plot_node_exporter_summary(
         )
     else:
         _place_transfer_mode_legend(g1, mode_order)
-    add_success_rate_note(g1.axes.flat[0], run_status)
-    status_height = 0.23 + 0.05 * run_status.count("\n")
+    if show_run_status:
+        add_success_rate_note(g1.axes.flat[0], run_status)
+        bottom = 0.23 + 0.05 * run_status.count("\n")
+    else:
+        bottom = 0.12
     top = 0.80 if transfer_mode else 0.66
-    g1.fig.subplots_adjust(top=top, bottom=status_height, wspace=0.28)
+    g1.fig.subplots_adjust(top=top, bottom=bottom, wspace=0.28)
     save_current_figure(out)
     print(f"✓ Saved: {out}")
     plt.close()
@@ -524,10 +528,13 @@ def plot_node_exporter_summary(
         )
     else:
         _place_transfer_mode_legend(g2, mode_order)
-    add_success_rate_note(g2.axes.flat[0], run_status)
-    status_height = 0.23 + 0.05 * run_status.count("\n")
+    if show_run_status:
+        add_success_rate_note(g2.axes.flat[0], run_status)
+        bottom = 0.23 + 0.05 * run_status.count("\n")
+    else:
+        bottom = 0.10
     top = 0.86 if transfer_mode else 0.70
-    g2.fig.subplots_adjust(top=top, bottom=status_height, hspace=0.58, wspace=0.28)
+    g2.fig.subplots_adjust(top=top, bottom=bottom, hspace=0.58, wspace=0.28)
     save_current_figure(out_node)
     print(f"✓ Saved: {out_node}")
     plt.close()

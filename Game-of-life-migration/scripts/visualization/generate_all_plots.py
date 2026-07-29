@@ -59,6 +59,22 @@ def main() -> int:
         default=None,
         help="Restrict node-exporter resource plots to one transfer mode.",
     )
+    parser.add_argument(
+        "--hide-resource-run-status",
+        action="store_true",
+        help="Omit the run-status box from node-exporter plots.",
+    )
+    parser.add_argument(
+        "--transfer-phase-color-scheme",
+        choices=["default", "nato"],
+        default="default",
+        help="Color scheme for the transfer phase breakdown.",
+    )
+    parser.add_argument(
+        "--hide-transfer-phase-run-status",
+        action="store_true",
+        help="Omit the run-status box from the transfer phase breakdown.",
+    )
 
     args = parser.parse_args()
 
@@ -117,6 +133,8 @@ def main() -> int:
         str(filtered_csv),
         str(out_dir / "transfer_phase_breakdown.png"),
         title_suffix=args.profile_name,
+        color_scheme=args.transfer_phase_color_scheme,
+        show_run_status=not args.hide_transfer_phase_run_status,
     )
     plot_node_exporter_summary(
         str(filtered_csv),
@@ -125,6 +143,7 @@ def main() -> int:
         run_id_prefix=args.run_id_prefix,
         run_ids=run_ids,
         transfer_mode=args.resource_transfer_mode,
+        show_run_status=not args.hide_resource_run_status,
     )
 
     print(f"✓ Plots written to: {out_dir}")
