@@ -189,7 +189,7 @@ def plot_phase_breakdown(
     handles, labels = ax.get_legend_handles_labels()
     if square and not show_legend_title:
         labels = [
-            "transfer\n(excl. setup)" if label == "transfer (excl. setup)" else label
+            "transfer" if label == "transfer (excl. setup)" else label
             for label in labels
         ]
     legend_title = None
