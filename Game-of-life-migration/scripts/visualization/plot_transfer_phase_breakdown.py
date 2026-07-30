@@ -49,6 +49,7 @@ NATO_PHASE_PALETTE = {
     "cleanup": "#225EA8",
     "destination unpack": "#253494",
 }
+SQUARE_FIGSIZE = (5.4, 5.4)
 
 
 RAW_DETAILED_COLUMNS = [
@@ -65,6 +66,7 @@ def plot_transfer_phase_breakdown(
     color_scheme: str = "default",
     show_run_status: bool = True,
     transfer_mode: str | None = None,
+    square: bool = False,
 ) -> None:
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
@@ -126,7 +128,7 @@ def plot_transfer_phase_breakdown(
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     apply_plot_theme()
 
-    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
+    fig, ax = plt.subplots(figsize=SQUARE_FIGSIZE if square else PLOT_FIGSIZE)
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
     labels = dict(PHASE_COLUMNS)
@@ -208,6 +210,8 @@ def plot_transfer_phase_breakdown(
         legend_labels,
         title=legend_title,
         ncol=5,
+        fontsize=10 if square else 14,
+        title_fontsize=11 if square else 15,
     )
     if show_run_status:
         figure_note = success_note + "\nSegment labels: +/-SD (ms)"
@@ -215,7 +219,10 @@ def plot_transfer_phase_breakdown(
         bottom = 0.25 + 0.05 * figure_note.count("\n")
     else:
         bottom = 0.18
-    fig.subplots_adjust(left=0.11, right=0.98, bottom=bottom, top=0.66)
+    top = 0.76 if square else 0.66
+    fig.subplots_adjust(
+        left=0.16 if square else 0.11, right=0.98, bottom=bottom, top=top
+    )
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

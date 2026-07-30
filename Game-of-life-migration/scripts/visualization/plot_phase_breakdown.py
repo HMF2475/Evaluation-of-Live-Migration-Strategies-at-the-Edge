@@ -33,6 +33,7 @@ NATO_PHASE_PALETTE = {
     "transfer (excl. setup)": "#2C7FB8",
     "restore": "#253494",
 }
+SQUARE_FIGSIZE = (5.4, 5.4)
 
 
 def plot_phase_breakdown(
@@ -42,6 +43,8 @@ def plot_phase_breakdown(
     *,
     color_scheme: str = "default",
     show_run_status: bool = True,
+    transfer_mode: str | None = None,
+    square: bool = False,
 ):
     """
     Create phase breakdown stacked bar chart.
@@ -60,6 +63,12 @@ def plot_phase_breakdown(
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
+
+    if transfer_mode:
+        df = df[df["transfer_mode"].astype(str).eq(transfer_mode)].copy()
+        if df.empty:
+            print(f"No {transfer_mode} rows selected for phase breakdown plot.")
+            return
 
     success_note = success_rate_note(df)
     df = successful_runs_only(df)
@@ -107,7 +116,7 @@ def plot_phase_breakdown(
         methods = sorted(phases["migration_method"].unique().tolist())
     modes = ordered_transfer_modes(phases["transfer_mode"].astype(str))
 
-    fig, ax = plt.subplots(figsize=PLOT_FIGSIZE)
+    fig, ax = plt.subplots(figsize=SQUARE_FIGSIZE if square else PLOT_FIGSIZE)
     x = np.arange(len(methods))
     width = 0.35 if len(modes) > 1 else 0.6
     max_top = 0.0
@@ -169,12 +178,19 @@ def plot_phase_breakdown(
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
     handles, labels = ax.get_legend_handles_labels()
+    legend_title = "Color: migration phase"
+    if transfer_mode:
+        legend_title += f"  |  {transfer_mode.title()} transfer mode"
+    else:
+        legend_title += "  |  Left bar: Host  |  Right bar: Direct"
     place_figure_legend(
         fig,
         handles,
         labels,
-        title="Color: migration phase  |  Left bar: Host  |  Right bar: Direct",
+        title=legend_title,
         ncol=3,
+        fontsize=10 if square else 14,
+        title_fontsize=11 if square else 15,
     )
     if show_run_status:
         figure_note = success_note + "\nSegment labels: +/-SD (ms)"
@@ -182,7 +198,10 @@ def plot_phase_breakdown(
         bottom = 0.25 + 0.05 * figure_note.count("\n")
     else:
         bottom = 0.18
-    fig.subplots_adjust(left=0.11, right=0.98, bottom=bottom, top=0.69)
+    top = 0.76 if square else 0.69
+    fig.subplots_adjust(
+        left=0.16 if square else 0.11, right=0.98, bottom=bottom, top=top
+    )
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()

@@ -249,6 +249,8 @@ def place_figure_legend(
     *,
     title: str,
     ncol: int,
+    fontsize: int = PLOT_LEGEND_FONTSIZE,
+    title_fontsize: int = PLOT_LEGEND_TITLE_FONTSIZE,
 ):
     """Place a CDF-style boxed legend above a compact figure."""
     return fig.legend(
@@ -260,8 +262,8 @@ def place_figure_legend(
         frameon=True,
         borderaxespad=0,
         ncol=max(1, ncol),
-        fontsize=PLOT_LEGEND_FONTSIZE,
-        title_fontsize=PLOT_LEGEND_TITLE_FONTSIZE,
+        fontsize=fontsize,
+        title_fontsize=title_fontsize,
     )
 
 

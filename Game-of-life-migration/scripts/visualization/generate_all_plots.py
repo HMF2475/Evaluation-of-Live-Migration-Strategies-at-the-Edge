@@ -76,6 +76,17 @@ def main() -> int:
         help="Omit the run-status box from the phase breakdown.",
     )
     parser.add_argument(
+        "--phase-transfer-mode",
+        choices=["host", "direct"],
+        default=None,
+        help="Restrict the phase breakdown to one transfer mode.",
+    )
+    parser.add_argument(
+        "--phase-square",
+        action="store_true",
+        help="Render the phase breakdown with a square publication layout.",
+    )
+    parser.add_argument(
         "--transfer-phase-color-scheme",
         choices=["default", "nato"],
         default="default",
@@ -91,6 +102,11 @@ def main() -> int:
         choices=["host", "direct"],
         default=None,
         help="Restrict the transfer phase breakdown to one transfer mode.",
+    )
+    parser.add_argument(
+        "--transfer-phase-square",
+        action="store_true",
+        help="Render the transfer phase breakdown with a square publication layout.",
     )
 
     args = parser.parse_args()
@@ -142,6 +158,8 @@ def main() -> int:
         title_suffix=args.profile_name,
         color_scheme=args.phase_color_scheme,
         show_run_status=not args.hide_phase_run_status,
+        transfer_mode=args.phase_transfer_mode,
+        square=args.phase_square,
     )
     plot_transfer_analysis(
         str(filtered_csv),
@@ -155,6 +173,7 @@ def main() -> int:
         color_scheme=args.transfer_phase_color_scheme,
         show_run_status=not args.hide_transfer_phase_run_status,
         transfer_mode=args.transfer_phase_transfer_mode,
+        square=args.transfer_phase_square,
     )
     plot_node_exporter_summary(
         str(filtered_csv),
