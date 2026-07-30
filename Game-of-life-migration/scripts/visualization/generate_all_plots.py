@@ -65,6 +65,17 @@ def main() -> int:
         help="Omit the run-status box from node-exporter plots.",
     )
     parser.add_argument(
+        "--phase-color-scheme",
+        choices=["default", "nato"],
+        default="default",
+        help="Color scheme for the checkpoint/transfer/restore phase breakdown.",
+    )
+    parser.add_argument(
+        "--hide-phase-run-status",
+        action="store_true",
+        help="Omit the run-status box from the phase breakdown.",
+    )
+    parser.add_argument(
         "--transfer-phase-color-scheme",
         choices=["default", "nato"],
         default="default",
@@ -74,6 +85,12 @@ def main() -> int:
         "--hide-transfer-phase-run-status",
         action="store_true",
         help="Omit the run-status box from the transfer phase breakdown.",
+    )
+    parser.add_argument(
+        "--transfer-phase-transfer-mode",
+        choices=["host", "direct"],
+        default=None,
+        help="Restrict the transfer phase breakdown to one transfer mode.",
     )
 
     args = parser.parse_args()
@@ -123,6 +140,8 @@ def main() -> int:
         str(filtered_csv),
         str(out_dir / "phase_breakdown.png"),
         title_suffix=args.profile_name,
+        color_scheme=args.phase_color_scheme,
+        show_run_status=not args.hide_phase_run_status,
     )
     plot_transfer_analysis(
         str(filtered_csv),
@@ -135,6 +154,7 @@ def main() -> int:
         title_suffix=args.profile_name,
         color_scheme=args.transfer_phase_color_scheme,
         show_run_status=not args.hide_transfer_phase_run_status,
+        transfer_mode=args.transfer_phase_transfer_mode,
     )
     plot_node_exporter_summary(
         str(filtered_csv),

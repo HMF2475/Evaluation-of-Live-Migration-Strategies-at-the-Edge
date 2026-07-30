@@ -64,6 +64,7 @@ def plot_transfer_phase_breakdown(
     *,
     color_scheme: str = "default",
     show_run_status: bool = True,
+    transfer_mode: str | None = None,
 ) -> None:
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
@@ -73,6 +74,12 @@ def plot_transfer_phase_breakdown(
     if df.empty:
         print("ERROR: CSV file is empty")
         sys.exit(1)
+
+    if transfer_mode:
+        df = df[df["transfer_mode"].astype(str).eq(transfer_mode)].copy()
+        if df.empty:
+            print(f"No {transfer_mode} rows selected for transfer phase breakdown.")
+            return
 
     success_note = success_rate_note(df)
     df = successful_runs_only(df)
@@ -190,11 +197,16 @@ def plot_transfer_phase_breakdown(
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
     handles, legend_labels = ax.get_legend_handles_labels()
+    legend_title = "Color: transfer subphase"
+    if transfer_mode:
+        legend_title += f"  |  {transfer_mode.title()} transfer mode"
+    else:
+        legend_title += "  |  Left bar: Host  |  Right bar: Direct"
     place_figure_legend(
         fig,
         handles,
         legend_labels,
-        title="Color: transfer subphase  |  Left bar: Host  |  Right bar: Direct",
+        title=legend_title,
         ncol=5,
     )
     if show_run_status:

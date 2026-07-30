@@ -28,9 +28,20 @@ from common import (
     successful_runs_only,
 )
 
+NATO_PHASE_PALETTE = {
+    "checkpoint": "#7FCDBB",
+    "transfer (excl. setup)": "#2C7FB8",
+    "restore": "#253494",
+}
+
 
 def plot_phase_breakdown(
-    csv_file: str, output_file: str = None, title_suffix: str = ""
+    csv_file: str,
+    output_file: str = None,
+    title_suffix: str = "",
+    *,
+    color_scheme: str = "default",
+    show_run_status: bool = True,
 ):
     """
     Create phase breakdown stacked bar chart.
@@ -103,7 +114,10 @@ def plot_phase_breakdown(
     label_records = []
     legend_seen: set[str] = set()
     color_labels = [label for _, label in phase_columns]
-    colors = phase_colors(color_labels)
+    if color_scheme == "nato":
+        colors = {label: NATO_PHASE_PALETTE[label] for label in color_labels}
+    else:
+        colors = phase_colors(color_labels)
 
     for j, mode in enumerate(modes):
         sub = phases[phases["transfer_mode"] == mode].set_index("migration_method")
@@ -162,10 +176,13 @@ def plot_phase_breakdown(
         title="Color: migration phase  |  Left bar: Host  |  Right bar: Direct",
         ncol=3,
     )
-    figure_note = success_note + "\nSegment labels: +/-SD (ms)"
-    add_success_rate_note(ax, figure_note)
-    status_height = 0.25 + 0.05 * figure_note.count("\n")
-    fig.subplots_adjust(left=0.11, right=0.98, bottom=status_height, top=0.69)
+    if show_run_status:
+        figure_note = success_note + "\nSegment labels: +/-SD (ms)"
+        add_success_rate_note(ax, figure_note)
+        bottom = 0.25 + 0.05 * figure_note.count("\n")
+    else:
+        bottom = 0.18
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=bottom, top=0.69)
     save_current_figure(output_file)
     print(f"✓ Saved: {output_file}")
     plt.close()
