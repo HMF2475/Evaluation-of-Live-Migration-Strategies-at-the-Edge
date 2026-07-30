@@ -87,6 +87,17 @@ def main() -> int:
         help="Render the phase breakdown with a square publication layout.",
     )
     parser.add_argument(
+        "--phase-hide-legend-title",
+        action="store_true",
+        help="Show only the phase labels in the phase-breakdown legend.",
+    )
+    parser.add_argument(
+        "--phase-legend-fontsize",
+        type=int,
+        default=None,
+        help="Override the phase-breakdown legend label size in points.",
+    )
+    parser.add_argument(
         "--transfer-phase-color-scheme",
         choices=["default", "nato"],
         default="default",
@@ -160,6 +171,8 @@ def main() -> int:
         show_run_status=not args.hide_phase_run_status,
         transfer_mode=args.phase_transfer_mode,
         square=args.phase_square,
+        show_legend_title=not args.phase_hide_legend_title,
+        legend_fontsize=args.phase_legend_fontsize,
     )
     plot_transfer_analysis(
         str(filtered_csv),

@@ -45,6 +45,8 @@ def plot_phase_breakdown(
     show_run_status: bool = True,
     transfer_mode: str | None = None,
     square: bool = False,
+    show_legend_title: bool = True,
+    legend_fontsize: int | None = None,
 ):
     """
     Create phase breakdown stacked bar chart.
@@ -185,19 +187,32 @@ def plot_phase_breakdown(
     ax.set_xticklabels(methods, rotation=0)
     ax.tick_params(axis="both", labelsize=15 + font_offset)
     handles, labels = ax.get_legend_handles_labels()
-    legend_title = "Color: migration phase"
-    if transfer_mode:
-        legend_title += f"  |  {transfer_mode.title()} transfer mode"
-    else:
-        legend_title += "  |  Left bar: Host  |  Right bar: Direct"
+    if square and not show_legend_title:
+        labels = [
+            "transfer\n(excl. setup)" if label == "transfer (excl. setup)" else label
+            for label in labels
+        ]
+    legend_title = None
+    if show_legend_title:
+        legend_title = "Color: migration phase"
+        if transfer_mode:
+            legend_title += f"  |  {transfer_mode.title()} transfer mode"
+        else:
+            legend_title += "  |  Left bar: Host  |  Right bar: Direct"
+    effective_legend_fontsize = (
+        legend_fontsize if legend_fontsize is not None else (12 if square else 14)
+    )
     place_figure_legend(
         fig,
         handles,
         labels,
         title=legend_title,
         ncol=3,
-        fontsize=12 if square else 14,
+        fontsize=effective_legend_fontsize,
         title_fontsize=13 if square else 15,
+        handlelength=1.0 if square and not show_legend_title else 2.0,
+        columnspacing=0.8 if square and not show_legend_title else 2.0,
+        handletextpad=0.4 if square and not show_legend_title else 0.8,
     )
     if show_run_status:
         figure_note = success_note + "\nSegment labels: +/-SD (ms)"
@@ -205,7 +220,7 @@ def plot_phase_breakdown(
         bottom = 0.25 + 0.05 * figure_note.count("\n")
     else:
         bottom = 0.18
-    top = 0.76 if square else 0.69
+    top = 0.82 if square and not show_legend_title else (0.76 if square else 0.69)
     fig.subplots_adjust(
         left=0.16 if square else 0.11, right=0.98, bottom=bottom, top=top
     )
