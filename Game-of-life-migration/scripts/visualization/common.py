@@ -372,6 +372,8 @@ def annotate_segment_std(
     height: float,
     std: float,
     y_upper: float,
+    *,
+    fontsize_offset: float = 0,
 ) -> None:
     if height <= 0:
         return
@@ -380,14 +382,14 @@ def annotate_segment_std(
     if height >= min_inside_height:
         y = bottom + height / 2
         va = "center"
-        fontsize = 8
+        fontsize = 8 + fontsize_offset
         pad = 1.2
     else:
         # Thin stacked segments still deserve labels, but the normal label box
         # can collide with the next segment. Keep them inside, compactly.
         y = bottom + height / 2
         va = "center"
-        fontsize = 6.5
+        fontsize = 6.5 + fontsize_offset
         pad = 0.35
 
     ax.text(
@@ -413,6 +415,8 @@ def annotate_segment_stds(
     ax: plt.Axes,
     records: list[tuple[float, float, float, float]],
     y_upper: float,
+    *,
+    fontsize_offset: float = 0,
 ) -> None:
     """Draw every finite SD without making thin segments look larger."""
     min_inside_height = y_upper * 0.045
@@ -422,7 +426,15 @@ def annotate_segment_stds(
         if not math.isfinite(std) or std <= 0:
             continue
         if height >= min_inside_height:
-            annotate_segment_std(ax, x, bottom, height, std, y_upper)
+            annotate_segment_std(
+                ax,
+                x,
+                bottom,
+                height,
+                std,
+                y_upper,
+                fontsize_offset=fontsize_offset,
+            )
         else:
             thin_by_bar.setdefault(round(x, 6), []).append((x, bottom, height, std))
 
@@ -458,7 +470,7 @@ def annotate_segment_stds(
                 xytext=(label_x, label_y),
                 ha="right" if direction < 0 else "left",
                 va="center",
-                fontsize=7.2,
+                fontsize=7.2 + fontsize_offset,
                 color="#222222",
                 bbox={
                     "facecolor": "white",

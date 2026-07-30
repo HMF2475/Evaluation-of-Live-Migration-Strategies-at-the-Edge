@@ -192,12 +192,19 @@ def plot_transfer_phase_breakdown(
     if max_top > 0:
         y_upper = max_top * 1.14
         ax.set_ylim(top=y_upper)
-        annotate_segment_stds(ax, label_records, y_upper)
-    ax.set_xlabel("Migration Method")
-    ax.set_ylabel("Transfer time (ms)")
+        annotate_segment_stds(
+            ax,
+            label_records,
+            y_upper,
+            fontsize_offset=2 if square else 0,
+        )
+    font_offset = 2 if square else 0
+    ax.set_xlabel("Migration Method", fontsize=17 + font_offset)
+    ax.set_ylabel("Transfer time (ms)", fontsize=17 + font_offset)
     format_plain_axes(ax, "y")
     ax.set_xticks(x)
     ax.set_xticklabels(methods, rotation=0)
+    ax.tick_params(axis="both", labelsize=15 + font_offset)
     handles, legend_labels = ax.get_legend_handles_labels()
     legend_title = "Color: transfer subphase"
     if transfer_mode:
@@ -210,8 +217,8 @@ def plot_transfer_phase_breakdown(
         legend_labels,
         title=legend_title,
         ncol=5,
-        fontsize=10 if square else 14,
-        title_fontsize=11 if square else 15,
+        fontsize=12 if square else 14,
+        title_fontsize=13 if square else 15,
     )
     if show_run_status:
         figure_note = success_note + "\nSegment labels: +/-SD (ms)"
