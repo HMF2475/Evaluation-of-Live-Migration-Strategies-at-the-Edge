@@ -67,6 +67,7 @@ def plot_transfer_phase_breakdown(
     show_run_status: bool = True,
     transfer_mode: str | None = None,
     square: bool = False,
+    show_legend_title: bool = True,
 ) -> None:
     if not Path(csv_file).exists():
         print(f"ERROR: CSV file not found: {csv_file}")
@@ -206,11 +207,13 @@ def plot_transfer_phase_breakdown(
     ax.set_xticklabels(methods, rotation=0)
     ax.tick_params(axis="both", labelsize=15 + font_offset)
     handles, legend_labels = ax.get_legend_handles_labels()
-    legend_title = "Color: transfer subphase"
-    if transfer_mode:
-        legend_title += f"  |  {transfer_mode.title()} transfer mode"
-    else:
-        legend_title += "  |  Left bar: Host  |  Right bar: Direct"
+    legend_title = None
+    if show_legend_title:
+        legend_title = "Color: transfer subphase"
+        if transfer_mode:
+            legend_title += f"  |  {transfer_mode.title()} transfer mode"
+        else:
+            legend_title += "  |  Left bar: Host  |  Right bar: Direct"
     place_figure_legend(
         fig,
         handles,
@@ -226,7 +229,7 @@ def plot_transfer_phase_breakdown(
         bottom = 0.25 + 0.05 * figure_note.count("\n")
     else:
         bottom = 0.18
-    top = 0.76 if square else 0.66
+    top = 0.82 if square and not show_legend_title else (0.76 if square else 0.66)
     fig.subplots_adjust(
         left=0.16 if square else 0.11, right=0.98, bottom=bottom, top=top
     )

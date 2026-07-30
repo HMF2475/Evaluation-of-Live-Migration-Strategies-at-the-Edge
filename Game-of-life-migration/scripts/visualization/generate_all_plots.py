@@ -119,6 +119,11 @@ def main() -> int:
         action="store_true",
         help="Render the transfer phase breakdown with a square publication layout.",
     )
+    parser.add_argument(
+        "--transfer-phase-hide-legend-title",
+        action="store_true",
+        help="Show only the subphase labels in the transfer-phase legend.",
+    )
 
     args = parser.parse_args()
 
@@ -187,6 +192,7 @@ def main() -> int:
         show_run_status=not args.hide_transfer_phase_run_status,
         transfer_mode=args.transfer_phase_transfer_mode,
         square=args.transfer_phase_square,
+        show_legend_title=not args.transfer_phase_hide_legend_title,
     )
     plot_node_exporter_summary(
         str(filtered_csv),
